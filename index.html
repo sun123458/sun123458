@@ -3,74 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>虚拟教室平台</title>
+    <title>虚拟教室平台原型</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- 主容器 -->
     <div class="app-container">
-        <header class="header">
-            <div class="header-left">
-                <h1>虚拟教室</h1>
-                <span class="class-name">数学课 - 第一节</span>
-            </div>
-            <div class="header-right">
-                <button id="recordBtn" class="record-btn">
-                    <span class="record-icon"></span>
-                    <span class="record-text">录制</span>
-                </button>
-                <button id="shareBtn" class="share-btn">共享屏幕</button>
+        <!-- 顶部导航栏 -->
+        <header class="top-bar">
+            <div class="logo">📚 虚拟教室</div>
+            <div class="controls">
+                <button id="recordBtn" class="btn-record">🔴 开始录制</button>
+                <button id="shareBtn" class="btn-share">📤 屏幕共享</button>
             </div>
         </header>
 
-        <div class="main-content">
-            <aside class="sidebar-left">
+        <!-- 主要内容区 -->
+        <main class="main-content">
+            <!-- 白板区域 -->
+            <section class="whiteboard-section">
+                <div class="whiteboard-header">
+                    <h2>共享白板</h2>
+                    <div class="whiteboard-tools">
+                        <button class="tool-btn active" data-tool="pen">✏️ 画笔</button>
+                        <button class="tool-btn" data-tool="eraser">🧽 橡皮擦</button>
+                        <button class="tool-btn" data-tool="clear">🗑️ 清空</button>
+                        <input type="color" id="colorPicker" value="#000000" class="color-picker">
+                        <input type="range" id="brushSize" min="1" max="20" value="3" class="brush-size">
+                    </div>
+                </div>
+                <canvas id="whiteboard" class="whiteboard"></canvas>
+            </section>
+
+            <!-- 侧边栏 -->
+            <aside class="sidebar">
+                <!-- 参与者列表 -->
                 <div class="participants-section">
-                    <h3>参与者</h3>
+                    <div class="section-header">
+                        <h3>参与者 (<span id="participantCount">4</span>)</h3>
+                    </div>
                     <ul class="participants-list" id="participantsList">
-                        <li class="participant active">
+                        <li class="participant online">
                             <span class="avatar">👨‍🏫</span>
-                            <span class="name">老师</span>
-                            <span class="status online">在线</span>
+                            <div class="participant-info">
+                                <span class="name">张老师</span>
+                                <span class="role">主持人</span>
+                            </div>
+                            <span class="status online-status">在线</span>
                         </li>
-                        <li class="participant">
-                            <span class="avatar">👩‍🎓</span>
-                            <span class="name">学生1</span>
-                            <span class="status online">在线</span>
-                        </li>
-                        <li class="participant">
+                        <li class="participant online">
                             <span class="avatar">👨‍🎓</span>
-                            <span class="name">学生2</span>
-                            <span class="status online">在线</span>
+                            <div class="participant-info">
+                                <span class="name">李明</span>
+                                <span class="role">学生</span>
+                            </div>
+                            <span class="status online-status">在线</span>
                         </li>
                         <li class="participant">
                             <span class="avatar">👩‍🎓</span>
-                            <span class="name">学生3</span>
-                            <span class="status offline">离线</span>
+                            <div class="participant-info">
+                                <span class="name">王芳</span>
+                                <span class="role">学生</span>
+                            </div>
+                            <span class="status offline-status">离线</span>
+                        </li>
+                        <li class="participant online">
+                            <span class="avatar">👨‍🎓</span>
+                            <div class="participant-info">
+                                <span class="name">赵伟</span>
+                                <span class="role">学生</span>
+                            </div>
+                            <span class="status online-status">在线</span>
                         </li>
                     </ul>
                 </div>
-            </aside>
 
-            <main class="whiteboard-section">
-                <div class="whiteboard-toolbar">
-                    <button class="tool-btn active" data-tool="pen" title="画笔">✏️</button>
-                    <button class="tool-btn" data-tool="eraser" title="橡皮擦">🧹</button>
-                    <input type="color" id="colorPicker" value="#000000" title="颜色">
-                    <input type="range" id="brushSize" min="1" max="20" value="3" title="画笔大小">
-                    <button class="tool-btn" id="clearBtn" title="清除">🗑️</button>
-                </div>
-                <div class="whiteboard-container" id="whiteboardContainer">
-                    <canvas id="whiteboard"></canvas>
-                    <div class="selection-box" id="selectionBox"></div>
-                </div>
-            </main>
-
-            <aside class="sidebar-right">
+                <!-- 聊天区域 -->
                 <div class="chat-section">
-                    <h3>聊天</h3>
+                    <div class="section-header">
+                        <h3>聊天</h3>
+                    </div>
                     <div class="chat-messages" id="chatMessages">
                         <div class="message system">
+                            <span class="message-time">10:00</span>
                             <span class="message-content">欢迎来到虚拟教室！</span>
+                        </div>
+                        <div class="message">
+                            <span class="message-sender">张老师:</span>
+                            <span class="message-content">大家好，今天我们学习Canvas的基本用法 🎨</span>
+                            <span class="message-time">10:01</span>
+                        </div>
+                        <div class="message">
+                            <span class="message-sender">李明:</span>
+                            <span class="message-content">好的老师！👍</span>
+                            <span class="message-time">10:02</span>
                         </div>
                     </div>
                     <div class="emoji-picker" id="emojiPicker">
@@ -79,15 +105,35 @@
                         <button class="emoji-btn">❤️</button>
                         <button class="emoji-btn">🎉</button>
                         <button class="emoji-btn">🤔</button>
-                        <button class="emoji-btn">👋</button>
+                        <button class="emoji-btn">👏</button>
+                        <button class="emoji-btn">🙏</button>
+                        <button class="emoji-btn">💡</button>
                     </div>
-                    <div class="chat-input">
-                        <input type="text" id="chatInput" placeholder="输入消息...">
-                        <button id="sendBtn">发送</button>
+                    <div class="chat-input-area">
+                        <input type="text" id="chatInput" placeholder="输入消息..." class="chat-input">
+                        <button id="sendBtn" class="send-btn">发送</button>
                     </div>
                 </div>
             </aside>
+        </main>
+    </div>
+
+    <!-- 屏幕共享区域选择器 -->
+    <div id="shareAreaSelector" class="share-area-selector hidden">
+        <div class="selector-overlay">
+            <div class="selector-instructions">
+                <p>拖动选择要共享的区域</p>
+                <p>点击确认完成选择</p>
+                <button id="cancelShare" class="btn-cancel">取消</button>
+                <button id="confirmShare" class="btn-confirm">确认共享</button>
+            </div>
         </div>
+    </div>
+
+    <!-- 录制指示器 -->
+    <div id="recordIndicator" class="record-indicator hidden">
+        <span class="record-dot"></span>
+        <span class="record-text">录制中</span>
     </div>
 
     <script src="script.js"></script>

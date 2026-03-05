@@ -1,357 +1,408 @@
+// 虚拟教室平台主脚本
+
 class VirtualClassroom {
     constructor() {
+        this.initializeWhiteboard();
+        this.initializeChat();
+        this.initializeControls();
+        this.initializeScreenShare();
+        this.initializeRecording();
+        this.initializeParticipants();
+        this.setupEventListeners();
+        this.setupTouchSupport();
+    }
+
+    // 白板初始化
+    initializeWhiteboard() {
         this.canvas = document.getElementById('whiteboard');
         this.ctx = this.canvas.getContext('2d');
         this.isDrawing = false;
+        this.lastX = 0;
+        this.lastY = 0;
         this.currentTool = 'pen';
         this.currentColor = '#000000';
         this.brushSize = 3;
-        this.lastX = 0;
-        this.lastY = 0;
-        this.isRecording = false;
-        this.isSharing = false;
-        this.selectionBox = document.getElementById('selectionBox');
-        this.isSelecting = false;
-        this.selectionStart = { x: 0, y: 0 };
-        
-        this.initCanvas();
-        this.initEventListeners();
-        this.initChat();
-        this.initRecording();
-        this.initScreenShare();
-    }
+        this.drawings = []; // 存储绘图历史
 
-    initCanvas() {
+        // 调整画布大小
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
-        
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+
+        // 白板工具事件
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.handleToolClick(e));
+        });
+
+        // 颜色选择器
+        const colorPicker = document.getElementById('colorPicker');
+        colorPicker.addEventListener('change', (e) => {
+            this.currentColor = e.target.value;
+        });
+
+        // 画笔大小
+        const brushSize = document.getElementById('brushSize');
+        brushSize.addEventListener('input', (e) => {
+            this.brushSize = parseInt(e.target.value);
+        });
     }
 
+    // 调整画布大小
     resizeCanvas() {
-        const container = document.getElementById('whiteboardContainer');
+        const container = this.canvas.parentElement;
         const rect = container.getBoundingClientRect();
-        
+
+        // 保存当前画布内容
         const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
-        
+
+        this.canvas.width = rect.width - 2; // 减去边框
+        this.canvas.height = rect.height - 68; // 减去头部高度
+
+        // 恢复画布内容
         this.ctx.putImageData(imageData, 0, 0);
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+
+        // 重新设置画笔样式
+        this.updateBrushStyle();
     }
 
-    initEventListeners() {
+    // 更新画笔样式
+    updateBrushStyle() {
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = this.currentColor;
+        this.ctx.lineWidth = this.brushSize;
+    }
+
+    // 处理工具点击
+    handleToolClick(e) {
+        const tool = e.target.closest('.tool-btn').dataset.tool;
+
+        // 移除所有活动状态
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // 添加活动状态
+        e.target.closest('.tool-btn').classList.add('active');
+
+        if (tool === 'clear') {
+            this.clearCanvas();
+        } else {
+            this.currentTool = tool;
+        }
+    }
+
+    // 清空画布
+    clearCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.drawings = [];
+        this.updateBrushStyle();
+    }
+
+    // 获取画布坐标
+    getCanvasCoordinates(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+
+    // 开始绘图
+    startDrawing(e) {
+        this.isDrawing = true;
+        const coords = this.getCanvasCoordinates(e);
+        this.lastX = coords.x;
+        this.lastY = coords.y;
+
+        // 如果是点按，绘制一个点
+        if (this.currentTool === 'pen') {
+            this.ctx.beginPath();
+            this.ctx.arc(this.lastX, this.lastY, this.brushSize / 2, 0, Math.PI * 2);
+            this.ctx.fillStyle = this.currentColor;
+            this.ctx.fill();
+        }
+    }
+
+    // 绘图
+    draw(e) {
+        if (!this.isDrawing) return;
+
+        const coords = this.getCanvasCoordinates(e);
+
+        this.updateBrushStyle();
+
+        if (this.currentTool === 'pen') {
+            this.ctx.globalCompositeOperation = 'source-over';
+            this.ctx.strokeStyle = this.currentColor;
+        } else if (this.currentTool === 'eraser') {
+            this.ctx.globalCompositeOperation = 'destination-out';
+            this.ctx.lineWidth = this.brushSize * 3;
+        }
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.lastX, this.lastY);
+        this.ctx.lineTo(coords.x, coords.y);
+        this.ctx.stroke();
+
+        this.lastX = coords.x;
+        this.lastY = coords.y;
+    }
+
+    // 停止绘图
+    stopDrawing() {
+        this.isDrawing = false;
+        this.ctx.globalCompositeOperation = 'source-over';
+
+        // 保存当前状态
+        this.saveCanvasState();
+    }
+
+    // 保存画布状态
+    saveCanvasState() {
+        const imageData = this.canvas.toDataURL();
+        this.drawings.push(imageData);
+    }
+
+    // 设置事件监听器
+    setupEventListeners() {
+        // 鼠标事件
         this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
         this.canvas.addEventListener('mousemove', (e) => this.draw(e));
         this.canvas.addEventListener('mouseup', () => this.stopDrawing());
         this.canvas.addEventListener('mouseout', () => this.stopDrawing());
+    }
 
-        this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e));
-        this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e));
-        this.canvas.addEventListener('touchend', () => this.stopDrawing());
-
-        document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-            btn.addEventListener('click', (e) => this.selectTool(e));
+    // 触摸支持
+    setupTouchSupport() {
+        // 触摸事件
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            this.startDrawing(mouseEvent);
         });
 
-        document.getElementById('colorPicker').addEventListener('change', (e) => {
-            this.currentColor = e.target.value;
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            this.draw(mouseEvent);
         });
 
-        document.getElementById('brushSize').addEventListener('input', (e) => {
-            this.brushSize = parseInt(e.target.value);
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.stopDrawing();
         });
 
-        document.getElementById('clearBtn').addEventListener('click', () => this.clearCanvas());
-    }
-
-    handleTouchStart(e) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const rect = this.canvas.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-        
-        const mouseEvent = new MouseEvent('mousedown', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
+        this.canvas.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            this.stopDrawing();
         });
-        this.startDrawing(mouseEvent);
     }
 
-    handleTouchMove(e) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const rect = this.canvas.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-        
-        const mouseEvent = new MouseEvent('mousemove', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
-        });
-        this.draw(mouseEvent);
-    }
+    // 聊天功能
+    initializeChat() {
+        this.chatMessages = document.getElementById('chatMessages');
+        this.chatInput = document.getElementById('chatInput');
+        this.sendBtn = document.getElementById('sendBtn');
+        this.messages = [];
 
-    startDrawing(e) {
-        if (this.isSharing) {
-            this.startSelection(e);
-            return;
-        }
-        
-        this.isDrawing = true;
-        const rect = this.canvas.getBoundingClientRect();
-        this.lastX = e.clientX - rect.left;
-        this.lastY = e.clientY - rect.top;
-    }
+        // 发送按钮
+        this.sendBtn.addEventListener('click', () => this.sendMessage());
 
-    draw(e) {
-        if (!this.isDrawing) return;
-        
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.lastX, this.lastY);
-        this.ctx.lineTo(x, y);
-        
-        if (this.currentTool === 'eraser') {
-            this.ctx.strokeStyle = '#ffffff';
-            this.ctx.lineWidth = this.brushSize * 3;
-        } else {
-            this.ctx.strokeStyle = this.currentColor;
-            this.ctx.lineWidth = this.brushSize;
-        }
-        
-        this.ctx.stroke();
-        
-        this.lastX = x;
-        this.lastY = y;
-    }
-
-    stopDrawing() {
-        this.isDrawing = false;
-    }
-
-    selectTool(e) {
-        const tool = e.target.dataset.tool;
-        this.currentTool = tool;
-        
-        document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        e.target.classList.add('active');
-    }
-
-    clearCanvas() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    }
-
-    initChat() {
-        const chatInput = document.getElementById('chatInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const emojiButtons = document.querySelectorAll('.emoji-btn');
-
-        sendBtn.addEventListener('click', () => this.sendMessage());
-        
-        chatInput.addEventListener('keypress', (e) => {
+        // 回车发送
+        this.chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.sendMessage();
             }
         });
 
-        emojiButtons.forEach(btn => {
+        // 表情符号按钮
+        document.querySelectorAll('.emoji-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                chatInput.value += btn.textContent;
-                chatInput.focus();
+                this.chatInput.value += btn.textContent;
+                this.chatInput.focus();
             });
         });
     }
 
+    // 发送消息
     sendMessage() {
-        const chatInput = document.getElementById('chatInput');
-        const message = chatInput.value.trim();
-        
-        if (!message) return;
-        
-        const chatMessages = document.getElementById('chatMessages');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message user';
-        messageDiv.innerHTML = `
-            <div class="message-sender">我</div>
-            <div class="message-content">${this.escapeHtml(message)}</div>
-        `;
-        
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        
-        chatInput.value = '';
-        
-        this.saveMessage(message);
-    }
+        const content = this.chatInput.value.trim();
+        if (!content) return;
 
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    saveMessage(message) {
-        const messages = JSON.parse(localStorage.getItem('chatMessages') || '[]');
-        messages.push({
-            content: message,
+        const message = {
             sender: '我',
-            timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('chatMessages', JSON.stringify(messages));
-    }
-
-    loadMessages() {
-        const messages = JSON.parse(localStorage.getItem('chatMessages') || '[]');
-        const chatMessages = document.getElementById('chatMessages');
-        
-        messages.forEach(msg => {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message user';
-            messageDiv.innerHTML = `
-                <div class="message-sender">${msg.sender}</div>
-                <div class="message-content">${this.escapeHtml(msg.content)}</div>
-            `;
-            chatMessages.appendChild(messageDiv);
-        });
-        
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    initRecording() {
-        const recordBtn = document.getElementById('recordBtn');
-        
-        recordBtn.addEventListener('click', () => {
-            this.isRecording = !this.isRecording;
-            
-            if (this.isRecording) {
-                recordBtn.classList.add('recording');
-                recordBtn.querySelector('.record-text').textContent = '停止录制';
-                this.showNotification('开始录制');
-            } else {
-                recordBtn.classList.remove('recording');
-                recordBtn.querySelector('.record-text').textContent = '录制';
-                this.showNotification('录制已停止');
-            }
-        });
-    }
-
-    initScreenShare() {
-        const shareBtn = document.getElementById('shareBtn');
-        
-        shareBtn.addEventListener('click', () => {
-            this.isSharing = !this.isSharing;
-            
-            if (this.isSharing) {
-                document.body.classList.add('sharing-active');
-                shareBtn.textContent = '停止共享';
-                shareBtn.style.background = '#e74c3c';
-                this.canvas.style.cursor = 'crosshair';
-                this.showNotification('请选择要共享的区域');
-            } else {
-                document.body.classList.remove('sharing-active');
-                shareBtn.textContent = '共享屏幕';
-                shareBtn.style.background = '#3498db';
-                this.canvas.style.cursor = 'crosshair';
-                this.selectionBox.style.display = 'none';
-                this.showNotification('屏幕共享已停止');
-            }
-        });
-    }
-
-    startSelection(e) {
-        this.isSelecting = true;
-        const rect = this.canvas.getBoundingClientRect();
-        this.selectionStart = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            content: content,
+            time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
         };
-        
-        this.selectionBox.style.display = 'block';
-        this.selectionBox.style.left = this.selectionStart.x + 'px';
-        this.selectionBox.style.top = this.selectionStart.y + 'px';
-        this.selectionBox.style.width = '0px';
-        this.selectionBox.style.height = '0px';
-        
-        this.canvas.addEventListener('mousemove', this.handleSelectionMove);
-        this.canvas.addEventListener('mouseup', this.handleSelectionEnd);
+
+        this.messages.push(message);
+        this.displayMessage(message);
+        this.chatInput.value = '';
     }
 
-    handleSelectionMove = (e) => {
-        if (!this.isSelecting) return;
-        
-        const rect = this.canvas.getBoundingClientRect();
-        const currentX = e.clientX - rect.left;
-        const currentY = e.clientY - rect.top;
-        
-        const width = Math.abs(currentX - this.selectionStart.x);
-        const height = Math.abs(currentY - this.selectionStart.y);
-        const left = Math.min(currentX, this.selectionStart.x);
-        const top = Math.min(currentY, this.selectionStart.y);
-        
-        this.selectionBox.style.left = left + 'px';
-        this.selectionBox.style.top = top + 'px';
-        this.selectionBox.style.width = width + 'px';
-        this.selectionBox.style.height = height + 'px';
+    // 显示消息
+    displayMessage(message) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message';
+        messageElement.innerHTML = `
+            <span class="message-sender">${message.sender}:</span>
+            <span class="message-content">${message.content}</span>
+            <span class="message-time">${message.time}</span>
+        `;
+
+        this.chatMessages.appendChild(messageElement);
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     }
 
-    handleSelectionEnd = () => {
-        this.isSelecting = false;
-        this.canvas.removeEventListener('mousemove', this.handleSelectionMove);
-        this.canvas.removeEventListener('mouseup', this.handleSelectionEnd);
-        
-        const width = parseInt(this.selectionBox.style.width);
-        const height = parseInt(this.selectionBox.style.height);
-        
-        if (width > 20 && height > 20) {
-            this.showNotification(`已选择区域: ${width}x${height}`);
+    // 初始化控制功能
+    initializeControls() {
+        // 这里可以添加更多控制功能
+    }
+
+    // 屏幕共享功能
+    initializeScreenShare() {
+        this.shareBtn = document.getElementById('shareBtn');
+        this.shareAreaSelector = document.getElementById('shareAreaSelector');
+        this.cancelShare = document.getElementById('cancelShare');
+        this.confirmShare = document.getElementById('confirmShare');
+        this.isSharing = false;
+
+        this.shareBtn.addEventListener('click', () => this.startScreenShare());
+        this.cancelShare.addEventListener('click', () => this.cancelScreenShare());
+        this.confirmShare.addEventListener('click', () => this.confirmScreenShare());
+    }
+
+    // 开始屏幕共享
+    startScreenShare() {
+        if (this.isSharing) {
+            this.stopScreenShare();
+            return;
+        }
+
+        this.shareAreaSelector.classList.add('active');
+        this.shareBtn.textContent = '📤 选择共享区域';
+    }
+
+    // 取消屏幕共享
+    cancelScreenShare() {
+        this.shareAreaSelector.classList.remove('active');
+        this.shareBtn.textContent = '📤 屏幕共享';
+    }
+
+    // 确认屏幕共享
+    confirmScreenShare() {
+        this.shareAreaSelector.classList.remove('active');
+        this.isSharing = true;
+
+        // 添加共享区域高亮效果
+        const whiteboardSection = document.querySelector('.whiteboard-section');
+        whiteboardSection.classList.add('shared-area');
+
+        this.shareBtn.textContent = '📥 停止共享';
+        this.shareBtn.style.background = '#ff6b6b';
+
+        // 添加系统消息
+        this.addSystemMessage('屏幕共享已开始');
+    }
+
+    // 停止屏幕共享
+    stopScreenShare() {
+        this.isSharing = false;
+
+        // 移除共享区域高亮效果
+        const whiteboardSection = document.querySelector('.whiteboard-section');
+        whiteboardSection.classList.remove('shared-area');
+
+        this.shareBtn.textContent = '📤 屏幕共享';
+        this.shareBtn.style.background = '#4ecdc4';
+
+        // 添加系统消息
+        this.addSystemMessage('屏幕共享已结束');
+    }
+
+    // 添加系统消息
+    addSystemMessage(content) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message system';
+        messageElement.innerHTML = `
+            <span class="message-content">${content}</span>
+            <span class="message-time">${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+        `;
+
+        this.chatMessages.appendChild(messageElement);
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+
+    // 录制功能
+    initializeRecording() {
+        this.recordBtn = document.getElementById('recordBtn');
+        this.recordIndicator = document.getElementById('recordIndicator');
+        this.isRecording = false;
+
+        this.recordBtn.addEventListener('click', () => this.toggleRecording());
+    }
+
+    // 切换录制状态
+    toggleRecording() {
+        this.isRecording = !this.isRecording;
+
+        if (this.isRecording) {
+            this.startRecording();
+        } else {
+            this.stopRecording();
         }
     }
 
-    showNotification(message) {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 5px;
-            z-index: 1000;
-            animation: fadeInOut 3s forwards;
-        `;
-        notification.textContent = message;
-        
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeInOut {
-                0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-                10% { opacity: 1; transform: translateX(-50%) translateY(0); }
-                90% { opacity: 1; transform: translateX(-50%) translateY(0); }
-                100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-            }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-            style.remove();
-        }, 3000);
+    // 开始录制
+    startRecording() {
+        this.recordBtn.textContent = '⏹️ 停止录制';
+        this.recordBtn.classList.add('recording');
+        this.recordIndicator.classList.remove('hidden');
+
+        // 添加系统消息
+        this.addSystemMessage('录制已开始');
+    }
+
+    // 停止录制
+    stopRecording() {
+        this.recordBtn.textContent = '🔴 开始录制';
+        this.recordBtn.classList.remove('recording');
+        this.recordIndicator.classList.add('hidden');
+
+        // 添加系统消息
+        this.addSystemMessage('录制已结束');
+    }
+
+    // 参与者功能
+    initializeParticipants() {
+        this.participantsList = document.getElementById('participantsList');
+        this.participantCount = document.getElementById('participantCount');
+        this.participants = [
+            { name: '张老师', role: '主持人', avatar: '👨‍🏫', online: true },
+            { name: '李明', role: '学生', avatar: '👨‍🎓', online: true },
+            { name: '王芳', role: '学生', avatar: '👩‍🎓', online: false },
+            { name: '赵伟', role: '学生', avatar: '👨‍🎓', online: true }
+        ];
+
+        this.updateParticipantCount();
+    }
+
+    // 更新参与者数量
+    updateParticipantCount() {
+        const onlineCount = this.participants.filter(p => p.online).length;
+        this.participantCount.textContent = onlineCount;
     }
 }
 
+// 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
-    new VirtualClassroom();
+    window.virtualClassroom = new VirtualClassroom();
 });
