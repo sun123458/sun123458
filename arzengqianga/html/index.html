@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="ar" content="yes">
+    <title>AR增强现实展厅</title>
+
+    <!-- 样式文件 -->
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/ui.css">
+
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
+    <!-- AR.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/build/ar.js"></script>
+</head>
+<body style="margin: 0px; overflow: hidden;">
+    <!-- 加载界面 -->
+    <div id="loading-screen">
+        <div class="loader"></div>
+        <p>正在加载AR展厅...</p>
+        <div class="loading-tips">
+            <p>💡 提示：请允许摄像头权限以体验AR功能</p>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div id="app-container">
+        <!-- AR场景容器 -->
+        <div id="scene-container"></div>
+
+        <!-- UI层 -->
+        <div id="ui-layer">
+            <!-- 顶部导航栏 -->
+            <header class="header">
+                <h1 class="logo">AR展厅</h1>
+                <nav class="nav-menu">
+                    <button class="nav-btn active" data-section="home">首页</button>
+                    <button class="nav-btn" data-section="exhibits">展品</button>
+                    <button class="nav-btn" data-section="about">关于</button>
+                </nav>
+            </header>
+
+            <!-- 左侧控制面板 -->
+            <aside class="control-panel">
+                <h3>控制面板</h3>
+                <div class="control-group">
+                    <label>视角控制</label>
+                    <button id="btn-reset-view" class="control-btn">重置视角</button>
+                    <button id="btn-auto-rotate" class="control-btn">自动旋转</button>
+                </div>
+                <div class="control-group">
+                    <label>显示设置</label>
+                    <button id="btn-toggle-grid" class="control-btn">显示网格</button>
+                    <button id="btn-toggle-labels" class="control-btn">显示标签</button>
+                </div>
+                <div class="control-group">
+                    <label>场景信息</label>
+                    <div id="scene-info">
+                        <p>FPS: <span id="fps-counter">0</span></p>
+                        <p>对象数量: <span id="object-count">0</span></p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 右侧信息面板 -->
+            <aside class="info-panel" id="info-panel">
+                <h3>展品信息</h3>
+                <div id="exhibit-info" class="info-content">
+                    <p class="placeholder">点击展品查看详情</p>
+                </div>
+                <button id="btn-close-info" class="close-btn">×</button>
+            </aside>
+
+            <!-- 底部状态栏 -->
+            <footer class="status-bar">
+                <div class="status-item">
+                    <span class="status-icon">📷</span>
+                    <span id="camera-status">摄像头未启动</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon">🎯</span>
+                    <span id="marker-status">未检测到标记</span>
+                </div>
+                <div class="status-item">
+                    <button id="btn-help" class="help-btn">帮助</button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- 帮助模态框 -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">×</span>
+            <h2>使用说明</h2>
+            <div class="help-content">
+                <section>
+                    <h3>📱 如何使用AR展厅</h3>
+                    <ol>
+                        <li><strong>启动AR</strong>: 允许浏览器访问摄像头</li>
+                        <li><strong>识别标记</strong>: 将摄像头对准AR标记</li>
+                        <li><strong>浏览展品</strong>: 在AR场景中查看3D展品</li>
+                    </ol>
+                </section>
+                <section>
+                    <h3>🎮 交互控制</h3>
+                    <ul>
+                        <li><strong>点击展品</strong>: 查看展品详细信息</li>
+                        <li><strong>拖拽场景</strong>: 旋转视角</li>
+                        <li><strong>滚轮/双指</strong>: 缩放视图</li>
+                        <li><strong>控制面板</strong>: 调整显示设置</li>
+                    </ol>
+                </section>
+                <section>
+                    <h3>📋 AR标记获取</h3>
+                    <p>您需要下载并打印AR标记图片</p>
+                    <button id="btn-download-marker" class="primary-btn">下载AR标记</button>
+                </section>
+                <section>
+                    <h3>🔧 技术支持</h3>
+                    <p>推荐使用Chrome或Safari浏览器以获得最佳体验</p>
+                    <p>确保设备支持WebGL和摄像头访问</p>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript文件 -->
+    <script src="../js/config.js"></script>
+    <script src="../js/arScene.js"></script>
+    <script src="../js/models.js"></script>
+    <script src="../js/interaction.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/effects.js"></script>
+    <script src="../js/audio.js"></script>
+    <script src="../js/performance.js"></script>
+    <script src="../js/main.js"></script>
+</body>
+</html>
