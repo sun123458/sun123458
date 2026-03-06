@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信聊天</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            background-color: #ededed;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 顶部导航栏 */
+        .chat-header {
+            background-color: #ededed;
+            border-bottom: 1px solid #dcdcdc;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .back-btn {
+            font-size: 20px;
+            cursor: pointer;
+            color: #333;
+        }
+
+        .chat-title {
+            font-size: 17px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .header-right {
+            font-size: 18px;
+            color: #333;
+            cursor: pointer;
+        }
+
+        /* 消息区域 */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background-color: #ededed;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 16px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.received {
+            justify-content: flex-start;
+        }
+
+        .message.sent {
+            justify-content: flex-end;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 10px 14px;
+            border-radius: 4px;
+            position: relative;
+            word-wrap: break-word;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .received .message-content {
+            background-color: #ffffff;
+            margin-left: 10px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .sent .message-content {
+            background-color: #95ec69;
+            margin-right: 10px;
+            border: 1px solid #86d65e;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+            text-align: center;
+        }
+
+        /* 底部输入区域 */
+        .chat-input-area {
+            background-color: #f7f7f7;
+            border-top: 1px solid #dcdcdc;
+            padding: 8px 10px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            font-size: 28px;
+            color: #333;
+            cursor: pointer;
+            padding: 6px 2px;
+            flex-shrink: 0;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            background-color: #ffffff;
+            border-radius: 4px;
+            padding: 8px 10px;
+            min-height: 40px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        #messageInput {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            resize: none;
+            background: transparent;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+
+        .send-btn {
+            background-color: #07c160;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.2s;
+        }
+
+        .send-btn:hover {
+            background-color: #06ad56;
+        }
+
+        .send-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* 滚动条样式 */
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 2px;
+        }
+
+        /* 响应式设计 */
+        @media (min-width: 481px) {
+            .chat-container {
+                height: 90vh;
+                border-radius: 8px;
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- 顶部导航栏 -->
+        <div class="chat-header">
+            <div class="header-left">
+                <span class="back-btn">‹</span>
+                <span class="chat-title">张三</span>
+            </div>
+            <div class="header-right">⋯</div>
+        </div>
+
+        <!-- 消息区域 -->
+        <div class="chat-messages" id="chatMessages">
+            <!-- 时间戳 -->
+            <div class="message-time" id="currentTime"></div>
+
+            <!-- 示例消息 -->
+            <div class="message received">
+                <div class="avatar">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%2395ec69' width='100' height='100'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white'%3E张%3C/text%3E%3C/svg%3E" alt="对方头像">
+                </div>
+                <div class="message-content">
+                    你好，最近怎么样？
+                </div>
+            </div>
+
+            <div class="message sent">
+                <div class="message-content">
+                    挺好的，谢谢关心！
+                </div>
+                <div class="avatar">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%2307c160' width='100' height='100'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white'%3E我%3C/text%3E%3C/svg%3E" alt="我的头像">
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部输入区域 -->
+        <div class="chat-input-area">
+            <span class="icon-btn">🔊</span>
+            <div class="input-wrapper">
+                <textarea
+                    id="messageInput"
+                    placeholder=""
+                    rows="1"
+                    oninput="autoResize(this)"
+                ></textarea>
+            </div>
+            <span class="icon-btn">😊</span>
+            <span class="icon-btn">⊕</span>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // 初始化
+        function init() {
+            updateCurrentTime();
+            scrollToBottom();
+            messageInput.focus();
+        }
+
+        // 更新当前时间
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            document.getElementById('currentTime').textContent = timeStr;
+        }
+
+        // 自动调整输入框高度
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        // 滚动到底部
+        function scrollToBottom() {
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
+        }
+
+        // 发送消息
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // 添加发送的消息
+            addMessage(message, 'sent');
+
+            // 清空输入框
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+
+            // 模拟自动回复
+            setTimeout(() => {
+                const replies = [
+                    '好的，收到！',
+                    '👍',
+                    '我知道了',
+                    '好的好的',
+                    '没问题！',
+                    '🤔',
+                    '让我想想...'
+                ];
+                const randomReply = replies[Math.floor(Math.random() * replies.length)];
+                addMessage(randomReply, 'received');
+            }, 1000);
+        }
+
+        // 添加消息到聊天界面
+        function addMessage(text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const avatarSvg = type === 'sent'
+                ? "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%2307c160' width='100' height='100'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white'%3E我%3C/text%3E%3C/svg%3E"
+                : "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%2395ec69' width='100' height='100'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white'%3E张%3C/text%3E%3C/svg%3E";
+
+            if (type === 'sent') {
+                messageDiv.innerHTML = `
+                    <div class="message-content">${escapeHtml(text)}</div>
+                    <div class="avatar">
+                        <img src="data:image/svg+xml,${avatarSvg}" alt="我的头像">
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="avatar">
+                        <img src="data:image/svg+xml,${avatarSvg}" alt="对方头像">
+                    </div>
+                    <div class="message-content">${escapeHtml(text)}</div>
+                `;
+            }
+
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        // 转义HTML特殊字符
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 监听回车键发送（Shift+Enter换行）
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
