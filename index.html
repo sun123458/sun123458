@@ -3,393 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>微信聊天</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f5f5f5;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .chat-container {
-            width: 100%;
-            max-width: 480px;
-            height: 100vh;
-            background-color: #ededed;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-
-        /* 顶部导航栏 */
-        .chat-header {
-            background-color: #ededed;
-            border-bottom: 1px solid #dcdcdc;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 100;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .back-btn {
-            font-size: 20px;
-            cursor: pointer;
-            color: #333;
-        }
-
-        .chat-title {
-            font-size: 17px;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .header-right {
-            font-size: 18px;
-            color: #333;
-            cursor: pointer;
-        }
-
-        /* 消息区域 */
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            background-color: #ededed;
-            scroll-behavior: smooth;
-        }
-
-        .message {
-            display: flex;
-            margin-bottom: 16px;
-            animation: fadeIn 0.3s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.received {
-            justify-content: flex-start;
-        }
-
-        .message.sent {
-            justify-content: flex-end;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 4px;
-            flex-shrink: 0;
-            overflow: hidden;
-        }
-
-        .avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .message-content {
-            max-width: 70%;
-            padding: 10px 14px;
-            border-radius: 4px;
-            position: relative;
-            word-wrap: break-word;
-            font-size: 15px;
-            line-height: 1.5;
-        }
-
-        .received .message-content {
-            background-color: #ffffff;
-            margin-left: 10px;
-            border: 1px solid #e5e5e5;
-        }
-
-        .sent .message-content {
-            background-color: #95ec69;
-            margin-right: 10px;
-            border: 1px solid #86d65e;
-        }
-
-        .message-time {
-            font-size: 12px;
-            color: #999;
-            margin-top: 4px;
-            text-align: center;
-        }
-
-        /* 底部输入区域 */
-        .chat-input-area {
-            background-color: #f7f7f7;
-            border-top: 1px solid #dcdcdc;
-            padding: 8px 10px;
-            display: flex;
-            align-items: flex-end;
-            gap: 8px;
-        }
-
-        .icon-btn {
-            font-size: 28px;
-            color: #333;
-            cursor: pointer;
-            padding: 6px 2px;
-            flex-shrink: 0;
-        }
-
-        .input-wrapper {
-            flex: 1;
-            background-color: #ffffff;
-            border-radius: 4px;
-            padding: 8px 10px;
-            min-height: 40px;
-            max-height: 120px;
-            overflow-y: auto;
-        }
-
-        #messageInput {
-            width: 100%;
-            border: none;
-            outline: none;
-            font-size: 16px;
-            resize: none;
-            background: transparent;
-            font-family: inherit;
-            line-height: 1.5;
-        }
-
-        .send-btn {
-            background-color: #07c160;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: background-color 0.2s;
-        }
-
-        .send-btn:hover {
-            background-color: #06ad56;
-        }
-
-        .send-btn:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        /* 滚动条样式 */
-        .chat-messages::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .chat-messages::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 2px;
-        }
-
-        /* 响应式设计 */
-        @media (min-width: 481px) {
-            .chat-container {
-                height: 90vh;
-                border-radius: 8px;
-                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-            }
-        }
-    </style>
+    <title>虚拟教室平台</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="chat-container">
-        <!-- 顶部导航栏 -->
-        <div class="chat-header">
-            <div class="header-left">
-                <span class="back-btn">‹</span>
-                <span class="chat-title">张三</span>
-            </div>
-            <div class="header-right">⋯</div>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="header-left">
+            <h1>虚拟教室</h1>
+            <span id="classStatus" class="status-badge live">直播中</span>
         </div>
-
-        <!-- 消息区域 -->
-        <div class="chat-messages" id="chatMessages">
-            <!-- 时间戳 -->
-            <div class="message-time" id="currentTime"></div>
-
-            <!-- 示例消息 -->
-            <div class="message received">
-                <div class="avatar">
-                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%2395ec69' width='100' height='100'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white'%3E张%3C/text%3E%3C/svg%3E" alt="对方头像">
-                </div>
-                <div class="message-content">
-                    你好，最近怎么样？
-                </div>
-            </div>
-
-            <div class="message sent">
-                <div class="message-content">
-                    挺好的，谢谢关心！
-                </div>
-                <div class="avatar">
-                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%2307c160' width='100' height='100'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white'%3E我%3C/text%3E%3C/svg%3E" alt="我的头像">
-                </div>
+        <div class="header-center">
+            <div class="recording-indicator" id="recordingIndicator">
+                <span class="recording-dot"></span>
+                <span class="recording-text">录制中</span>
             </div>
         </div>
+        <div class="header-right">
+            <button id="recordBtn" class="icon-btn" title="开始录制">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="8"/>
+                </svg>
+            </button>
+            <button id="settingsBtn" class="icon-btn" title="设置">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
 
-        <!-- 底部输入区域 -->
-        <div class="chat-input-area">
-            <span class="icon-btn">🔊</span>
-            <div class="input-wrapper">
-                <textarea
-                    id="messageInput"
-                    placeholder=""
-                    rows="1"
-                    oninput="autoResize(this)"
-                ></textarea>
+    <div class="main-container">
+        <!-- 左侧边栏 - 参与者 -->
+        <aside class="sidebar sidebar-left" id="participantsSidebar">
+            <div class="sidebar-header">
+                <h2>参与者</h2>
+                <span class="participant-count" id="participantCount">4</span>
             </div>
-            <span class="icon-btn">😊</span>
-            <span class="icon-btn">⊕</span>
-            <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
+            <div class="participants-list" id="participantsList">
+                <!-- 参与者列表将由JS生成 -->
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 屏幕共享区域 -->
+            <div class="screen-share-area" id="screenShareArea">
+                <div class="share-placeholder">
+                    <div class="share-border" id="shareBorder"></div>
+                    <div class="share-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" class="share-icon">
+                            <path d="M21 16H3V4h18m0-2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 14H3V4h18v12Z"/>
+                        </svg>
+                        <p>点击此处选择共享区域</p>
+                        <button class="btn btn-primary" id="selectShareAreaBtn">选择共享区域</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 白板工具栏 -->
+            <div class="whiteboard-toolbar">
+                <div class="tool-group">
+                    <button class="tool-btn active" data-tool="pen" title="画笔">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" data-tool="eraser" title="橡皮擦">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.17 20.16c.79.78 2.05.78 2.83 0l11.03-11.03c.79-.78.79-2.05 0-2.83l-2.58-2.58c-.39-.39-.91-.59-1.42-.59m-.01 1.41 2.58 2.58a.996.996 0 0 1 0 1.41L15.54 12 12 8.46l2.41-2.41c.39-.39 1.02-.39 1.41 0M4 16.85l.59-.59 3.59 3.59-.59.59c-.39.39-1.02.39-1.41 0l-2.18-2.18c-.39-.39-.39-1.03 0-1.41M7 13.41l3.59 3.59-4.24 4.24-3.59-3.59L7 13.41z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="tool-divider"></div>
+                <div class="tool-group">
+                    <input type="color" id="colorPicker" value="#000000" class="color-picker" title="颜色选择">
+                    <input type="range" id="brushSize" min="1" max="20" value="3" class="brush-size" title="笔刷大小">
+                </div>
+                <div class="tool-divider"></div>
+                <div class="tool-group">
+                    <button class="tool-btn" id="clearBtn" title="清空白板">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12z"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="undoBtn" title="撤销">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 白板 -->
+            <div class="whiteboard-container">
+                <canvas id="whiteboard"></canvas>
+            </div>
+        </main>
+
+        <!-- 右侧边栏 - 聊天 -->
+        <aside class="sidebar sidebar-right" id="chatSidebar">
+            <div class="sidebar-header">
+                <h2>聊天</h2>
+                <button class="toggle-sidebar" id="toggleChat">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <!-- 聊天消息将由JS生成 -->
+            </div>
+            <div class="emoji-picker" id="emojiPicker">
+                <div class="emoji-grid">
+                    <!-- 表情将由JS生成 -->
+                </div>
+            </div>
+            <div class="chat-input">
+                <button class="emoji-btn" id="emojiBtn" title="表情">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </button>
+                <input type="text" id="messageInput" placeholder="输入消息..." maxlength="500">
+                <button class="send-btn" id="sendBtn" title="发送">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 共享区域选择模态框 -->
+    <div class="modal" id="shareAreaModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>选择共享区域</h3>
+                <button class="modal-close" id="closeModal">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>点击下方按钮模拟选择要共享的区域</p>
+                <div class="area-options">
+                    <button class="area-btn" data-area="whiteboard">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21 16H3V4h18m0-2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 14H3V4h18v12z"/>
+                        </svg>
+                        <span>白板区域</span>
+                    </button>
+                    <button class="area-btn" data-area="screen">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m0 16H3V5h18v14z"/>
+                        </svg>
+                        <span>屏幕区域</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        const chatMessages = document.getElementById('chatMessages');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-
-        // 初始化
-        function init() {
-            updateCurrentTime();
-            scrollToBottom();
-            messageInput.focus();
-        }
-
-        // 更新当前时间
-        function updateCurrentTime() {
-            const now = new Date();
-            const timeStr = now.toLocaleString('zh-CN', {
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            document.getElementById('currentTime').textContent = timeStr;
-        }
-
-        // 自动调整输入框高度
-        function autoResize(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-        }
-
-        // 滚动到底部
-        function scrollToBottom() {
-            setTimeout(() => {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, 100);
-        }
-
-        // 发送消息
-        function sendMessage() {
-            const message = messageInput.value.trim();
-            if (!message) return;
-
-            // 添加发送的消息
-            addMessage(message, 'sent');
-
-            // 清空输入框
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
-
-            // 模拟自动回复
-            setTimeout(() => {
-                const replies = [
-                    '好的，收到！',
-                    '👍',
-                    '我知道了',
-                    '好的好的',
-                    '没问题！',
-                    '🤔',
-                    '让我想想...'
-                ];
-                const randomReply = replies[Math.floor(Math.random() * replies.length)];
-                addMessage(randomReply, 'received');
-            }, 1000);
-        }
-
-        // 添加消息到聊天界面
-        function addMessage(text, type) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${type}`;
-
-            const avatarSvg = type === 'sent'
-                ? "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%2307c160' width='100' height='100'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white'%3E我%3C/text%3E%3C/svg%3E"
-                : "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%2395ec69' width='100' height='100'/%3E%3Ctext x='50' y='60' font-size='50' text-anchor='middle' fill='white'%3E张%3C/text%3E%3C/svg%3E";
-
-            if (type === 'sent') {
-                messageDiv.innerHTML = `
-                    <div class="message-content">${escapeHtml(text)}</div>
-                    <div class="avatar">
-                        <img src="data:image/svg+xml,${avatarSvg}" alt="我的头像">
-                    </div>
-                `;
-            } else {
-                messageDiv.innerHTML = `
-                    <div class="avatar">
-                        <img src="data:image/svg+xml,${avatarSvg}" alt="对方头像">
-                    </div>
-                    <div class="message-content">${escapeHtml(text)}</div>
-                `;
-            }
-
-            chatMessages.appendChild(messageDiv);
-            scrollToBottom();
-        }
-
-        // 转义HTML特殊字符
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // 监听回车键发送（Shift+Enter换行）
-        messageInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // 页面加载完成后初始化
-        window.addEventListener('load', init);
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>

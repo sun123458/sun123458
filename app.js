@@ -1,563 +1,631 @@
-// 虚拟教室应用 - 主应用逻辑
-class VirtualClassroom {
+// ===== 应用状态管理 =====
+class AppState {
     constructor() {
-        this.initializeCanvas();
-        this.initializeWhiteboard();
-        this.initializeChat();
-        this.initializeScreenShare();
-        this.initializeRecording();
-        this.handleResize();
-    }
-
-    // ==================== 初始化画布 ====================
-    initializeCanvas() {
-        this.canvas = document.getElementById('whiteboard');
-        this.ctx = this.canvas.getContext('2d');
-        this.canvasContainer = document.getElementById('canvasContainer');
-
-        // 画布状态
+        this.isRecording = false;
+        this.sharedArea = null;
+        this.currentTool = 'pen';
+        this.strokeColor = '#000000';
+        this.brushSize = 3;
         this.isDrawing = false;
         this.lastX = 0;
         this.lastY = 0;
-
-        // 工具设置
-        this.currentTool = 'pen';
-        this.currentColor = '#000000';
-        this.brushSize = 3;
-
-        // 绘图历史（用于撤销功能）
-        this.drawingHistory = [];
+        this.drawHistory = [];
         this.currentPath = [];
 
+        // 参与者数据
+        this.participants = [
+            { id: 1, name: '老师', avatar: '老', status: 'host', muted: false, speaking: false },
+            { id: 2, name: '小明', avatar: '明', status: 'online', muted: true, speaking: false },
+            { id: 3, name: '小红', avatar: '红', status: 'online', muted: false, speaking: true },
+            { id: 4, name: '小刚', avatar: '刚', status: 'online', muted: false, speaking: false }
+        ];
+
+        // 聊天消息
+        this.messages = [
+            { id: 1, userId: 1, userName: '老师', content: '欢迎大家来到今天的课程！', time: '14:00', isSelf: false },
+            { id: 2, userId: 2, userName: '小明', content: '老师好！', time: '14:01', isSelf: false },
+            { id: 3, userId: 3, userName: '小红', content: '很高兴参加', time: '14:02', isSelf: true }
+        ];
+
+        // 当前用户
+        this.currentUser = { id: 3, name: '小红', avatar: '红' };
+
+        // 表情列表
+        this.emojis = ['😀', '😂', '🥰', '😍', '🤔', '👍', '👏', '🙏', '💯', '❤️', '🎉', '✨', '📚', '✏️', '🖐️', '👋'];
+    }
+
+    // 添加聊天消息
+    addMessage(content) {
+        const now = new Date();
+        const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        const message = {
+            id: this.messages.length + 1,
+            userId: this.currentUser.id,
+            userName: this.currentUser.name,
+            content: content,
+            time: time,
+            isSelf: true
+        };
+        this.messages.push(message);
+        return message;
+    }
+
+    // 切换录制状态
+    toggleRecording() {
+        this.isRecording = !this.isRecording;
+        return this.isRecording;
+    }
+
+    // 设置共享区域
+    setSharedArea(area) {
+        this.sharedArea = area;
+        return area;
+    }
+
+    // 保存绘图路径
+    savePath(path) {
+        this.drawHistory.push([...path]);
+    }
+
+    // 撤销
+    undo() {
+        return this.drawHistory.pop();
+    }
+}
+
+// 初始化应用状态
+const state = new AppState();
+
+// ===== 白板功能 =====
+class Whiteboard {
+    constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
         this.resizeCanvas();
-        this.setupCanvasEvents();
+        this.setupEventListeners();
     }
 
     resizeCanvas() {
-        const container = this.canvasContainer;
+        const container = this.canvas.parentElement;
         const rect = container.getBoundingClientRect();
 
-        // 保存当前画布内容
-        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        // 设置实际画布大小（考虑高DPI屏幕）
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = rect.width * dpr;
+        this.canvas.height = rect.height * dpr;
 
-        // 调整画布大小
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
+        // 缩放上下文
+        this.ctx.scale(dpr, dpr);
 
-        // 恢复画布内容
-        this.ctx.putImageData(imageData, 0, 0);
+        // 设置显示大小
+        this.canvas.style.width = rect.width + 'px';
+        this.canvas.style.height = rect.height + 'px';
 
-        // 更新画布信息显示
-        document.getElementById('canvasSize').textContent = `${Math.round(rect.width)} x ${Math.round(rect.height)} px`;
+        // 设置线条样式
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+
+        // 重绘历史
+        this.redrawHistory();
     }
 
-    // ==================== 白板功能 ====================
-    initializeWhiteboard() {
-        // 工具按钮
-        document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.currentTool = btn.dataset.tool;
-                document.getElementById('currentTool').textContent = `当前工具: ${this.getToolName(this.currentTool)}`;
-            });
-        });
-
-        // 颜色选择器
-        const colorPicker = document.getElementById('colorPicker');
-        colorPicker.addEventListener('input', (e) => {
-            this.currentColor = e.target.value;
-        });
-
-        // 笔刷大小
-        const brushSize = document.getElementById('brushSize');
-        brushSize.addEventListener('input', (e) => {
-            this.brushSize = parseInt(e.target.value);
-        });
-
-        // 清空按钮
-        document.getElementById('clearBtn').addEventListener('click', () => {
-            if (confirm('确定要清空白板吗？')) {
-                this.clearCanvas();
-            }
-        });
-    }
-
-    getToolName(tool) {
-        const names = {
-            'pen': '画笔',
-            'eraser': '橡皮擦',
-            'line': '直线',
-            'rectangle': '矩形',
-            'circle': '圆形'
-        };
-        return names[tool] || tool;
-    }
-
-    // ==================== 画布事件处理 ====================
-    setupCanvasEvents() {
+    setupEventListeners() {
         // 鼠标事件
         this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
         this.canvas.addEventListener('mousemove', (e) => this.draw(e));
         this.canvas.addEventListener('mouseup', () => this.stopDrawing());
         this.canvas.addEventListener('mouseout', () => this.stopDrawing());
 
-        // 触摸事件（移动设备支持）
+        // 触摸事件
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
-            const mouseEvent = new MouseEvent('mousedown', {
-                clientX: touch.clientX,
-                clientY: touch.clientY
-            });
-            this.canvas.dispatchEvent(mouseEvent);
-        });
+            this.startDrawing(touch);
+        }, { passive: false });
 
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
-            const mouseEvent = new MouseEvent('mousemove', {
-                clientX: touch.clientX,
-                clientY: touch.clientY
-            });
-            this.canvas.dispatchEvent(mouseEvent);
-        });
+            this.draw(touch);
+        }, { passive: false });
 
-        this.canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            const mouseEvent = new MouseEvent('mouseup', {});
-            this.canvas.dispatchEvent(mouseEvent);
+        this.canvas.addEventListener('touchend', () => this.stopDrawing());
+
+        // 窗口大小改变
+        window.addEventListener('resize', () => {
+            clearTimeout(this.resizeTimeout);
+            this.resizeTimeout = setTimeout(() => this.resizeCanvas(), 250);
         });
     }
 
     getCanvasCoordinates(e) {
         const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / (rect.width * (window.devicePixelRatio || 1));
+        const scaleY = this.canvas.height / (rect.height * (window.devicePixelRatio || 1));
         return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
         };
     }
 
     startDrawing(e) {
-        this.isDrawing = true;
+        state.isDrawing = true;
         const coords = this.getCanvasCoordinates(e);
-        this.lastX = coords.x;
-        this.lastY = coords.y;
-
-        if (this.currentTool === 'pen' || this.currentTool === 'eraser') {
-            this.currentPath = [{ x: coords.x, y: coords.y }];
-        }
-
-        // 保存当前状态用于形状绘制
-        this.startX = coords.x;
-        this.startY = coords.y;
-        this.canvasSnapshot = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        state.lastX = coords.x;
+        state.lastY = coords.y;
+        state.currentPath = [{ x: coords.x, y: coords.y, color: state.strokeColor, size: state.brushSize, tool: state.currentTool }];
     }
 
     draw(e) {
-        if (!this.isDrawing) return;
+        if (!state.isDrawing) return;
 
         const coords = this.getCanvasCoordinates(e);
 
-        this.ctx.lineWidth = this.brushSize;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+        this.ctx.beginPath();
+        this.ctx.moveTo(state.lastX, state.lastY);
+        this.ctx.lineTo(coords.x, coords.y);
 
-        switch (this.currentTool) {
-            case 'pen':
-                this.ctx.strokeStyle = this.currentColor;
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.lastX, this.lastY);
-                this.ctx.lineTo(coords.x, coords.y);
-                this.ctx.stroke();
-                this.currentPath.push({ x: coords.x, y: coords.y });
-                break;
-
-            case 'eraser':
-                this.ctx.strokeStyle = '#ffffff';
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.lastX, this.lastY);
-                this.ctx.lineTo(coords.x, coords.y);
-                this.ctx.stroke();
-                break;
-
-            case 'line':
-                this.ctx.putImageData(this.canvasSnapshot, 0, 0);
-                this.ctx.strokeStyle = this.currentColor;
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.startX, this.startY);
-                this.ctx.lineTo(coords.x, coords.y);
-                this.ctx.stroke();
-                break;
-
-            case 'rectangle':
-                this.ctx.putImageData(this.canvasSnapshot, 0, 0);
-                this.ctx.strokeStyle = this.currentColor;
-                this.ctx.strokeRect(
-                    this.startX,
-                    this.startY,
-                    coords.x - this.startX,
-                    coords.y - this.startY
-                );
-                break;
-
-            case 'circle':
-                this.ctx.putImageData(this.canvasSnapshot, 0, 0);
-                this.ctx.strokeStyle = this.currentColor;
-                const radius = Math.sqrt(
-                    Math.pow(coords.x - this.startX, 2) +
-                    Math.pow(coords.y - this.startY, 2)
-                );
-                this.ctx.beginPath();
-                this.ctx.arc(this.startX, this.startY, radius, 0, Math.PI * 2);
-                this.ctx.stroke();
-                break;
+        if (state.currentTool === 'eraser') {
+            this.ctx.globalCompositeOperation = 'destination-out';
+            this.ctx.lineWidth = state.brushSize * 5;
+        } else {
+            this.ctx.globalCompositeOperation = 'source-over';
+            this.ctx.strokeStyle = state.strokeColor;
+            this.ctx.lineWidth = state.brushSize;
         }
 
-        this.lastX = coords.x;
-        this.lastY = coords.y;
+        this.ctx.stroke();
+
+        // 保存路径点
+        state.currentPath.push({ x: coords.x, y: coords.y });
+
+        state.lastX = coords.x;
+        state.lastY = coords.y;
     }
 
     stopDrawing() {
-        if (this.isDrawing) {
-            this.isDrawing = false;
+        if (state.isDrawing && state.currentPath.length > 0) {
+            state.savePath(state.currentPath);
+        }
+        state.isDrawing = false;
+        state.currentPath = [];
+        this.ctx.globalCompositeOperation = 'source-over';
+    }
 
-            // 保存绘图历史
-            if (this.currentPath.length > 0) {
-                this.drawingHistory.push({
-                    tool: this.currentTool,
-                    color: this.currentColor,
-                    size: this.brushSize,
-                    path: [...this.currentPath]
-                });
-                this.currentPath = [];
-            }
+    clear() {
+        const rect = this.canvas.getBoundingClientRect();
+        this.ctx.clearRect(0, 0, rect.width, rect.height);
+        state.drawHistory = [];
+    }
+
+    undo() {
+        if (state.drawHistory.length > 0) {
+            state.drawHistory.pop();
+            this.redrawHistory();
         }
     }
 
-    clearCanvas() {
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.drawingHistory = [];
+    redrawHistory() {
+        const rect = this.canvas.getBoundingClientRect();
+        this.ctx.clearRect(0, 0, rect.width, rect.height);
+
+        state.drawHistory.forEach(path => {
+            if (path.length < 2) return;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(path[0].x, path[0].y);
+
+            for (let i = 1; i < path.length; i++) {
+                this.ctx.lineTo(path[i].x, path[i].y);
+            }
+
+            if (path[0].tool === 'eraser') {
+                this.ctx.globalCompositeOperation = 'destination-out';
+                this.ctx.lineWidth = path[0].size * 5;
+            } else {
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.strokeStyle = path[0].color;
+                this.ctx.lineWidth = path[0].size;
+            }
+
+            this.ctx.stroke();
+        });
+
+        this.ctx.globalCompositeOperation = 'source-over';
     }
 
-    // ==================== 聊天功能 ====================
-    initializeChat() {
-        this.chatMessages = document.getElementById('chatMessages');
-        this.chatInput = document.getElementById('chatInput');
-        this.sendBtn = document.getElementById('sendBtn');
-        this.emojiPanel = document.getElementById('emojiPanel');
-        this.emojiToggle = document.getElementById('emojiToggle');
+    setColor(color) {
+        state.strokeColor = color;
+    }
 
-        // 发送按钮
+    setSize(size) {
+        state.brushSize = size;
+    }
+
+    setTool(tool) {
+        state.currentTool = tool;
+    }
+}
+
+// ===== 聊天功能 =====
+class Chat {
+    constructor() {
+        this.messagesContainer = document.getElementById('chatMessages');
+        this.messageInput = document.getElementById('messageInput');
+        this.sendBtn = document.getElementById('sendBtn');
+        this.emojiBtn = document.getElementById('emojiBtn');
+        this.emojiPicker = document.getElementById('emojiPicker');
+
+        this.setupEventListeners();
+        this.renderMessages();
+        this.renderEmojis();
+    }
+
+    setupEventListeners() {
+        // 发送消息
         this.sendBtn.addEventListener('click', () => this.sendMessage());
 
         // 回车发送
-        this.chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        this.messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 this.sendMessage();
             }
         });
 
-        // 表情面板切换
-        this.emojiToggle.addEventListener('click', () => {
-            this.emojiPanel.classList.toggle('show');
+        // 表情选择器切换
+        this.emojiBtn.addEventListener('click', () => {
+            this.emojiPicker.classList.toggle('active');
+            this.emojiBtn.classList.toggle('active');
+        });
+    }
+
+    renderMessages() {
+        this.messagesContainer.innerHTML = '';
+
+        state.messages.forEach(message => {
+            const messageEl = this.createMessageElement(message);
+            this.messagesContainer.appendChild(messageEl);
         });
 
-        // 表情按钮
-        document.querySelectorAll('.emoji-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.chatInput.value += btn.textContent;
-                this.chatInput.focus();
-            });
-        });
+        this.scrollToBottom();
+    }
 
-        // 清空聊天
-        document.getElementById('clearChatBtn').addEventListener('click', () => {
-            if (confirm('确定要清空聊天记录吗？')) {
-                this.chatMessages.innerHTML = '';
-            }
-        });
+    createMessageElement(message) {
+        const div = document.createElement('div');
+        div.className = `chat-message${message.isSelf ? ' self' : ''}`;
 
-        // 添加一些模拟消息
-        this.addSimulatedMessages();
+        const avatar = document.createElement('div');
+        avatar.className = 'chat-message-avatar';
+        avatar.textContent = message.isSelf ? state.currentUser.avatar : message.userName.charAt(0);
+
+        const content = document.createElement('div');
+        content.className = 'chat-message-content';
+
+        const name = document.createElement('div');
+        name.className = 'chat-message-name';
+        name.textContent = message.userName + (message.isSelf ? ' (我)' : '');
+
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-message-bubble';
+        bubble.textContent = message.content;
+
+        const time = document.createElement('div');
+        time.className = 'chat-message-time';
+        time.textContent = message.time;
+
+        content.appendChild(name);
+        content.appendChild(bubble);
+        content.appendChild(time);
+
+        div.appendChild(avatar);
+        div.appendChild(content);
+
+        return div;
+    }
+
+    renderEmojis() {
+        const grid = this.emojiPicker.querySelector('.emoji-grid');
+        grid.innerHTML = '';
+
+        state.emojis.forEach(emoji => {
+            const emojiEl = document.createElement('div');
+            emojiEl.className = 'emoji-item';
+            emojiEl.textContent = emoji;
+            emojiEl.addEventListener('click', () => this.insertEmoji(emoji));
+            grid.appendChild(emojiEl);
+        });
+    }
+
+    insertEmoji(emoji) {
+        this.messageInput.value += emoji;
+        this.messageInput.focus();
     }
 
     sendMessage() {
-        const message = this.chatInput.value.trim();
-        if (!message) return;
+        const content = this.messageInput.value.trim();
+        if (!content) return;
 
-        this.addChatMessage(message, true);
-        this.chatInput.value = '';
-        this.emojiPanel.classList.remove('show');
+        const message = state.addMessage(content);
+        const messageEl = this.createMessageElement(message);
+        this.messagesContainer.appendChild(messageEl);
 
-        // 模拟其他用户回复
-        this.simulateReply();
-    }
+        this.messageInput.value = '';
+        this.scrollToBottom();
 
-    addChatMessage(content, isSelf = false, sender = '', isSystem = false) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${isSelf ? 'self' : ''} ${isSystem ? 'system' : ''}`;
-
-        const now = new Date();
-        const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-        if (isSystem) {
-            messageDiv.innerHTML = `
-                <span class="message-content">${content}</span>
-                <span class="message-time">${time}</span>
-            `;
-        } else {
-            messageDiv.innerHTML = `
-                <div class="message-header">
-                    <span class="message-sender">${isSelf ? '我' : sender}</span>
-                    <span class="message-time">${time}</span>
-                </div>
-                <div class="message-content">${this.escapeHtml(content)}</div>
-            `;
-        }
-
-        this.chatMessages.appendChild(messageDiv);
-        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-
-        // 保存到本地状态
-        this.saveMessageToLocal(content, isSelf, sender, isSystem);
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    addSimulatedMessages() {
-        const simulatedMessages = [
-            { content: '李明 加入了课堂', isSystem: true },
-            { content: '大家好！', sender: '李明', isSelf: false },
-            { content: '欢迎李明同学 👋', sender: '张老师', isSelf: false },
-            { content: '今天我们学习白板的使用', sender: '张老师', isSelf: false },
-            { content: '好的，老师！', sender: '王芳', isSelf: false }
-        ];
-
-        simulatedMessages.forEach((msg, index) => {
-            setTimeout(() => {
-                if (msg.isSystem) {
-                    this.addChatMessage(msg.content, false, '', true);
-                } else {
-                    this.addChatMessage(msg.content, msg.isSelf, msg.sender);
-                }
-            }, index * 1000);
-        });
+        // 模拟自动回复
+        setTimeout(() => this.simulateReply(), 1000 + Math.random() * 2000);
     }
 
     simulateReply() {
         const replies = [
-            { sender: '张老师', content: '很好！继续加油 💪' },
-            { sender: '王芳', content: '学到了！👍' },
-            { sender: '李明', content: '明白了！✨' }
+            '好的，明白了！',
+            '谢谢分享 😊',
+            '这个观点很有意思',
+            '我也这么想',
+            '学到了！',
+            '👍',
+            '继续加油！'
         ];
 
         const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        const randomUser = state.participants[Math.floor(Math.random() * (state.participants.length - 1))];
 
-        setTimeout(() => {
-            this.addChatMessage(randomReply.content, false, randomReply.sender);
-        }, 1000 + Math.random() * 2000);
+        const now = new Date();
+        const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+        const message = {
+            id: state.messages.length + 1,
+            userId: randomUser.id,
+            userName: randomUser.name,
+            content: randomReply,
+            time: time,
+            isSelf: false
+        };
+
+        state.messages.push(message);
+        const messageEl = this.createMessageElement(message);
+        this.messagesContainer.appendChild(messageEl);
+        this.scrollToBottom();
     }
 
-    // 本地存储聊天消息
-    saveMessageToLocal(content, isSelf, sender, isSystem) {
-        let messages = JSON.parse(localStorage.getItem('chatMessages') || '[]');
-        messages.push({
-            content,
-            isSelf,
-            sender,
-            isSystem,
-            timestamp: Date.now()
+    scrollToBottom() {
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+}
+
+// ===== 参与者列表 =====
+class Participants {
+    constructor() {
+        this.container = document.getElementById('participantsList');
+        this.countEl = document.getElementById('participantCount');
+
+        this.render();
+    }
+
+    render() {
+        this.container.innerHTML = '';
+        this.countEl.textContent = state.participants.length;
+
+        state.participants.forEach(participant => {
+            const el = this.createParticipantElement(participant);
+            this.container.appendChild(el);
         });
-        // 只保留最近100条消息
-        if (messages.length > 100) {
-            messages = messages.slice(-100);
+    }
+
+    createParticipantElement(participant) {
+        const div = document.createElement('div');
+        div.className = `participant-item${participant.speaking ? ' speaking' : ''}`;
+
+        const avatar = document.createElement('div');
+        avatar.className = `participant-avatar${participant.muted ? ' muted' : ''}`;
+        avatar.textContent = participant.avatar;
+
+        const info = document.createElement('div');
+        info.className = 'participant-info';
+
+        const name = document.createElement('div');
+        name.className = 'participant-name';
+        name.textContent = participant.name + (participant.status === 'host' ? ' (老师)' : '');
+
+        const status = document.createElement('div');
+        status.className = `participant-status ${participant.status}`;
+        status.textContent = participant.status === 'host' ? '主持人' : '在线';
+
+        info.appendChild(name);
+        info.appendChild(status);
+
+        div.appendChild(avatar);
+        div.appendChild(info);
+
+        return div;
+    }
+}
+
+// ===== 屏幕共享模拟 =====
+class ScreenShare {
+    constructor() {
+        this.modal = document.getElementById('shareAreaModal');
+        this.selectBtn = document.getElementById('selectShareAreaBtn');
+        this.closeBtn = document.getElementById('closeModal');
+        this.shareBorder = document.getElementById('shareBorder');
+        this.areaBtns = this.modal.querySelectorAll('.area-btn');
+
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        this.selectBtn.addEventListener('click', () => this.openModal());
+        this.closeBtn.addEventListener('click', () => this.closeModal());
+
+        this.areaBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.selectArea(btn.dataset.area));
+        });
+
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) {
+                this.closeModal();
+            }
+        });
+    }
+
+    openModal() {
+        this.modal.classList.add('active');
+    }
+
+    closeModal() {
+        this.modal.classList.remove('active');
+    }
+
+    selectArea(area) {
+        state.setSharedArea(area);
+        this.closeModal();
+
+        // 高亮显示共享区域
+        if (area === 'whiteboard') {
+            this.highlightWhiteboard();
+        } else if (area === 'screen') {
+            this.highlightScreen();
         }
-        localStorage.setItem('chatMessages', JSON.stringify(messages));
-    }
-
-    // ==================== 屏幕共享 ====================
-    initializeScreenShare() {
-        this.screenShareBtn = document.getElementById('screenShareBtn');
-        this.shareModeOverlay = document.getElementById('shareModeOverlay');
-        this.shareSelection = document.getElementById('shareSelection');
-        this.cancelShareBtn = document.getElementById('cancelShareBtn');
-        this.confirmShareBtn = document.getElementById('confirmShareBtn');
-        this.selectionBorder = this.shareSelection.querySelector('.selection-border');
-
-        this.isSharingScreen = false;
-        this.isSelectingArea = false;
-        this.selectionStart = { x: 0, y: 0 };
-        this.selectionEnd = { x: 0, y: 0 };
-
-        this.screenShareBtn.addEventListener('click', () => this.toggleScreenShare());
-        this.cancelShareBtn.addEventListener('click', () => this.cancelScreenShare());
-        this.confirmShareBtn.addEventListener('click', () => this.confirmScreenShare());
-
-        // 区域选择事件
-        this.canvasContainer.addEventListener('mousedown', (e) => this.startSelection(e));
-        this.canvasContainer.addEventListener('mousemove', (e) => this.updateSelection(e));
-        this.canvasContainer.addEventListener('mouseup', () => this.endSelection());
-    }
-
-    toggleScreenShare() {
-        if (this.isSharingScreen) {
-            this.stopScreenShare();
-        } else {
-            this.startScreenShareMode();
-        }
-    }
-
-    startScreenShareMode() {
-        this.isSelectingArea = true;
-        this.shareModeOverlay.classList.add('show');
-        this.canvasContainer.style.cursor = 'crosshair';
-    }
-
-    cancelScreenShare() {
-        this.isSelectingArea = false;
-        this.shareModeOverlay.classList.remove('show');
-        this.shareSelection.classList.remove('active');
-        this.selectionBorder.style.display = 'none';
-        this.canvasContainer.style.cursor = '';
-    }
-
-    startSelection(e) {
-        if (!this.isSelectingArea) return;
-
-        const rect = this.canvasContainer.getBoundingClientRect();
-        this.selectionStart = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        };
-        this.selectionEnd = { ...this.selectionStart };
-    }
-
-    updateSelection(e) {
-        if (!this.isSelectingArea) return;
-
-        const rect = this.canvasContainer.getBoundingClientRect();
-        this.selectionEnd = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        };
-
-        this.updateSelectionBorder();
-    }
-
-    endSelection() {
-        if (!this.isSelectingArea) return;
-        this.updateSelectionBorder();
-    }
-
-    updateSelectionBorder() {
-        const left = Math.min(this.selectionStart.x, this.selectionEnd.x);
-        const top = Math.min(this.selectionStart.y, this.selectionEnd.y);
-        const width = Math.abs(this.selectionEnd.x - this.selectionStart.x);
-        const height = Math.abs(this.selectionEnd.y - this.selectionStart.y);
-
-        if (width > 10 && height > 10) {
-            this.selectionBorder.style.left = left + 'px';
-            this.selectionBorder.style.top = top + 'px';
-            this.selectionBorder.style.width = width + 'px';
-            this.selectionBorder.style.height = height + 'px';
-            this.selectionBorder.style.display = 'block';
-            this.shareSelection.classList.add('active');
-        }
-    }
-
-    confirmScreenShare() {
-        this.isSelectingArea = false;
-        this.isSharingScreen = true;
-        this.shareModeOverlay.classList.remove('show');
 
         // 更新按钮状态
-        this.screenShareBtn.innerHTML = '<span class="icon">⏹</span><span class="btn-text">停止共享</span>';
-        this.screenShareBtn.classList.add('btn-record');
-
-        this.addChatMessage('开始屏幕共享 📺', false, '系统', true);
+        this.selectBtn.textContent = '正在共享: ' + (area === 'whiteboard' ? '白板' : '屏幕');
+        this.selectBtn.classList.add('sharing');
     }
 
-    stopScreenShare() {
-        this.isSharingScreen = false;
-        this.shareSelection.classList.remove('active');
-        this.selectionBorder.style.display = 'none';
+    highlightWhiteboard() {
+        const whiteboard = document.querySelector('.whiteboard-container');
+        whiteboard.style.outline = '3px solid #10b981';
+        whiteboard.style.outlineOffset = '2px';
 
-        // 恢复按钮状态
-        this.screenShareBtn.innerHTML = '<span class="icon">📺</span><span class="btn-text">屏幕共享</span>';
-        this.screenShareBtn.classList.remove('btn-record');
-
-        this.addChatMessage('屏幕共享已结束', false, '系统', true);
+        setTimeout(() => {
+            whiteboard.style.outline = 'none';
+        }, 5000);
     }
 
-    // ==================== 录制功能 ====================
-    initializeRecording() {
-        this.recordBtn = document.getElementById('recordBtn');
-        this.recordingIndicator = document.getElementById('recordingIndicator');
-        this.isRecording = false;
-        this.recordingStartTime = null;
+    highlightScreen() {
+        const screenArea = document.querySelector('.screen-share-area');
+        this.shareBorder.classList.add('active');
 
-        this.recordBtn.addEventListener('click', () => this.toggleRecording());
+        setTimeout(() => {
+            this.shareBorder.classList.remove('active');
+        }, 5000);
+    }
+}
+
+// ===== 录制功能 =====
+class Recorder {
+    constructor() {
+        this.btn = document.getElementById('recordBtn');
+        this.indicator = document.getElementById('recordingIndicator');
+
+        this.btn.addEventListener('click', () => this.toggle());
     }
 
-    toggleRecording() {
-        if (this.isRecording) {
-            this.stopRecording();
+    toggle() {
+        const isRecording = state.toggleRecording();
+
+        if (isRecording) {
+            this.btn.classList.add('active');
+            this.indicator.classList.add('active');
         } else {
-            this.startRecording();
+            this.btn.classList.remove('active');
+            this.indicator.classList.remove('active');
         }
     }
+}
 
-    startRecording() {
-        this.isRecording = true;
-        this.recordingStartTime = Date.now();
+// ===== 白板工具栏 =====
+class Toolbar {
+    constructor(whiteboard) {
+        this.whiteboard = whiteboard;
+        this.toolBtns = document.querySelectorAll('.tool-btn[data-tool]');
+        this.colorPicker = document.getElementById('colorPicker');
+        this.brushSize = document.getElementById('brushSize');
+        this.clearBtn = document.getElementById('clearBtn');
+        this.undoBtn = document.getElementById('undoBtn');
 
-        this.recordBtn.classList.add('recording');
-        this.recordingIndicator.classList.add('show');
-
-        this.addChatMessage('开始录制课程 ⏺', false, '系统', true);
+        this.setupEventListeners();
     }
 
-    stopRecording() {
-        this.isRecording = false;
-        const duration = Date.now() - this.recordingStartTime;
-        const minutes = Math.floor(duration / 60000);
-        const seconds = Math.floor((duration % 60000) / 1000);
+    setupEventListeners() {
+        // 工具切换
+        this.toolBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.toolBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.whiteboard.setTool(btn.dataset.tool);
+            });
+        });
 
-        this.recordBtn.classList.remove('recording');
-        this.recordingIndicator.classList.remove('show');
+        // 颜色选择
+        this.colorPicker.addEventListener('input', (e) => {
+            this.whiteboard.setColor(e.target.value);
+        });
 
-        this.addChatMessage(`录制已结束，时长: ${minutes}:${seconds.toString().padStart(2, '0')}`, false, '系统', true);
-    }
+        // 笔刷大小
+        this.brushSize.addEventListener('input', (e) => {
+            this.whiteboard.setSize(parseInt(e.target.value));
+        });
 
-    // ==================== 响应式处理 ====================
-    handleResize() {
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                this.resizeCanvas();
-            }, 100);
+        // 清空
+        this.clearBtn.addEventListener('click', () => {
+            this.whiteboard.clear();
+        });
+
+        // 撤销
+        this.undoBtn.addEventListener('click', () => {
+            this.whiteboard.undo();
         });
     }
 }
 
-// 初始化应用
-document.addEventListener('DOMContentLoaded', () => {
-    window.virtualClassroom = new VirtualClassroom();
+// ===== 响应式处理 =====
+class ResponsiveHandler {
+    constructor() {
+        this.chatToggle = document.getElementById('toggleChat');
+        this.chatSidebar = document.getElementById('chatSidebar');
 
-    // 欢迎提示
-    setTimeout(() => {
-        console.log('🎓 虚拟教室平台已启动');
-        console.log('功能：');
-        console.log('- 白板绘图（支持触摸）');
-        console.log('- 实时聊天（支持表情）');
-        console.log('- 屏幕共享模拟');
-        console.log('- 录制功能模拟');
-    }, 500);
+        this.chatToggle.addEventListener('click', () => {
+            this.chatSidebar.classList.toggle('active');
+        });
+
+        // 监听屏幕大小变化
+        window.addEventListener('resize', () => this.handleResize());
+        this.handleResize();
+    }
+
+    handleResize() {
+        const width = window.innerWidth;
+        if (width <= 768) {
+            document.body.classList.add('mobile');
+        } else {
+            document.body.classList.remove('mobile');
+            this.chatSidebar.classList.remove('active');
+        }
+    }
+}
+
+// ===== 初始化应用 =====
+document.addEventListener('DOMContentLoaded', () => {
+    // 初始化各个模块
+    const whiteboard = new Whiteboard('whiteboard');
+    const chat = new Chat();
+    const participants = new Participants();
+    const screenShare = new ScreenShare();
+    const recorder = new Recorder();
+    const toolbar = new Toolbar(whiteboard);
+    const responsive = new ResponsiveHandler();
+
+    // 欢迎消息
+    console.log('虚拟教室平台已启动');
+
+    // 模拟参与者状态变化
+    setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * state.participants.length);
+        state.participants.forEach((p, i) => {
+            p.speaking = i === randomIndex && Math.random() > 0.5;
+        });
+        participants.render();
+    }, 5000);
 });
