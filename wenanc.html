@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 文案生成器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ AI 文案生成器</h1>
+            <p class="subtitle">智能生成朋友圈文案、广告语、短文</p>
+        </header>
+
+        <main class="main-content">
+            <!-- 输入区域 -->
+            <section class="input-section">
+                <div class="form-group">
+                    <label for="topic">📝 主题</label>
+                    <input type="text" id="topic" placeholder="例如：春日新品、健身励志、旅行分享..." />
+                </div>
+
+                <div class="form-group">
+                    <label for="style">🎨 风格</label>
+                    <select id="style">
+                        <option value="casual">轻松活泼</option>
+                        <option value="professional">专业正式</option>
+                        <option value="emotional">情感共鸣</option>
+                        <option value="humorous">幽默风趣</option>
+                        <option value="literary">文艺清新</option>
+                        <option value="business">商务高端</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="type">📋 类型</label>
+                    <select id="type">
+                        <option value="moment">朋友圈文案</option>
+                        <option value="ad">广告语</option>
+                        <option value="article">短文</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="length">📏 字数</label>
+                    <div class="length-options">
+                        <button class="length-btn active" data-length="short">短 (20-50字)</button>
+                        <button class="length-btn" data-length="medium">中 (50-100字)</button>
+                        <button class="length-btn" data-length="long">长 (100-200字)</button>
+                    </div>
+                </div>
+
+                <button class="generate-btn" id="generateBtn">
+                    <span>🚀 生成文案</span>
+                </button>
+            </section>
+
+            <!-- 生成结果区域 -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <div class="result-header">
+                    <h2>生成结果</h2>
+                    <div class="result-actions">
+                        <button class="action-btn" id="copyBtn">📋 复制</button>
+                        <button class="action-btn" id="regenerateBtn">🔄 重新生成</button>
+                    </div>
+                </div>
+                <div class="result-content" id="resultContent"></div>
+            </section>
+
+            <!-- 历史记录区域 -->
+            <section class="history-section">
+                <div class="history-header">
+                    <h2>📚 历史记录</h2>
+                    <button class="clear-btn" id="clearHistoryBtn">清空</button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <p class="empty-history">暂无历史记录</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Toast 提示 -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

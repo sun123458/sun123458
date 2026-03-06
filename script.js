@@ -1,289 +1,267 @@
-// 文案生成器主逻辑
-class CopywriterGenerator {
+// AI文案生成器 - 主逻辑
+class CopywriterAI {
     constructor() {
         this.history = this.loadHistory();
-        this.initElements();
-        this.bindEvents();
+        this.selectedLength = 'short';
+        this.init();
+    }
+
+    init() {
+        // 绑定字数选择按钮
+        document.querySelectorAll('.length-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.length-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.selectedLength = e.target.dataset.length;
+            });
+        });
+
+        // 生成按钮
+        document.getElementById('generateBtn').addEventListener('click', () => this.generate());
+
+        // 复制按钮
+        document.getElementById('copyBtn').addEventListener('click', () => this.copyResult());
+
+        // 重新生成按钮
+        document.getElementById('regenerateBtn').addEventListener('click', () => this.generate());
+
+        // 清空历史按钮
+        document.getElementById('clearHistoryBtn').addEventListener('click', () => this.clearHistory());
+
+        // 渲染历史记录
         this.renderHistory();
-    }
-
-    // 初始化DOM元素
-    initElements() {
-        this.topicInput = document.getElementById('topic');
-        this.typeSelect = document.getElementById('type');
-        this.styleSelect = document.getElementById('style');
-        this.lengthSelect = document.getElementById('length');
-        this.generateBtn = document.getElementById('generateBtn');
-        this.resultSection = document.getElementById('resultSection');
-        this.resultText = document.getElementById('resultText');
-        this.resultCard = document.getElementById('resultCard');
-        this.copyBtn = document.getElementById('copyBtn');
-        this.regenerateBtn = document.getElementById('regenerateBtn');
-        this.wordCount = document.getElementById('wordCount');
-        this.historySection = document.getElementById('historySection');
-        this.historyList = document.getElementById('historyList');
-        this.clearHistoryBtn = document.getElementById('clearHistoryBtn');
-        this.toast = document.getElementById('toast');
-    }
-
-    // 绑定事件
-    bindEvents() {
-        this.generateBtn.addEventListener('click', () => this.generate());
-        this.copyBtn.addEventListener('click', () => this.copyResult());
-        this.regenerateBtn.addEventListener('click', () => this.generate());
-        this.clearHistoryBtn.addEventListener('click', () => this.clearHistory());
     }
 
     // 生成文案
     async generate() {
-        const topic = this.topicInput.value.trim();
+        const topic = document.getElementById('topic').value.trim();
+        const style = document.getElementById('style').value;
+        const type = document.getElementById('type').value;
+
         if (!topic) {
-            this.showToast('请输入主题');
-            this.topicInput.focus();
+            this.showToast('请输入文案主题', 'error');
             return;
         }
 
-        // 显示加载状态
-        this.setLoading(true);
+        const generateBtn = document.getElementById('generateBtn');
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span>⏳ 生成中...</span>';
 
-        // 模拟AI生成（实际项目中应调用后端API）
-        const type = this.typeSelect.value;
-        const style = this.styleSelect.value;
-        const length = this.lengthSelect.value;
+        try {
+            // 模拟AI生成（实际使用时替换为真实API调用）
+            const content = await this.simulateGeneration(topic, style, type, this.selectedLength);
 
-        // 模拟网络延迟
-        await this.delay(1000);
+            // 显示结果
+            this.displayResult(content);
 
-        const result = this.generateCopy(topic, type, style, length);
+            // 保存到历史记录
+            this.addToHistory(topic, style, type, this.selectedLength, content);
 
-        // 显示结果
-        this.displayResult(result);
-
-        // 添加到历史记录
-        this.addToHistory(topic, type, style, result);
-
-        // 恢复按钮状态
-        this.setLoading(false);
+            this.showToast('文案生成成功！', 'success');
+        } catch (error) {
+            this.showToast('生成失败，请重试', 'error');
+            console.error(error);
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<span>🚀 生成文案</span>';
+        }
     }
 
-    // 生成文案逻辑（模拟AI）
-    generateCopy(topic, type, style, length) {
-        const typeNames = {
-            moments: '朋友圈文案',
-            ad: '广告语',
-            article: '短文'
+    // 模拟AI生成（示例算法）
+    async simulateGeneration(topic, style, type, length) {
+        // 模拟延迟
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+
+        const styleConfig = {
+            casual: { prefix: '', emoji: '✨', tone: '轻松活泼的' },
+            professional: { prefix: '【干货】', emoji: '💡', tone: '专业的' },
+            emotional: { prefix: '', emoji: '💭', tone: '走心的' },
+            humorous: { prefix: '', emoji: '😄', tone: '幽默的' },
+            literary: { prefix: '', emoji: '🌸', tone: '文艺的' },
+            business: { prefix: '【推介】', emoji: '🎯', tone: '商务的' }
         };
 
-        const styleMap = {
-            casual: '轻松活泼',
-            professional: '专业正式',
-            emotional: '情感共鸣',
-            humorous: '幽默风趣',
-            literary: '文艺清新'
+        const typeConfig = {
+            moment: { name: '朋友圈', short: 30, medium: 75, long: 150 },
+            ad: { name: '广告语', short: 20, medium: 50, long: 100 },
+            article: { name: '短文', short: 50, medium: 100, long: 200 }
         };
 
-        // 根据不同类型和风格生成文案
-        let templates = this.getTemplates(type, style);
+        const config = styleConfig[style];
+        const typeInfo = typeConfig[type];
+        const targetLength = typeInfo[length];
+
+        // 生成模板内容
+        const templates = this.getTemplates(style, type);
         const template = templates[Math.floor(Math.random() * templates.length)];
 
-        let result = template.replace(/{topic}/g, topic);
-        result = this.adjustLength(result, length);
+        let content = template
+            .replace(/\{topic\}/g, topic)
+            .replace(/\{emoji\}/g, config.emoji)
+            .replace(/\{prefix\}/g, config.prefix);
 
-        return result;
+        // 调整长度
+        if (content.length > targetLength * 1.5) {
+            content = content.substring(0, targetLength) + '...';
+        } else if (content.length < targetLength * 0.5) {
+            content += this.getPaddingText(style, targetLength - content.length, topic);
+        }
+
+        return content.trim();
     }
 
-    // 获取文案模板
-    getTemplates(type, style) {
+    // 获取风格模板
+    getTemplates(style, type) {
         const templates = {
-            moments: {
-                casual: [
-                    "今天发现{topic}真的太赞了！强烈推荐给大家～✨",
-                    "分享一个我的新发现：{topic}，用过都说好！",
-                    "生活需要小确幸，{topic}刚好就是我的那个小确幸～"
+            casual: {
+                moment: [
+                    '{prefix}今天{emoji}关于{topic}，想说：生活就是这样，总有意外的惊喜等待着我们！',
+                    '分享一个关于{topic}的小发现{emoji}原来日常中最简单的快乐最珍贵！',
+                    '{topic}打卡Day N{emoji}保持热爱，奔赴山海，每一天都值得被记录✨'
                 ],
-                professional: [
-                    "【行业洞察】{topic}，值得关注的趋势分析。",
-                    "专业推荐：{topic}，品质之选。",
-                    "深度解析：{topic}的核心优势。"
+                ad: [
+                    '{prefix}{topic}，懂你所想{emoji}选它准没错！',
+                    '{topic}来袭{emoji}这波真的可以冲！',
+                    '关于{topic}，我只推荐这个{emoji}用过都说好！'
                 ],
-                emotional: [
-                    "遇见{topic}的那一刻，内心被深深触动了...",
-                    "有些相遇是命中注定，就像我和{topic}。",
-                    "{topic}，让生活多了一份温暖。"
-                ],
-                humorous: [
-                    "本来想低调的，但{topic}真的不允许我低调啊！😂",
-                    "关于{topic}，我有话要说...（省略一万字）",
-                    "别人：... 我：{topic}真香！"
-                ],
-                literary: [
-                    "于千万人之中，遇见{topic}，便是最好的安排。",
-                    "{topic}，如春风拂面般温柔了岁月。",
-                    "在时光的缝隙里，{topic}闪闪发光。"
+                article: [
+                    '{prefix}{topic}：一个小众但值得探索的话题。今天想和大家聊聊，为什么它能在众多选择中脱颖而出。或许答案就在细节中，用心发现，总能找到属于自己的那份独特。'
                 ]
             },
-            ad: {
-                casual: [
-                    "{topic}，年轻人的首选！");
-                    "不吹不黑，{topic}真的很给力！",
-                    "选{topic}，没错的！"
+            professional: {
+                moment: [
+                    '{prefix}关于{topic}的一些思考{emoji}专业角度分享，希望对大家有启发。',
+                    '{topic}深度解析{emoji}基于经验总结的几点核心要点。'
                 ],
-                professional: [
-                    "{topic}——专业值得信赖。",
-                    "品质之选，{topic}。",
-                    "值得托付，{topic}。"
+                ad: [
+                    '{prefix}{topic} - 专业之选，品质保证{emoji}',
+                    '{topic}{emoji}用实力说话，让专业成就价值。'
                 ],
-                emotional: [
-                    "{topic}，懂你所需。",
-                    "用心之作，{topic}守护你。",
-                    "{topic}，温暖每一个瞬间。"
-                ],
-                humorous: [
-                    "{topic}，用了都说好！（亲测有效）",
-                    "别再犹豫了，{topic}就是你的不二之选！",
-                    "{topic}，真香警告！"
-                ],
-                literary: [
-                    "{topic}，品质生活的诗意表达。",
-                    "遇见{topic}，遇见更美好的自己。",
-                    "{topic}，写给生活的情书。"
+                article: [
+                    '{prefix}{topic}的深度解析。从专业视角来看，这个领域正在经历前所未有的变革。本文将为大家详细拆解其核心要点，并提供实践建议，帮助读者更好地理解和应用。'
                 ]
             },
-            article: {
-                casual: [
-                    "说到{topic}，我有太多想分享的了。第一次接触的时候，就被深深吸引了。经过一段时间的使用，我发现它真的改变了我的生活节奏。如果你也在寻找，不妨试试看，相信你会有新的发现。",
-                    "{topic}绝对是近期发现的宝藏。简单来说，它让生活变得更加便捷和美好。强烈推荐给有兴趣的朋友，希望你们也能从中找到属于自己的小确幸。",
-                    "最近在研究{topic}，越深入了解越觉得有意思。它不仅仅是表面上看起来那么简单，背后还有很多值得探索的地方。在这里分享我的心得，希望能给大家一些参考。"
+            emotional: {
+                moment: [
+                    '{topic}让我思考了很久{emoji}有些话，想说给懂的人听。',
+                    '深夜emo时刻{emoji}关于{topic}的一些感悟。',
+                    '{topic}教会我的事{emoji}成长，往往在一瞬间。'
                 ],
-                professional: [
-                    "{topic}在当前市场中展现出强大的竞争力。从专业角度来看，其核心优势在于品质的可靠性和服务的专业度。对于追求高标准的用户而言，这是一个值得信赖的选择。",
-                    "深入分析{topic}，我们可以看到其在专业领域的独特价值。经过多方对比和研究，它在同类别产品中表现突出，能够满足专业用户的高标准要求。",
-                    "{topic}代表了一种专业标准。通过对其特性的分析，我们可以理解为什么它能够获得行业的广泛认可。这是一个成熟而可靠的选择。"
+                ad: [
+                    '{topic}{emoji}触动心弦的选择，只为懂生活的你。',
+                    '有些故事，关于{topic}，也关于你{emoji}'
                 ],
-                emotional: [
-                    "与{topic}的相遇，像是命中注定。在人生的某个路口，它就这样悄然出现，带给了我意想不到的温暖和力量。有时候想，美好的事物总会以最恰当的方式来到我们身边。",
-                    "每当想起{topic}，内心总会涌起一股暖流。它不仅仅是一个选择，更是一种陪伴。在这个快节奏的世界里，能够找到这样的存在，本身就是一种幸运。",
-                    "{topic}让我明白，生活中真正重要的东西往往是那些能够触动人心的细节。它带给我的不仅是实用性，更是一种情感的寄托和心灵的慰藉。"
+                article: [
+                    '{prefix}{topic}，一个值得被温柔对待的话题。在这个快节奏的时代，我们常常忽略了内心的声音。今天，让我们一起慢下来，聊聊那些藏在生活细节里的真实感受。'
+                ]
+            },
+            humorous: {
+                moment: [
+                    '{topic}生存指南{emoji}亲测有效，欢迎翻车！',
+                    '关于{topic}，我悟了{emoji}虽然有点晚。',
+                    '{topic}翻车现场{emoji}下次还敢！'
                 ],
-                humorous: [
-                    "关于{topic}，我本来是不抱什么期望的（别问为什么，问就是命）。结果呢？真香定律再次应验！现在每天不用都不舒服，这算不算是另一种形式的打脸？",
-                    "朋友们都在讨论{topic}，我一开始还觉得是营销噱头。直到亲自试了试...好吧，我撤回之前的质疑。这波是真的服了，推荐指数五颗星！",
-                    "如果早知道{topic}这么好用，我就能少走很多弯路了。不过话说回来，人生就是要不断试错嘛。总之现在它已经成为我生活中不可或缺的一部分了！"
+                ad: [
+                    '{topic}{emoji}要么不出手，一出手就是王者',
+                    '笑死{emoji}关于{topic}的真相是这样的'
                 ],
-                literary: [
-                    "{topic}如同秋日里的一缕暖阳，不张扬却温暖人心。在与它的相处中，我慢慢体会到什么是真正的品质。它教会我，优秀不需要大声喧哗，安静地做好自己就是一种力量。",
-                    "遇见{topic}是一场美丽的意外。它以最优雅的姿态走进我的生活，像一个老朋友，不言不语却懂得我所有的心事。在这个喧嚣的世界里，这样的存在弥足珍贵。",
-                    "{topic}写着一首关于生活的诗。每一个细节都是一行诗句，每一次使用都是一次阅读。它让我明白，最好的作品往往会说话，而我们需要做的，就是静下心来聆听。"
+                article: [
+                    '{prefix}{topic}：一个让人哭笑不得的话题。说起来都是泪，但既然来了，就给大家好好说道说道。保证你看完会心一笑，顺便还学到了点什么。'
+                ]
+            },
+            literary: {
+                moment: [
+                    '{topic}，藏在时光里的诗意{emoji}',
+                    '春日正好，聊聊{topic}{emoji}岁月静好。',
+                    '{topic}如诗{emoji}慢品生活，自有滋味。'
+                ],
+                ad: [
+                    '{topic}{emoji}一份来自时光的礼物。',
+                    '诗意与品质并存{emoji}{topic}，献给生活的艺术家。'
+                ],
+                article: [
+                    '{prefix}{topic}，如一首悠然的诗，在时光里缓缓流淌。它不仅仅是一个话题，更是一种生活态度的表达。让我们一起品味这份宁静与美好，在喧嚣中找到属于自己的那片诗意天地。'
+                ]
+            },
+            business: {
+                moment: [
+                    '{prefix}{topic}商业洞察{emoji}价值驱动，创新引领。',
+                    '关于{topic}的几点思考{emoji}分享给大家，欢迎交流。'
+                ],
+                ad: [
+                    '{prefix}{topic}{emoji}高端品质，值得信赖。',
+                    '{topic}{emoji}为成功者打造的专属选择。'
+                ],
+                article: [
+                    '{prefix}{topic}：从商业角度看，这个领域蕴含着巨大机遇。本文将深入分析市场趋势，剖析成功案例，为从业者和投资者提供有价值的参考与建议。'
                 ]
             }
         };
 
-        return templates[type][style] || templates.moments.casual;
+        return templates[style][type] || templates.casual[type];
     }
 
-    // 调整长度
-    adjustLength(text, length) {
-        const lengthLimits = {
-            short: 50,
-            medium: 150,
-            long: 300
+    // 填充文本以达到目标长度
+    getPaddingText(style, targetLength, topic) {
+        const padding = {
+            casual: ` 更多{topic}相关内容，等你来发掘！`,
+            professional: ` 相关{topic}内容，持续更新中。`,
+            emotional: ` {topic}的故事，未完待续...`,
+            humorous: ` {topic}更多槽点，欢迎补充！`,
+            literary: ` {topic}之美，值得用心品味。`,
+            business: ` {topic}相关，欢迎咨询交流。`
         };
-
-        let currentLength = text.length;
-        const targetLength = lengthLimits[length];
-
-        // 如果当前长度已经符合要求，直接返回
-        if (currentLength <= targetLength) {
-            return text;
-        }
-
-        // 根据长度类型进行裁剪
-        if (length === 'short') {
-            return text.substring(0, targetLength - 3) + '...';
-        } else if (length === 'medium') {
-            // 尝试在句子边界裁剪
-            const sentences = text.split(/[。！？.!?]/);
-            let result = '';
-            for (let sentence of sentences) {
-                if ((result + sentence).length <= targetLength) {
-                    result += sentence + '。';
-                } else {
-                    break;
-                }
-            }
-            return result || text.substring(0, targetLength - 3) + '...';
-        } else {
-            // long：尽量保留完整内容
-            return text;
-        }
+        return padding[style] || padding.casual;
     }
 
     // 显示结果
-    displayResult(text) {
-        this.resultText.textContent = text;
-        this.resultSection.style.display = 'block';
+    displayResult(content) {
+        const resultSection = document.getElementById('resultSection');
+        const resultContent = document.getElementById('resultContent');
+
+        resultContent.textContent = content;
+        resultSection.style.display = 'block';
 
         // 滚动到结果区域
-        this.resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-        // 更新字数
-        this.updateWordCount(text);
-    }
-
-    // 更新字数
-    updateWordCount(text) {
-        const count = text.length;
-        this.wordCount.textContent = `字数：${count}`;
+        resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // 复制结果
     async copyResult() {
-        const text = this.resultText.textContent;
+        const content = document.getElementById('resultContent').textContent;
+
         try {
-            await navigator.clipboard.writeText(text);
-            this.showToast('复制成功！');
+            await navigator.clipboard.writeText(content);
+            this.showToast('已复制到剪贴板！', 'success');
         } catch (err) {
             // 降级方案
             const textarea = document.createElement('textarea');
-            textarea.value = text;
+            textarea.value = content;
             document.body.appendChild(textarea);
             textarea.select();
             document.execCommand('copy');
             document.body.removeChild(textarea);
-            this.showToast('复制成功！');
+            this.showToast('已复制到剪贴板！', 'success');
         }
     }
 
-    // 添加到历史记录
-    addToHistory(topic, type, style, text) {
-        const typeNames = {
-            moments: '朋友圈',
-            ad: '广告语',
-            article: '短文'
-        };
-
-        const styleNames = {
-            casual: '轻松活泼',
-            professional: '专业正式',
-            emotional: '情感共鸣',
-            humorous: '幽默风趣',
-            literary: '文艺清新'
-        };
-
-        const record = {
+    // 保存历史记录
+    addToHistory(topic, style, type, length, content) {
+        const item = {
             id: Date.now(),
             topic,
-            type: typeNames[type],
-            style: styleNames[style],
-            text,
-            timestamp: new Date().toISOString()
+            style: this.getStyleName(style),
+            type: this.getTypeName(type),
+            length: this.getLengthName(length),
+            content,
+            timestamp: new Date().toLocaleString('zh-CN')
         };
 
-        this.history.unshift(record);
+        this.history.unshift(item);
 
         // 限制历史记录数量
-        if (this.history.length > 20) {
-            this.history = this.history.slice(0, 20);
+        if (this.history.length > 50) {
+            this.history = this.history.slice(0, 50);
         }
 
         this.saveHistory();
@@ -292,147 +270,94 @@ class CopywriterGenerator {
 
     // 渲染历史记录
     renderHistory() {
+        const historyList = document.getElementById('historyList');
+
         if (this.history.length === 0) {
-            this.historySection.style.display = 'none';
+            historyList.innerHTML = '<p class="empty-history">暂无历史记录</p>';
             return;
         }
 
-        this.historySection.style.display = 'block';
-        this.historyList.innerHTML = '';
-
-        this.history.forEach(record => {
-            const item = document.createElement('div');
-            item.className = 'history-item';
-
-            const date = new Date(record.timestamp);
-            const timeStr = this.formatDate(date);
-
-            item.innerHTML = `
-                <div class="history-meta">
-                    <span class="history-topic">${this.escapeHtml(record.topic)}</span>
-                    <span>${timeStr}</span>
+        historyList.innerHTML = this.history.map(item => `
+            <div class="history-item" data-id="${item.id}">
+                <div class="history-item-header">
+                    <span class="history-item-topic">${this.escapeHtml(item.topic)}</span>
+                    <span>${item.timestamp}</span>
                 </div>
-                <div class="history-tags">
-                    <span class="history-tag">${record.type}</span>
-                    <span class="history-tag">${record.style}</span>
+                <div class="history-item-content">${this.escapeHtml(item.content)}</div>
+                <div class="history-item-tags">
+                    <span class="history-tag">${item.type}</span>
+                    <span class="history-tag">${item.style}</span>
+                    <span class="history-tag">${item.length}</span>
                 </div>
-                <div class="history-text">${this.escapeHtml(record.text)}</div>
-                <div class="history-actions">
-                    <button class="action-btn" onclick="generator.copyHistoryText(${record.id})">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                        <span>复制</span>
-                    </button>
-                    <button class="action-btn" onclick="generator.setFromHistory(${record.id})">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                        </svg>
-                        <span>编辑</span>
-                    </button>
-                </div>
-            `;
+            </div>
+        `).join('');
 
-            this.historyList.appendChild(item);
+        // 添加点击事件
+        document.querySelectorAll('.history-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const id = parseInt(item.dataset.id);
+                const historyItem = this.history.find(h => h.id === id);
+                if (historyItem) {
+                    this.displayResult(historyItem.content);
+                    document.getElementById('topic').value = historyItem.topic;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
         });
     }
 
-    // 从历史记录复制
-    async copyHistoryText(id) {
-        const record = this.history.find(r => r.id === id);
-        if (record) {
-            try {
-                await navigator.clipboard.writeText(record.text);
-                this.showToast('复制成功！');
-            } catch (err) {
-                const textarea = document.createElement('textarea');
-                textarea.value = record.text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-                this.showToast('复制成功！');
-            }
-        }
-    }
-
-    // 从历史记录编辑
-    setFromHistory(id) {
-        const record = this.history.find(r => r.id === id);
-        if (record) {
-            this.topicInput.value = record.topic;
-            this.resultText.textContent = record.text;
-            this.resultSection.style.display = 'block';
-            this.resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            this.updateWordCount(record.text);
-        }
-    }
-
-    // 清空历史记录
+    // 清空历史
     clearHistory() {
         if (confirm('确定要清空所有历史记录吗？')) {
             this.history = [];
             this.saveHistory();
             this.renderHistory();
-            this.showToast('历史记录已清空');
+            this.showToast('历史记录已清空', 'success');
         }
     }
 
-    // 保存历史记录到本地存储
+    // 保存历史到本地存储
     saveHistory() {
-        localStorage.setItem('copywriterHistory', JSON.stringify(this.history));
+        localStorage.setItem('copywriter_history', JSON.stringify(this.history));
     }
 
-    // 从本地存储加载历史记录
+    // 从本地存储加载历史
     loadHistory() {
-        const saved = localStorage.getItem('copywriterHistory');
+        const saved = localStorage.getItem('copywriter_history');
         return saved ? JSON.parse(saved) : [];
     }
 
-    // 设置加载状态
-    setLoading(loading) {
-        if (loading) {
-            this.generateBtn.disabled = true;
-            this.generateBtn.innerHTML = `
-                <span class="loading"></span>
-                <span class="btn-text">生成中...</span>
-            `;
-        } else {
-            this.generateBtn.disabled = false;
-            this.generateBtn.innerHTML = `
-                <span class="btn-icon">🚀</span>
-                <span class="btn-text">立即生成</span>
-            `;
-        }
+    // 获取风格名称
+    getStyleName(style) {
+        const names = {
+            casual: '轻松活泼',
+            professional: '专业正式',
+            emotional: '情感共鸣',
+            humorous: '幽默风趣',
+            literary: '文艺清新',
+            business: '商务高端'
+        };
+        return names[style] || style;
     }
 
-    // 显示Toast提示
-    showToast(message) {
-        this.toast.textContent = message;
-        this.toast.classList.add('show');
-
-        setTimeout(() => {
-            this.toast.classList.remove('show');
-        }, 2000);
+    // 获取类型名称
+    getTypeName(type) {
+        const names = {
+            moment: '朋友圈',
+            ad: '广告语',
+            article: '短文'
+        };
+        return names[type] || type;
     }
 
-    // 格式化日期
-    formatDate(date) {
-        const now = new Date();
-        const diff = now - date;
-
-        if (diff < 60000) {
-            return '刚刚';
-        } else if (diff < 3600000) {
-            return `${Math.floor(diff / 60000)}分钟前`;
-        } else if (diff < 86400000) {
-            return `${Math.floor(diff / 3600000)}小时前`;
-        } else if (diff < 604800000) {
-            return `${Math.floor(diff / 86400000)}天前`;
-        } else {
-            return `${date.getMonth() + 1}月${date.getDate()}日`;
-        }
+    // 获取长度名称
+    getLengthName(length) {
+        const names = {
+            short: '短文本',
+            medium: '中等长度',
+            long: '长文本'
+        };
+        return names[length] || length;
     }
 
     // HTML转义
@@ -442,11 +367,19 @@ class CopywriterGenerator {
         return div.innerHTML;
     }
 
-    // 延迟函数
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    // 显示提示
+    showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
     }
 }
 
-// 初始化应用
-const generator = new CopywriterGenerator();
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    new CopywriterAI();
+});
