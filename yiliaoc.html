@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="医疗管理界面系统 - 患者管理、预约系统、用药提醒">
+    <title>医疗管理界面系统</title>
+
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/accessible.css">
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-link">跳转到主内容</a>
+
+    <!-- Header Navigation -->
+    <header role="banner">
+        <nav role="navigation" aria-label="主导航">
+            <div class="nav-container">
+                <div class="logo" aria-label="医疗管理系统">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+                        <path d="M16 2C8.268 2 2 8.268 2 16s6.268 14 14 14 14-6.268 14-14S23.732 2 16 2zm0 26C9.383 28 4 22.617 4 16S9.383 4 16 4s12 5.383 12 12-5.383 12-12 12z"/>
+                        <path d="M13 10h6v12h-6z"/>
+                    </svg>
+                    <span>医疗管理系统</span>
+                </div>
+
+                <ul class="nav-menu">
+                    <li><button data-view="dashboard" class="nav-btn active" aria-current="page">仪表盘</button></li>
+                    <li><button data-view="patients" class="nav-btn">患者库</button></li>
+                    <li><button data-view="calendar" class="nav-btn">预约</button></li>
+                    <li><button data-view="settings" class="nav-btn">设置</button></li>
+                </ul>
+
+                <div class="accessibility-controls">
+                    <button id="font-size-toggle" class="access-btn" aria-label="切换字体大小" title="字体大小: A">
+                        <span class="font-indicator">A+</span>
+                    </button>
+                    <button id="contrast-toggle" class="access-btn" aria-label="切换高对比度模式" title="高对比度">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <circle cx="10" cy="10" r="8"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="main-content" role="main">
+
+        <!-- Dashboard View -->
+        <section id="dashboard-view" class="view active" aria-labelledby="dashboard-heading">
+            <h1 id="dashboard-heading" class="visually-hidden">仪表盘</h1>
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <h2>患者总数</h2>
+                    <p class="stat-number" id="total-patients">0</p>
+                </div>
+                <div class="stat-card">
+                    <h2>今日预约</h2>
+                    <p class="stat-number" id="today-appointments">0</p>
+                </div>
+                <div class="stat-card">
+                    <h2>待处理提醒</h2>
+                    <p class="stat-number" id="pending-reminders">0</p>
+                </div>
+                <div class="stat-card">
+                    <h2>本周预约</h2>
+                    <p class="stat-number" id="week-appointments">0</p>
+                </div>
+            </div>
+
+            <div class="dashboard-actions">
+                <button id="add-patient-btn" class="primary-btn">+ 添加患者</button>
+                <button id="add-appointment-btn" class="primary-btn">+ 新建预约</button>
+                <button id="test-notification-btn" class="secondary-btn">测试通知</button>
+            </div>
+        </section>
+
+        <!-- Patients View -->
+        <section id="patients-view" class="view" aria-labelledby="patients-heading">
+            <h1 id="patients-heading">患者库</h1>
+
+            <div class="patients-toolbar">
+                <div class="search-container">
+                    <label for="patient-search" class="visually-hidden">搜索患者</label>
+                    <input
+                        type="search"
+                        id="patient-search"
+                        placeholder="搜索姓名、ID、电话..."
+                        aria-label="搜索患者"
+                        autocomplete="off"
+                    >
+                    <span class="search-icon" aria-hidden="true">🔍</span>
+                </div>
+
+                <button id="advanced-search-toggle" class="toggle-btn" aria-expanded="false">
+                    高级筛选
+                </button>
+
+                <button id="add-patient-btn-2" class="primary-btn" aria-label="添加新患者">
+                    + 添加患者
+                </button>
+            </div>
+
+            <!-- Advanced Search Panel -->
+            <div id="advanced-search-panel" class="advanced-search-panel hidden" role="region" aria-label="高级搜索选项">
+                <div class="filter-grid">
+                    <div class="filter-group">
+                        <label for="age-min">最小年龄</label>
+                        <input type="number" id="age-min" min="0" max="150" placeholder="0">
+                    </div>
+                    <div class="filter-group">
+                        <label for="age-max">最大年龄</label>
+                        <input type="number" id="age-max" min="0" max="150" placeholder="150">
+                    </div>
+                    <div class="filter-group">
+                        <label for="allergy-filter">过敏史</label>
+                        <input type="text" id="allergy-filter" placeholder="输入过敏源">
+                    </div>
+                    <div class="filter-group">
+                        <label for="medication-filter">用药状态</label>
+                        <select id="medication-filter">
+                            <option value="">全部</option>
+                            <option value="active">用药中</option>
+                            <option value="inactive">无用药</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="apply-filters" class="primary-btn">应用筛选</button>
+                    <button id="clear-filters" class="secondary-btn">清除</button>
+                </div>
+            </div>
+
+            <div id="patients-list" class="patients-list" role="list" aria-live="polite">
+                <!-- Patient cards will be inserted here -->
+            </div>
+        </section>
+
+        <!-- Calendar View -->
+        <section id="calendar-view" class="view" aria-labelledby="calendar-heading">
+            <h1 id="calendar-heading">预约日程</h1>
+            <div id="calendar" role="region" aria-label="预约日历"></div>
+        </section>
+
+        <!-- Settings View -->
+        <section id="settings-view" class="view" aria-labelledby="settings-heading">
+            <h1 id="settings-heading">系统设置</h1>
+
+            <div class="settings-section">
+                <h2>数据管理</h2>
+                <div class="settings-actions">
+                    <button id="export-data" class="primary-btn">导出数据 (JSON)</button>
+                    <label for="import-data" class="secondary-btn" style="display: inline-block;">
+                        导入数据
+                        <input type="file" id="import-data" accept=".json" class="visually-hidden">
+                    </label>
+                    <button id="clear-all-data" class="danger-btn">清除所有数据</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>显示设置</h2>
+                <div class="setting-item">
+                    <label for="font-size-select">字体大小</label>
+                    <select id="font-size-select">
+                        <option value="normal">正常</option>
+                        <option value="large">大</option>
+                        <option value="extra-large">超大</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="high-contrast-mode">
+                        高对比度模式
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>通知设置</h2>
+                <div class="setting-item">
+                    <button id="request-notification-permission" class="secondary-btn">
+                        请求通知权限
+                    </button>
+                    <span id="notification-status" aria-live="polite"></span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Patient Modal -->
+    <div id="patient-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="patient-modal-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="patient-modal-title">患者信息</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <form id="patient-form" class="modal-body">
+                <input type="hidden" id="patient-id">
+
+                <fieldset>
+                    <legend>基本信息</legend>
+                    <div class="avatar-upload">
+                        <div class="avatar-preview" id="avatar-preview">
+                            <span class="avatar-placeholder" aria-hidden="true">👤</span>
+                        </div>
+                        <label for="avatar-input" class="avatar-label">上传照片</label>
+                        <input type="file" id="avatar-input" accept="image/*" class="visually-hidden">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-name">姓名 <span class="required">*</span></label>
+                        <input type="text" id="patient-name" required aria-required="true">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patient-dob">出生日期 <span class="required">*</span></label>
+                            <input type="date" id="patient-dob" required aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="patient-phone">电话 <span class="required">*</span></label>
+                            <input type="tel" id="patient-phone" required aria-required="true" pattern="[0-9\-]+">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-email">邮箱</label>
+                        <input type="email" id="patient-email">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-address">地址</label>
+                        <textarea id="patient-address" rows="2"></textarea>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>医疗信息</legend>
+                    <div class="form-group">
+                        <label for="patient-allergies">过敏史（用逗号分隔）</label>
+                        <input type="text" id="patient-allergies" placeholder="例如: 青霉素, 花生">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-conditions">既往病史</label>
+                        <textarea id="patient-conditions" rows="2" placeholder="例如: 高血压, 糖尿病"></textarea>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>紧急联系人</legend>
+                    <div class="form-group">
+                        <label for="emergency-name">联系人姓名</label>
+                        <input type="text" id="emergency-name">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="emergency-relation">关系</label>
+                            <input type="text" id="emergency-relation" placeholder="例如: 配偶">
+                        </div>
+                        <div class="form-group">
+                            <label for="emergency-phone">电话</label>
+                            <input type="tel" id="emergency-phone" pattern="[0-9\-]+">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="modal-footer">
+                    <button type="submit" class="primary-btn">保存</button>
+                    <button type="button" class="close-btn secondary-btn">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Appointment Modal -->
+    <div id="appointment-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="appointment-modal-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="appointment-modal-title">预约信息</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <form id="appointment-form" class="modal-body">
+                <input type="hidden" id="appointment-id">
+
+                <div class="form-group">
+                    <label for="appointment-patient">患者 <span class="required">*</span></label>
+                    <select id="appointment-patient" required aria-required="true">
+                        <option value="">选择患者...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="appointment-title">预约标题 <span class="required">*</span></label>
+                    <input type="text" id="appointment-title" required aria-required="true">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="appointment-start">开始时间 <span class="required">*</span></label>
+                        <input type="datetime-local" id="appointment-start" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="appointment-end">结束时间 <span class="required">*</span></label>
+                        <input type="datetime-local" id="appointment-end" required aria-required="true">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="appointment-type">预约类型</label>
+                    <select id="appointment-type">
+                        <option value="checkup">常规检查</option>
+                        <option value="followup">复查</option>
+                        <option value="emergency">急诊</option>
+                        <option value="consultation">咨询</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="appointment-notes">备注</label>
+                    <textarea id="appointment-notes" rows="3"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="primary-btn">保存</button>
+                    <button type="button" id="delete-appointment" class="danger-btn hidden">删除</button>
+                    <button type="button" class="close-btn secondary-btn">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Patient Detail Modal -->
+    <div id="patient-detail-modal" class="modal large" role="dialog" aria-modal="true" aria-labelledby="patient-detail-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="patient-detail-title">患者详情</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="patient-detail-tabs">
+                    <button class="tab-btn active" data-tab="info">基本信息</button>
+                    <button class="tab-btn" data-tab="vitals">生命体征</button>
+                    <button class="tab-btn" data-tab="medications">用药记录</button>
+                    <button class="tab-btn" data-tab="history">预约历史</button>
+                </div>
+
+                <div id="patient-detail-content">
+                    <!-- Tab content will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="edit-patient-btn" class="primary-btn">编辑</button>
+                <button id="delete-patient-btn" class="danger-btn">删除患者</button>
+                <button class="close-btn secondary-btn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vital Signs Modal -->
+    <div id="vitals-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vitals-modal-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="vitals-modal-title">记录生命体征</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <form id="vitals-form" class="modal-body">
+                <input type="hidden" id="vitals-patient-id">
+
+                <div class="form-group">
+                    <label for="vitals-date">日期时间 <span class="required">*</span></label>
+                    <input type="datetime-local" id="vitals-date" required aria-required="true">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vitals-systolic">收缩压 (mmHg)</label>
+                        <input type="number" id="vitals-systolic" min="60" max="250" placeholder="120">
+                    </div>
+                    <div class="form-group">
+                        <label for="vitals-diastolic">舒张压 (mmHg)</label>
+                        <input type="number" id="vitals-diastolic" min="40" max="150" placeholder="80">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vitals-heartrate">心率 (bpm)</label>
+                        <input type="number" id="vitals-heartrate" min="30" max="200" placeholder="72">
+                    </div>
+                    <div class="form-group">
+                        <label for="vitals-temp">体温 (°C)</label>
+                        <input type="number" id="vitals-temp" min="35" max="42" step="0.1" placeholder="36.5">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="vitals-sugar">血糖 (mmol/L)</label>
+                    <input type="number" id="vitals-sugar" min="1" max="30" step="0.1" placeholder="5.2">
+                </div>
+
+                <div class="form-group">
+                    <label for="vitals-notes">备注</label>
+                    <textarea id="vitals-notes" rows="2"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="primary-btn">保存</button>
+                    <button type="button" class="close-btn secondary-btn">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Medication Reminder Modal -->
+    <div id="medication-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="medication-modal-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="medication-modal-title">用药提醒</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <form id="medication-form" class="modal-body">
+                <input type="hidden" id="medication-patient-id">
+
+                <div class="form-group">
+                    <label for="medication-name">药品名称 <span class="required">*</span></label>
+                    <input type="text" id="medication-name" required aria-required="true">
+                </div>
+
+                <div class="form-group">
+                    <label for="medication-dosage">剂量 <span class="required">*</span></label>
+                    <input type="text" id="medication-dosage" required aria-required="true" placeholder="例如: 10mg, 1片">
+                </div>
+
+                <div class="form-group">
+                    <label for="medication-frequency">频率</label>
+                    <select id="medication-frequency">
+                        <option value="daily">每日一次</option>
+                        <option value="bid">每日两次</option>
+                        <option value="tid">每日三次</option>
+                        <option value="qid">每日四次</option>
+                        <option value="prn">按需服用</option>
+                        <option value="custom">自定义</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>服药时间 <span class="required">*</span></label>
+                    <div id="medication-times-container">
+                        <input type="time" id="medication-time-1" class="medication-time" required aria-required="true">
+                    </div>
+                    <button type="button" id="add-medication-time" class="secondary-btn small">+ 添加时间</button>
+                </div>
+
+                <div class="form-group">
+                    <label for="medication-notes">备注</label>
+                    <textarea id="medication-notes" rows="2"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="primary-btn">保存提醒</button>
+                    <button type="button" class="close-btn secondary-btn">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div id="confirm-dialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="modal-content small">
+            <div class="modal-header">
+                <h2 id="confirm-title">确认操作</h2>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-yes" class="danger-btn">确认</button>
+                <button id="confirm-no" class="secondary-btn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" role="alert" aria-live="polite"></div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- FullCalendar -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+    <!-- Application Scripts -->
+    <script src="js/storage.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/patients.js"></script>
+    <script src="js/calendar.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

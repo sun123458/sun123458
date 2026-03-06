@@ -1,368 +1,573 @@
 /**
- * AR展厅应用主入口
- * 初始化和协调所有模块
+ * Main Application Module
+ * Coordinates all modules and handles UI routing
  */
 
-class ARShowroomApp {
-    constructor(config) {
-        this.config = config;
-        this.arScene = null;
-        this.modelManager = null;
-        this.interactionManager = null;
-        this.uiManager = null;
-        this.effectsManager = null;
-        this.audioManager = null;
-        this.performanceManager = null;
-        this.isInitialized = false;
-
-        this.init();
-    }
+const App = {
+    currentView: 'dashboard',
 
     /**
-     * 初始化应用
+     * Initialize the application
      */
     init() {
-        try {
-            console.log('正在初始化AR展厅应用...');
+        this.loadSettings();
+        this.bindNavigation();
+        this.bindSettingsEvents();
+        this.initModalSystem();
+        this.initKeyboardNavigation();
+        this.updateDashboardStats();
+    },
 
-            // 等待DOM加载完成
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => this.initializeApp());
-            } else {
-                this.initializeApp();
+    /**
+     * Load user settings
+     */
+    loadSettings() {
+        const settings = Storage.getSettings();
+
+        // Apply font size
+        if (settings.fontSize) {
+            document.body.classList.remove('font-size-large', 'font-size-extra-large');
+            if (settings.fontSize === 'large') {
+                document.body.classList.add('font-size-large');
+            } else if (settings.fontSize === 'extra-large') {
+                document.body.classList.add('font-size-extra-large');
             }
-        } catch (error) {
-            console.error('应用初始化失败:', error);
-            this.handleInitError(error);
+            document.getElementById('font-size-select').value = settings.fontSize;
         }
-    }
+
+        // Apply high contrast mode
+        if (settings.highContrast) {
+            document.body.classList.add('high-contrast');
+            document.getElementById('high-contrast-mode').checked = true;
+        }
+    },
 
     /**
-     * 初始化应用组件
+     * Save settings
      */
-    initializeApp() {
-        try {
-            // 初始化UI管理器
-            this.uiManager = new UIManager(this.config);
-
-            // 检查兼容性
-            this.uiManager.checkCompatibility();
-
-            // 初始化AR场景
-            this.arScene = new ARScene(this.config);
-
-            // 等待AR场景准备好
-            this.waitForARScene()
-                .then(() => {
-                    this.onSceneReady();
-                })
-                .catch((error) => {
-                    console.error('AR场景准备失败:', error);
-                    this.uiManager.showError(
-                        'AR场景初始化失败',
-                        error.message
-                    );
-                });
-
-        } catch (error) {
-            console.error('应用初始化失败:', error);
-            this.handleInitError(error);
-        }
-    }
+    saveSettings(settings) {
+        const currentSettings = Storage.getSettings();
+        const newSettings = { ...currentSettings, ...settings };
+        Storage.saveSettings(newSettings);
+        return newSettings;
+    },
 
     /**
-     * 等待AR场景准备完成
+     * Bind navigation events
      */
-    waitForARScene() {
-        return new Promise((resolve) => {
-            const checkInterval = setInterval(() => {
-                if (this.arScene && this.arScene.isInitialized) {
-                    clearInterval(checkInterval);
-                    resolve();
-                }
-            }, 100);
+    bindNavigation() {
+        const navButtons = document.querySelectorAll('.nav-btn');
 
-            // 超时处理
-            setTimeout(() => {
-                clearInterval(checkInterval);
-                if (!this.arScene || !this.arScene.isInitialized) {
-                    resolve(); // 即使超时也继续，让用户体验基本功能
-                }
-            }, this.config.ui.loadingTimeout);
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.dataset.view;
+                this.navigateTo(view);
+            });
         });
-    }
+
+        // Handle browser back/forward
+        window.addEventListener('popstate', (e) => {
+            if (e.state && e.state.view) {
+                this.navigateTo(e.state.view, false);
+            }
+        });
+    },
 
     /**
-     * 场景准备完成回调
+     * Navigate to a specific view
      */
-    onSceneReady() {
-        console.log('AR场景准备完成');
+    navigateTo(viewName, pushState = true) {
+        // Update navigation buttons
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === viewName);
+            btn.setAttribute('aria-current', btn.dataset.view === viewName ? 'page' : 'false');
+        });
 
-        // 初始化模型管理器
-        this.modelManager = new ModelManager(this.arScene, this.config);
+        // Update views
+        document.querySelectorAll('.view').forEach(view => {
+            view.classList.remove('active');
+        });
 
-        // 创建展品
-        this.modelManager.createExhibits();
+        const targetView = document.getElementById(`${viewName}-view`);
+        if (targetView) {
+            targetView.classList.add('active');
+            this.currentView = viewName;
 
-        // 初始化交互管理器
-        this.interactionManager = new InteractionManager(this.arScene, this.config);
+            // Update URL without reload
+            if (pushState) {
+                history.pushState({ view: viewName }, '', `#${viewName}`);
+            }
 
-        // 将交互管理器设为全局变量，以便HTML中的onclick可以访问
-        window.interaction = this.interactionManager;
+            // View-specific initialization
+            if (viewName === 'calendar') {
+                setTimeout(() => Calendar?.calendar?.render(), 100);
+            } else if (viewName === 'patients') {
+                Patients?.renderPatientsList();
+            } else if (viewName === 'dashboard') {
+                this.updateDashboardStats();
+            }
 
-        // 初始化效果管理器
-        this.effectsManager = new EffectsManager(this.arScene, this.config);
-        this.effectsManager.init();
-
-        // 初始化音频管理器
-        this.audioManager = new AudioManager(this.config);
-        this.audioManager.init();
-
-        // 初始化性能监控
-        this.performanceManager = new PerformanceManager(this.config);
-        if (this.config.performance.monitorEnabled) {
-            this.performanceManager.startMonitoring(this.arScene);
+            // Announce to screen readers
+            this.announceToScreenReader(`已切换到${this.getViewTitle(viewName)}视图`);
         }
-
-        // 设置动画更新循环
-        this.setupAnimationLoop();
-
-        // 显示欢迎信息
-        setTimeout(() => {
-            this.uiManager.showWelcome();
-        }, 1000);
-
-        this.isInitialized = true;
-        console.log('AR展厅应用初始化完成');
-    }
+    },
 
     /**
-     * 设置动画循环
+     * Get readable view title
      */
-    setupAnimationLoop() {
-        let lastTime = performance.now();
+    getViewTitle(viewName) {
+        const titles = {
+            dashboard: '仪表盘',
+            patients: '患者库',
+            calendar: '预约',
+            settings: '设置'
+        };
+        return titles[viewName] || viewName;
+    },
 
-        const animate = () => {
-            requestAnimationFrame(animate);
+    /**
+     * Bind settings-related events
+     */
+    bindSettingsEvents() {
+        // Font size toggle
+        const fontToggle = document.getElementById('font-size-toggle');
+        const fontSizeSelect = document.getElementById('font-size-select');
 
-            const currentTime = performance.now();
-            const delta = (currentTime - lastTime) / 1000;
-            lastTime = currentTime;
+        fontToggle?.addEventListener('click', () => this.cycleFontSize());
 
-            // 更新模型动画
-            if (this.modelManager) {
-                this.modelManager.updateAnimations(delta);
+        fontSizeSelect?.addEventListener('change', (e) => {
+            const size = e.target.value;
+            document.body.classList.remove('font-size-large', 'font-size-extra-large');
+
+            if (size === 'large') {
+                document.body.classList.add('font-size-large');
+            } else if (size === 'extra-large') {
+                document.body.classList.add('font-size-extra-large');
             }
 
-            // 更新粒子效果
-            if (this.effectsManager) {
-                this.effectsManager.updateParticles(delta);
-            }
+            this.saveSettings({ fontSize: size });
+            UI.showToast(`字体大小: ${this.getSizeLabel(size)}`, 'info');
+        });
+
+        // High contrast toggle
+        const contrastToggle = document.getElementById('contrast-toggle');
+        const highContrastCheckbox = document.getElementById('high-contrast-mode');
+
+        const toggleHighContrast = (enabled) => {
+            document.body.classList.toggle('high-contrast', enabled);
+            this.saveSettings({ highContrast: enabled });
+            UI.showToast(enabled ? '高对比度模式已启用' : '高对比度模式已关闭', 'info');
         };
 
-        animate();
-    }
+        contrastToggle?.addEventListener('click', () => {
+            const isEnabled = !document.body.classList.contains('high-contrast');
+            toggleHighContrast(isEnabled);
+            highContrastCheckbox.checked = isEnabled;
+        });
 
-    /**
-     * 处理初始化错误
-     */
-    handleInitError(error) {
-        console.error('初始化错误:', error);
+        highContrastCheckbox?.addEventListener('change', (e) => {
+            toggleHighContrast(e.target.checked);
+        });
 
-        if (this.uiManager) {
-            this.uiManager.showError(
-                '应用初始化失败',
-                `错误: ${error.message}`
+        // Notification permission
+        document.getElementById('request-notification-permission')?.addEventListener('click', () => {
+            Notifications.requestPermission();
+        });
+
+        // Export data
+        document.getElementById('export-data')?.addEventListener('click', () => {
+            if (Storage.exportAllData()) {
+                UI.showToast('数据已导出', 'success');
+            } else {
+                UI.showToast('导出失败', 'error');
+            }
+        });
+
+        // Import data
+        const importInput = document.getElementById('import-data');
+        importInput?.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            UI.showConfirm(
+                '导入数据将覆盖现有数据。确定要继续吗？',
+                async () => {
+                    try {
+                        const result = await Storage.importAllData(file);
+                        UI.showToast(
+                            `导入成功: ${result.patients} 位患者, ${result.appointments} 个预约`,
+                            'success'
+                        );
+                        this.refreshAllViews();
+                    } catch (error) {
+                        UI.showToast('导入失败: ' + error.message, 'error');
+                    }
+                    importInput.value = '';
+                }
             );
-        }
-    }
+        });
+
+        // Clear all data
+        document.getElementById('clear-all-data')?.addEventListener('click', () => {
+            UI.showConfirm(
+                '警告: 此操作将删除所有数据且不可恢复！确定要继续吗？',
+                () => {
+                    if (Storage.clearAllData()) {
+                        UI.showToast('所有数据已清除', 'success');
+                        this.refreshAllViews();
+                    } else {
+                        UI.showToast('清除数据失败', 'error');
+                    }
+                }
+            );
+        });
+
+        // Test notification button
+        document.getElementById('test-notification-btn')?.addEventListener('click', () => {
+            Notifications.test();
+        });
+    },
 
     /**
-     * 重新初始化应用
+     * Cycle through font sizes
      */
-    reinitialize() {
-        console.log('重新初始化应用...');
+    cycleFontSize() {
+        const current = document.getElementById('font-size-select').value;
+        const sizes = ['normal', 'large', 'extra-large'];
+        const currentIndex = sizes.indexOf(current);
+        const nextIndex = (currentIndex + 1) % sizes.length;
+        const nextSize = sizes[nextIndex];
 
-        // 清理现有资源
-        this.dispose();
+        document.getElementById('font-size-select').value = nextSize;
+        document.getElementById('font-size-select').dispatchEvent(new Event('change'));
+    },
 
-        // 重新初始化
+    /**
+     * Get size label for toast
+     */
+    getSizeLabel(size) {
+        const labels = {
+            normal: '正常',
+            large: '大',
+            'extra-large': '超大'
+        };
+        return labels[size] || size;
+    },
+
+    /**
+     * Initialize modal system
+     */
+    initModalSystem() {
+        // Close modals on backdrop click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        // Trap focus in modals
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    this.trapFocus(e, modal);
+                }
+            });
+        });
+    },
+
+    /**
+     * Trap focus within modal for accessibility
+     */
+    trapFocus(e, modal) {
+        const focusableElements = modal.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+            if (document.activeElement === firstElement) {
+                e.preventDefault();
+                lastElement.focus();
+            }
+        } else {
+            if (document.activeElement === lastElement) {
+                e.preventDefault();
+                firstElement.focus();
+            }
+        }
+    },
+
+    /**
+     * Initialize keyboard navigation
+     */
+    initKeyboardNavigation() {
+        document.addEventListener('keydown', (e) => {
+            // Alt + number keys for navigation
+            if (e.altKey && e.key >= '1' && e.key <= '4') {
+                e.preventDefault();
+                const views = ['dashboard', 'patients', 'calendar', 'settings'];
+                const index = parseInt(e.key) - 1;
+                this.navigateTo(views[index]);
+            }
+
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.active').forEach(modal => {
+                    modal.classList.remove('active');
+                });
+            }
+        });
+    },
+
+    /**
+     * Update dashboard statistics
+     */
+    updateDashboardStats() {
+        Patients?.updateDashboardStats();
+        Calendar?.updateDashboardStats();
+    },
+
+    /**
+     * Refresh all views
+     */
+    refreshAllViews() {
+        Patients?.renderPatientsList();
+        Calendar?.refreshCalendar();
+        Calendar?.populatePatientSelect();
+        this.updateDashboardStats();
+    },
+
+    /**
+     * Announce message to screen readers
+     */
+    announceToScreenReader(message) {
+        const announcement = document.createElement('div');
+        announcement.setAttribute('role', 'status');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.className = 'visually-hidden';
+        announcement.textContent = message;
+        document.body.appendChild(announcement);
+
         setTimeout(() => {
-            this.init();
+            document.body.removeChild(announcement);
         }, 1000);
-    }
+    },
 
     /**
-     * 获取应用状态
+     * Show help dialog
      */
-    getStatus() {
-        return {
-            isInitialized: this.isInitialized,
-            arSceneReady: this.arScene?.isInitialized || false,
-            exhibitorsCount: this.modelManager?.models.size || 0,
-            fps: this.arScene?.fps || 0,
+    showHelp() {
+        const shortcuts = [
+            { key: 'Alt + 1-4', desc: '切换视图' },
+            { key: 'Escape', desc: '关闭弹窗' },
+            { key: 'Tab / Shift+Tab', desc: '在元素间导航' },
+            { key: 'Enter', desc: '激活按钮或链接' }
+        ];
+
+        // Could show a modal with help info
+        console.table(shortcuts);
+    }
+};
+
+/**
+ * UI Utilities
+ */
+const UI = {
+    /**
+     * Show a toast notification
+     */
+    showToast(message, type = 'info', duration = 3000) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        toast.setAttribute('role', 'alert');
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    },
+
+    /**
+     * Show confirmation dialog
+     */
+    showConfirm(message, onConfirm) {
+        const dialog = document.getElementById('confirm-dialog');
+        const messageEl = document.getElementById('confirm-message');
+        const yesBtn = document.getElementById('confirm-yes');
+        const noBtn = document.getElementById('confirm-no');
+
+        messageEl.textContent = message;
+        dialog.classList.add('active');
+
+        const close = () => {
+            dialog.classList.remove('active');
+            yesBtn.removeEventListener('click', handleYes);
+            noBtn.removeEventListener('click', handleNo);
+        };
+
+        const handleYes = () => {
+            close();
+            onConfirm();
+        };
+
+        const handleNo = () => {
+            close();
+        };
+
+        yesBtn.addEventListener('click', handleYes);
+        noBtn.addEventListener('click', handleNo);
+
+        yesBtn.focus();
+    },
+
+    /**
+     * Show loading state
+     */
+    showLoading(element) {
+        const loading = document.createElement('div');
+        loading.className = 'loading-overlay';
+        loading.innerHTML = '<div class="spinner"></div>';
+        loading.style.cssText = `
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        `;
+
+        element.style.position = 'relative';
+        element.appendChild(loading);
+
+        return () => loading.remove();
+    },
+
+    /**
+     * Format date for display
+     */
+    formatDate(date) {
+        return new Date(date).toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    },
+
+    /**
+     * Format date and time for display
+     */
+    formatDateTime(date) {
+        return new Date(date).toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    },
+
+    /**
+     * Format phone number
+     */
+    formatPhoneNumber(phone) {
+        if (!phone) return '';
+        return phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+    },
+
+    /**
+     * Debounce function
+     */
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    },
+
+    /**
+     * Throttle function
+     */
+    throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
         };
     }
+};
 
-    /**
-     * 切换调试模式
-     */
-    toggleDebugMode() {
-        this.config.ui.debugMode = !this.config.ui.debugMode;
-        console.log('调试模式:', this.config.ui.debugMode ? '开启' : '关闭');
+/**
+ * Global error handler
+ */
+window.addEventListener('error', (e) => {
+    console.error('Application error:', e.error);
+    if (e.error) {
+        UI.showToast('发生错误，请重试', 'error');
+    }
+});
+
+/**
+ * Handle unhandled promise rejections
+ */
+window.addEventListener('unhandledrejection', (e) => {
+    console.error('Unhandled promise rejection:', e.reason);
+    UI.showToast('操作失败，请重试', 'error');
+});
+
+/**
+ * Initialize application when DOM is ready
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize app
+    App.init();
+
+    // Check initial hash for navigation
+    const hash = window.location.hash.slice(1);
+    if (hash && ['dashboard', 'patients', 'calendar', 'settings'].includes(hash)) {
+        App.navigateTo(hash, false);
     }
 
-    /**
-     * 导出应用数据
-     */
-    exportData() {
-        const data = {
-            version: this.config.version,
-            timestamp: new Date().toISOString(),
-            exhibits: this.config.exhibits.map(exhibit => ({
-                id: exhibit.id,
-                name: exhibit.name,
-                type: exhibit.type,
-            })),
-            status: this.getStatus(),
-        };
+    // Announce app is ready to screen readers
+    App.announceToScreenReader('医疗管理系统已加载完成');
 
-        const json = JSON.stringify(data, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+    // Update notification permission status
+    Notifications.updatePermissionStatus();
 
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ar-showroom-data-${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+    console.log('Medical Management System initialized');
+});
 
-        URL.revokeObjectURL(url);
-
-        this.uiManager.showMessage('数据已导出');
+/**
+ * Handle page visibility changes
+ */
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        // Page became visible again, refresh data
+        App.updateDashboardStats();
     }
+});
 
-    /**
-     * 清理资源
-     */
-    dispose() {
-        console.log('清理资源...');
-
-        if (this.interactionManager) {
-            this.interactionManager.dispose();
-        }
-
-        if (this.modelManager) {
-            this.modelManager.clearAll();
-        }
-
-        if (this.arScene) {
-            this.arScene.dispose();
-        }
-
-        if (this.effectsManager) {
-            this.effectsManager.dispose();
-        }
-
-        if (this.audioManager) {
-            this.audioManager.dispose();
-        }
-
-        if (this.performanceManager) {
-            this.performanceManager.dispose();
-        }
-
-        this.isInitialized = false;
-    }
-
-    /**
-     * 获取系统信息
-     */
-    getSystemInfo() {
-        return {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            deviceMemory: navigator.deviceMemory,
-            cores: navigator.hardwareConcurrency,
-            webGL: this.getWebGLInfo(),
-        };
-    }
-
-    /**
-     * 获取WebGL信息
-     */
-    getWebGLInfo() {
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-
-        if (!gl) {
-            return { supported: false };
-        }
-
-        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-
-        return {
-            supported: true,
-            vendor: debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'unknown',
-            renderer: debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown',
-            version: gl.getParameter(gl.VERSION),
-            shadingLanguageVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
-        };
-    }
-
-    /**
-     * 打印系统信息到控制台
-     */
-    logSystemInfo() {
-        const info = this.getSystemInfo();
-        console.group('系统信息');
-        console.log('平台:', info.platform);
-        console.log('用户代理:', info.userAgent);
-        console.log('语言:', info.language);
-        console.log('设备内存:', info.deviceMemory, 'GB');
-        console.log('CPU核心:', info.cores);
-        console.log('WebGL:', info.webGL);
-        console.groupEnd();
-    }
-}
-
-// 全局应用实例
-let app;
-
-// 应用启动
-function startApp() {
-    console.log('启动AR展厅应用...');
-
-    // 创建应用实例
-    app = new ARShowroomApp(AppConfig);
-
-    // 输出系统信息
-    app.logSystemInfo();
-
-    // 将app实例设为全局变量
-    window.app = app;
-
-    // 添加全局错误处理
-    window.addEventListener('error', (event) => {
-        console.error('全局错误:', event.error);
-    });
-
-    window.addEventListener('unhandledrejection', (event) => {
-        console.error('未处理的Promise拒绝:', event.reason);
-    });
-}
-
-// 当DOM加载完成后启动应用
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startApp);
-} else {
-    startApp();
-}
-
-// 导出为全局变量
-if (typeof window !== 'undefined') {
-    window.ARShowroomApp = ARShowroomApp;
-    window.startApp = startApp;
-}
+/**
+ * Handle beforeunload for unsaved changes warning
+ */
+window.addEventListener('beforeunload', (e) => {
+    // Could add logic here to check for unsaved changes
+    // and warn user before navigating away
+});
