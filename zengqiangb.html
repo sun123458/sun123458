@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AR增强现实展厅</title>
+
+    <!-- 引入必要库 -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 加载界面 -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <p>正在初始化AR展厅...</p>
+    </div>
+
+    <!-- 主角标 -->
+    <div id="title-banner">
+        <h1>AR增强现实展厅</h1>
+        <p class="subtitle">将摄像头对准Hiro标记开始体验</p>
+    </div>
+
+    <!-- 控制面板 -->
+    <div id="control-panel">
+        <button id="toggle-controls" class="btn">交互模式: 开启</button>
+        <button id="reset-view" class="btn">重置视角</button>
+        <button id="info-toggle" class="btn">展品信息</button>
+    </div>
+
+    <!-- 展品信息面板 -->
+    <div id="info-panel" class="info-panel hidden">
+        <div class="info-content">
+            <h2 id="exhibit-title">展品标题</h2>
+            <p id="exhibit-description">展品描述</p>
+            <div id="exhibit-details"></div>
+            <button class="close-btn" onclick="closeInfoPanel()">关闭</button>
+        </div>
+    </div>
+
+    <!-- 交互提示 -->
+    <div id="interaction-hint" class="interaction-hint">
+        <p>🖱️ 单指旋转 | 双指缩放</p>
+    </div>
+
+    <!-- AR场景 -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+             vr-mode-ui="enabled: false"
+             renderer="logarithmicDepthBuffer: true; colorManagement: true;">
+
+        <!-- 摄像机 -->
+        <a-entity camera></a-entity>
+
+        <!-- Hiro标记 - 主展品 -->
+        <a-marker preset="hiro" id="main-marker">
+            <!-- 展品组容器 -->
+            <a-entity id="exhibit-group"
+                      position="0 0.5 0"
+                      scale="1 1 1"
+                      gesture-handler>
+
+                <!-- 旋转基座 -->
+                <a-cylinder position="0 0 0"
+                           radius="0.8"
+                           height="0.1"
+                           color="#2c3e50"
+                           metalness="0.8"
+                           roughness="0.2">
+                </a-cylinder>
+
+                <!-- 展品1: 几何立方体 -->
+                <a-box id="exhibit-1"
+                       position="-2 1.2 0"
+                       width="0.8"
+                       height="0.8"
+                       depth="0.8"
+                       color="#3498db"
+                       metalness="0.3"
+                       roughness="0.4"
+                       shadow
+                       animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+                    <a-entity text="value: 立方体; align: center; width: 2; color: #ffffff"
+                             position="0 0.6 0"
+                             scale="0.5 0.5 0.5">
+                    </a-entity>
+                </a-box>
+
+                <!-- 展品2: 球体 -->
+                <a-sphere id="exhibit-2"
+                         position="0 1.5 0"
+                         radius="0.5"
+                         color="#e74c3c"
+                         metalness="0.7"
+                         roughness="0.3"
+                         shadow
+                         animation="property: position; to: 0 1.7 0; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine">
+                    <a-entity text="value: 球体; align: center; width: 2; color: #ffffff"
+                             position="0 0.7 0"
+                             scale="0.5 0.5 0.5">
+                    </a-entity>
+                </a-sphere>
+
+                <!-- 展品3: 圆锥体 -->
+                <a-cone id="exhibit-3"
+                       position="2 1.2 0"
+                       radius-bottom="0.5"
+                       radius-top="0"
+                       height="1"
+                       color="#2ecc71"
+                       metalness="0.4"
+                       roughness="0.5"
+                       shadow
+                       animation="property: rotation; to: 360 0 0; loop: true; dur: 6000; easing: linear">
+                    <a-entity text="value: 圆锥; align: center; width: 2; color: #ffffff"
+                             position="0 0.7 0"
+                             scale="0.5 0.5 0.5">
+                    </a-entity>
+                </a-cone>
+
+                <!-- 展品4: 圆环体 -->
+                <a-torus id="exhibit-4"
+                        position="0 1 1.5"
+                        radius="0.4"
+                        radius-tubular="0.1"
+                        color="#9b59b6"
+                        metalness="0.6"
+                        roughness="0.3"
+                        shadow
+                        animation="property: rotation; to: 0 0 360; loop: true; dur: 5000; easing: linear">
+                    <a-entity text="value: 圆环; align: center; width: 2; color: #ffffff"
+                             position="0 0.3 0.5"
+                             scale="0.4 0.4 0.4">
+                    </a-entity>
+                </a-torus>
+
+                <!-- 展品5: 十二面体 -->
+                <a-dodecahedron id="exhibit-5"
+                               position="0 2.2 -1"
+                               radius="0.3"
+                               color="#f39c12"
+                               metalness="0.5"
+                               roughness="0.4"
+                               shadow
+                               animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1500; easing: easeInOutSine">
+                    <a-entity text="value: 宝石; align: center; width: 2; color: #ffffff"
+                             position="0 0.5 0"
+                             scale="0.3 0.3 0.3">
+                    </a-entity>
+                </a-dodecahedron>
+
+                <!-- 灯光系统 -->
+                <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+                <a-light type="point" position="2 4 2" color="#ffffff" intensity="0.8"></a-light>
+                <a-light type="point" position="-2 3 -2" color="#3498db" intensity="0.3"></a-light>
+            </a-entity>
+
+            <!-- 标记信息 -->
+            <a-entity text="value: AR展厅; align: center; width: 4; color: #2c3e50"
+                     position="0 0.05 0"
+                     rotation="-90 0 0">
+            </a-entity>
+        </a-marker>
+
+        <!-- 地面平面 -->
+        <a-plane position="0 0 0"
+                rotation="-90 0 0"
+                width="100"
+                height="100"
+                color="#7f8c8d"
+                opacity="0.1"
+                visible="false">
+        </a-plane>
+
+        <!-- 环境光 -->
+        <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+        <a-light type="directional" position="1 1 1" color="#ffffff" intensity="0.5">
+            <a-entity light="castShadow: true; shadowMapHeight: 1024; shadowMapWidth: 1024; shadowCameraBottom: -10; shadowCameraTop: 10; shadowCameraLeft: -10; shadowCameraRight: 10;"></a-entity>
+        </a-light>
+
+    </a-scene>
+
+    <script src="js/ar-exhibition.js"></script>
+    <script src="js/interaction.js"></script>
+</body>
+</html>

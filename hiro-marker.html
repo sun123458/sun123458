@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hiro标记 - AR参考图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .marker-container {
+            background: white;
+            padding: 30px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            text-align: left;
+            margin-top: 30px;
+            border-radius: 5px;
+        }
+
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .instructions ol {
+            color: #555;
+            line-height: 1.8;
+            margin-left: 20px;
+        }
+
+        .tips {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            text-align: left;
+        }
+
+        .tips strong {
+            color: #856404;
+        }
+
+        .tips p {
+            color: #856404;
+            margin: 5px 0;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+
+            .instructions,
+            .tips,
+            .download-btn,
+            .subtitle {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hiro 标记参考图</h1>
+        <p class="subtitle">用于AR增强现实展厅应用的标记识别</p>
+
+        <div class="marker-container">
+            <!-- Hiro Marker SVG -->
+            <svg width="350" height="350" viewBox="0 0 350 350" xmlns="http://www.w3.org/2000/svg">
+                <!-- 黑色边框 -->
+                <rect x="25" y="25" width="300" height="300" fill="white" stroke="black" stroke-width="8"/>
+
+                <!-- 标题 -->
+                <text x="175" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="black">HIRO</text>
+
+                <!-- 角落定位标记 - 左上 -->
+                <rect x="35" y="35" width="60" height="60" fill="black"/>
+                <rect x="45" y="45" width="30" height="30" fill="white"/>
+                <rect x="50" y="50" width="15" height="15" fill="black"/>
+
+                <!-- 角落定位标记 - 右上 -->
+                <rect x="255" y="35" width="60" height="60" fill="black"/>
+                <rect x="275" y="45" width="30" height="30" fill="white"/>
+                <rect x="280" y="50" width="15" height="15" fill="black"/>
+
+                <!-- 角落定位标记 - 左下 -->
+                <rect x="35" y="255" width="60" height="60" fill="black"/>
+                <rect x="45" y="275" width="30" height="30" fill="white"/>
+                <rect x="50" y="280" width="15" height="15" fill="black"/>
+
+                <!-- Hiro 字符图案 -->
+                <g transform="translate(85, 100)">
+                    <!-- H -->
+                    <g>
+                        <rect x="0" y="0" width="8" height="80" fill="black"/>
+                        <rect x="40" y="0" width="8" height="80" fill="black"/>
+                        <rect x="0" y="36" width="48" height="8" fill="black"/>
+                    </g>
+
+                    <!-- I -->
+                    <g transform="translate(60, 0)">
+                        <rect x="0" y="0" width="8" height="80" fill="black"/>
+                        <rect x="0" y="0" width="48" height="8" fill="black"/>
+                        <rect x="0" y="72" width="48" height="8" fill="black"/>
+                    </g>
+
+                    <!-- R -->
+                    <g transform="translate(120, 0)">
+                        <rect x="0" y="0" width="8" height="80" fill="black"/>
+                        <rect x="0" y="0" width="48" height="8" fill="black"/>
+                        <rect x="0" y="36" width="48" height="8" fill="black"/>
+                        <rect x="40" y="8" width="8" height="28" fill="black"/>
+                        <rect x="8" y="36" width="8" height="44" fill="black"/>
+                        <rect x="8" y="72" width="40" height="8" fill="black"/>
+                    </g>
+
+                    <!-- O -->
+                    <g transform="translate(180, 0)">
+                        <rect x="0" y="0" width="8" height="80" fill="black"/>
+                        <rect x="0" y="0" width="48" height="8" fill="black"/>
+                        <rect x="40" y="0" width="8" height="80" fill="black"/>
+                        <rect x="0" y="72" width="48" height="8" fill="black"/>
+                    </g>
+                </g>
+
+                <!-- 底部装饰 -->
+                <text x="175" y="225" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#666">AR Marker</text>
+                <text x="175" y="250" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#999">AR.js / A-Frame</text>
+
+                <!-- 底线 -->
+                <line x1="100" y1="270" x2="250" y2="270" stroke="#ddd" stroke-width="2"/>
+            </svg>
+        </div>
+
+        <div class="instructions">
+            <h3>📋 使用说明</h3>
+            <ol>
+                <li>将此Hiro标记打印出来或显示在平板/手机屏幕上</li>
+                <li>打开AR展厅应用（index.html）</li>
+                <li>允许浏览器访问摄像头权限</li>
+                <li>将摄像头对准Hiro标记</li>
+                <li>等待3D展品出现，开始体验AR增强现实</li>
+            </ol>
+        </div>
+
+        <div class="tips">
+            <strong>💡 使用技巧</strong>
+            <p>• 保持良好的光线条件</p>
+            <p>• 摄像头距离标记20-50cm效果最佳</p>
+            <p>• 确保标记平整且完整显示在画面中</p>
+            <p>• 避免强烈反光或阴影</p>
+        </div>
+
+        <button class="download-btn" onclick="window.print()">🖨️ 打印标记</button>
+    </div>
+</body>
+</html>
