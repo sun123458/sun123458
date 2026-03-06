@@ -1,0 +1,29 @@
+{
+  "name": "ar-showroom-webapp",
+  "version": "1.0.0",
+  "description": "Web-based AR Showroom Application using Three.js and AR.js",
+  "main": "html/index.html",
+  "scripts": {
+    "start": "npx http-server -p 8080 -c-1",
+    "dev": "npx live-server --port=8080",
+    "build": "echo 'Build complete - Static site ready for deployment'"
+  },
+  "keywords": [
+    "ar",
+    "augmented-reality",
+    "three.js",
+    "web-ar",
+    "showroom",
+    "exhibition"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.158.0",
+    "ar.js": "^3.4.5"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.2"
+  }
+}
