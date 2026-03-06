@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 文案生成器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>✨ AI 文案生成器</h1>
+            <p class="subtitle">智能生成朋友圈文案、广告语、短文</p>
+        </header>
+
+        <main class="main-content">
+            <!-- 输入区域 -->
+            <section class="input-section">
+                <div class="form-group">
+                    <label for="topic">📝 主题</label>
+                    <input type="text" id="topic" placeholder="例如：推广一款有机护肤品牌" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="type">🎯 文案类型</label>
+                    <select id="type">
+                        <option value="moments">朋友圈文案</option>
+                        <option value="ad">广告语</option>
+                        <option value="article">短文</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="style">🎨 风格</label>
+                    <select id="style">
+                        <option value="casual">轻松活泼</option>
+                        <option value="professional">专业正式</option>
+                        <option value="emotional">情感共鸣</option>
+                        <option value="humorous">幽默风趣</option>
+                        <option value="literary">文艺清新</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="length">📏 字数要求</label>
+                    <select id="length">
+                        <option value="short">简短（50字以内）</option>
+                        <option value="medium">中等（50-150字）</option>
+                        <option value="long">较长（150-300字）</option>
+                    </select>
+                </div>
+
+                <button id="generateBtn" class="generate-btn">
+                    <span class="btn-icon">🚀</span>
+                    <span class="btn-text">立即生成</span>
+                </button>
+            </section>
+
+            <!-- 结果区域 -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <div class="result-header">
+                    <h2>生成结果</h2>
+                    <button class="icon-btn" id="regenerateBtn" title="重新生成">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M1 20v-6h6"></path>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="result-content">
+                    <div class="result-card" id="resultCard">
+                        <div class="result-text" id="resultText"></div>
+                        <div class="result-actions">
+                            <button class="action-btn" id="copyBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span>复制</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="word-count" id="wordCount"></div>
+            </section>
+
+            <!-- 历史记录区域 -->
+            <section class="history-section" id="historySection" style="display: none;">
+                <div class="history-header">
+                    <h2>📜 历史记录</h2>
+                    <button class="text-btn" id="clearHistoryBtn">清空历史</button>
+                </div>
+                <div class="history-list" id="historyList"></div>
+            </section>
+        </main>
+
+        <!-- Toast 提示 -->
+        <div class="toast" id="toast">复制成功！</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
