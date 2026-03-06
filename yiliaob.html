@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医疗管理系统</title>
+
+    <!-- FullCalendar CSS -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 无障碍控制栏 -->
+    <div id="accessibility-bar" class="accessibility-bar">
+        <button id="toggle-contrast" class="accessibility-btn" title="切换高对比度">
+            <i class="fas fa-adjust"></i> 高对比度
+        </button>
+        <button id="decrease-font" class="accessibility-btn" title="减小字体">
+            <i class="fas fa-minus"></i> 字体
+        </button>
+        <button id="increase-font" class="accessibility-btn" title="增大字体">
+            <i class="fas fa-plus"></i> 字体
+        </button>
+        <button id="reset-accessibility" class="accessibility-btn" title="重置">
+            <i class="fas fa-undo"></i> 重置
+        </button>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-brand"><i class="fas fa-hospital"></i> 医疗管理系统</h1>
+            <ul class="nav-menu">
+                <li><a href="#dashboard" class="nav-link active">仪表板</a></li>
+                <li><a href="#patients" class="nav-link">患者管理</a></li>
+                <li><a href="#appointments" class="nav-link">预约管理</a></li>
+                <li><a href="#reminders" class="nav-link">用药提醒</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <main class="main-content">
+        <!-- 仪表板页面 -->
+        <section id="dashboard" class="page active">
+            <div class="dashboard">
+                <h2>欢迎回来，医师</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-users stat-icon"></i>
+                        <div class="stat-info">
+                            <h3>总患者数</h3>
+                            <p id="total-patients" class="stat-value">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-calendar-check stat-icon"></i>
+                        <div class="stat-info">
+                            <h3>今日预约</h3>
+                            <p id="today-appointments" class="stat-value">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-pills stat-icon"></i>
+                        <div class="stat-info">
+                            <h3>活跃提醒</h3>
+                            <p id="active-reminders" class="stat-value">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 患者管理页面 -->
+        <section id="patients" class="page">
+            <div class="patients-section">
+                <div class="section-header">
+                    <h2>患者管理</h2>
+                    <button id="add-patient-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 添加患者
+                    </button>
+                </div>
+
+                <!-- 搜索和筛选 -->
+                <div class="search-filter-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="patient-search" placeholder="搜索患者姓名、ID、诊断..." aria-label="搜索患者">
+                    </div>
+
+                    <div class="filter-group">
+                        <select id="filter-age" aria-label="按年龄筛选">
+                            <option value="">所有年龄</option>
+                            <option value="0-18">0-18</option>
+                            <option value="19-40">19-40</option>
+                            <option value="41-60">41-60</option>
+                            <option value="60+">60+</option>
+                        </select>
+
+                        <select id="filter-gender" aria-label="按性别筛选">
+                            <option value="">所有性别</option>
+                            <option value="male">男</option>
+                            <option value="female">女</option>
+                        </select>
+
+                        <select id="filter-diagnosis" aria-label="按诊断筛选">
+                            <option value="">所有诊断</option>
+                            <option value="高血压">高血压</option>
+                            <option value="糖尿病">糖尿病</option>
+                            <option value="心脏病">心脏病</option>
+                            <option value="其他">其他</option>
+                        </select>
+
+                        <button id="clear-filters" class="btn btn-secondary">清除筛选</button>
+                    </div>
+                </div>
+
+                <!-- 患者列表 -->
+                <div id="patients-list" class="patients-list"></div>
+            </div>
+        </section>
+
+        <!-- 预约管理页面 -->
+        <section id="appointments" class="page">
+            <div class="appointments-section">
+                <div class="section-header">
+                    <h2>预约管理</h2>
+                    <button id="add-appointment-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 新建预约
+                    </button>
+                </div>
+                <div id="calendar" class="calendar-container"></div>
+            </div>
+        </section>
+
+        <!-- 用药提醒页面 -->
+        <section id="reminders" class="page">
+            <div class="reminders-section">
+                <div class="section-header">
+                    <h2>用药提醒</h2>
+                    <button id="request-notification-btn" class="btn btn-primary">
+                        <i class="fas fa-bell"></i> 启用通知
+                    </button>
+                </div>
+
+                <div class="reminders-content">
+                    <div class="add-reminder-form">
+                        <h3>添加新提醒</h3>
+                        <form id="reminder-form">
+                            <div class="form-group">
+                                <label for="reminder-patient">选择患者</label>
+                                <select id="reminder-patient" required aria-required="true">
+                                    <option value="">请选择患者</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="reminder-medication">药物名称</label>
+                                <input type="text" id="reminder-medication" required aria-required="true" placeholder="例如：阿司匹林">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="reminder-dosage">剂量</label>
+                                <input type="text" id="reminder-dosage" required aria-required="true" placeholder="例如：100mg">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="reminder-time">提醒时间</label>
+                                <input type="time" id="reminder-time" required aria-required="true">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="reminder-frequency">频率</label>
+                                <select id="reminder-frequency" required aria-required="true">
+                                    <option value="once">一次</option>
+                                    <option value="daily">每日</option>
+                                    <option value="weekly">每周</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="reminder-notes">备注</label>
+                                <textarea id="reminder-notes" rows="3" placeholder="用药说明..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> 添加提醒
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="reminders-list-container">
+                        <h3>活动提醒</h3>
+                        <div id="reminders-list" class="reminders-list"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 患者详情模态框 -->
+    <div id="patient-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>患者详情</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <div class="modal-body" id="patient-details"></div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑患者模态框 -->
+    <div id="patient-form-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="patient-form-title">添加患者</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="patient-form">
+                    <input type="hidden" id="patient-id">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patient-name">姓名 *</label>
+                            <input type="text" id="patient-name" required aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="patient-age">年龄 *</label>
+                            <input type="number" id="patient-age" required aria-required="true" min="0" max="150">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patient-gender">性别 *</label>
+                            <select id="patient-gender" required aria-required="true">
+                                <option value="">请选择</option>
+                                <option value="male">男</option>
+                                <option value="female">女</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="patient-phone">电话</label>
+                            <input type="tel" id="patient-phone">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-email">邮箱</label>
+                        <input type="email" id="patient-email">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-address">地址</label>
+                        <textarea id="patient-address" rows="2"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-diagnosis">诊断</label>
+                        <input type="text" id="patient-diagnosis">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-allergies">过敏史</label>
+                        <textarea id="patient-allergies" rows="2" placeholder="列出已知过敏..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patient-notes">医疗备注</label>
+                        <textarea id="patient-notes" rows="3"></textarea>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary cancel-btn">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预约模态框 -->
+    <div id="appointment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="appointment-form-title">新建预约</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="appointment-form">
+                    <input type="hidden" id="appointment-id">
+
+                    <div class="form-group">
+                        <label for="appointment-patient">患者 *</label>
+                        <select id="appointment-patient" required aria-required="true">
+                            <option value="">请选择患者</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="appointment-title">预约标题 *</label>
+                        <input type="text" id="appointment-title" required aria-required="true">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="appointment-start">开始时间 *</label>
+                            <input type="datetime-local" id="appointment-start" required aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="appointment-end">结束时间 *</label>
+                            <input type="datetime-local" id="appointment-end" required aria-required="true">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="appointment-type">预约类型</label>
+                        <select id="appointment-type">
+                            <option value="consultation">咨询</option>
+                            <option value="checkup">体检</option>
+                            <option value="followup">复查</option>
+                            <option value="emergency">急诊</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="appointment-notes">备注</label>
+                        <textarea id="appointment-notes" rows="3"></textarea>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-danger delete-appointment-btn" style="display: none;">删除</button>
+                        <button type="button" class="btn btn-secondary cancel-btn">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本文件 -->
+    <script src="app.js"></script>
+    <script src="patients.js"></script>
+    <script src="calendar.js"></script>
+    <script src="reminders.js"></script>
+    <script src="charts.js"></script>
+    <script src="accessibility.js"></script>
+</body>
+</html>
