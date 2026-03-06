@@ -3,139 +3,2174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>虚拟教室平台原型</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>医疗管理系统</title>
+
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --focus-ring: rgba(37, 99, 235, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            transition: font-size 0.3s ease;
+        }
+
+        /* 高对比度模式 */
+        body.high-contrast {
+            --primary-color: #0000ff;
+            --secondary-color: #00008b;
+            --success-color: #008000;
+            --danger-color: #ff0000;
+            --warning-color: #ff8c00;
+            --bg-color: #ffffff;
+            --card-bg: #ffffff;
+            --text-color: #000000;
+            --text-secondary: #333333;
+            --border-color: #000000;
+        }
+
+        body.high-contrast * {
+            border-width: 2px !important;
+        }
+
+        /* 可访问性工具栏 */
+        .a11y-toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--primary-color);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .a11y-toolbar h1 {
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .a11y-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .a11y-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .a11y-btn:hover, .a11y-btn:focus {
+            background: rgba(255,255,255,0.3);
+            outline: 3px solid var(--focus-ring);
+            outline-offset: 2px;
+        }
+
+        .a11y-btn.active {
+            background: white;
+            color: var(--primary-color);
+        }
+
+        .font-selector {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .font-selector option {
+            background: white;
+            color: var(--text-color);
+        }
+
+        /* 主容器 */
+        .container {
+            margin-top: 70px;
+            padding: 20px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* 导航标签 */
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab:hover, .nav-tab:focus {
+            background: var(--bg-color);
+            outline: 3px solid var(--focus-ring);
+            outline-offset: 2px;
+        }
+
+        .nav-tab.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* 内容区域 */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: var(--text-color);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        /* 搜索和筛选 */
+        .search-filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"], input[type="date"], input[type="time"],
+        input[type="tel"], input[type="email"], input[type="number"],
+        select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            background: var(--card-bg);
+            color: var(--text-color);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:focus {
+            outline: 3px solid var(--focus-ring);
+            outline-offset: 2px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: var(--text-secondary);
+            color: white;
+        }
+
+        /* 表格样式 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-color);
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        body.high-contrast th {
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        tr:hover {
+            background: var(--bg-color);
+        }
+
+        /* 患者列表 */
+        .patient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .patient-card {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .patient-card:hover, .patient-card:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .patient-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .patient-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .patient-info span {
+            color: var(--text-secondary);
+        }
+
+        /* 患者详情页面 */
+        .patient-detail {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .patient-detail {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .info-section h3 {
+            color: var(--text-color);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .vital-signs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .vital-card {
+            background: var(--bg-color);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .vital-card .label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .vital-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .vital-card .unit {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        /* 图表容器 */
+        .chart-container {
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        /* 日历容器 */
+        .calendar-container {
+            padding: 20px 0;
+        }
+
+        #calendar {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 5px;
+        }
+
+        .close-btn:hover, .close-btn:focus {
+            color: var(--text-color);
+            outline: 2px solid var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        /* 用药提醒 */
+        .medication-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .medication-item {
+            background: var(--bg-color);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .medication-item .med-name {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .medication-item .med-schedule {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .medication-item .med-next-dose {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        /* 通知提示 */
+        .notification-banner {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: var(--success-color);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 1500;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-banner.show {
+            display: block;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+        }
+
+        /* 跳转到主内容（可访问性） */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--primary-color);
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 0 0 8px 0;
+            z-index: 2000;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+
+        /* ARIA 状态 */
+        [aria-hidden="true"] {
+            display: none;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 表单验证错误 */
+        .error {
+            border-color: var(--danger-color) !important;
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: 5px;
+        }
+
+        /* 成功消息 */
+        .success-message {
+            background: var(--success-color);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        /* 生命体征历史表格 */
+        .vitals-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* 屏幕阅读器专用 */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
 </head>
 <body>
-    <!-- 主容器 -->
-    <div class="app-container">
-        <!-- 顶部导航栏 -->
-        <header class="top-bar">
-            <div class="logo">📚 虚拟教室</div>
-            <div class="controls">
-                <button id="recordBtn" class="btn-record">🔴 开始录制</button>
-                <button id="shareBtn" class="btn-share">📤 屏幕共享</button>
-            </div>
-        </header>
+    <!-- 跳转到主内容链接（可访问性） -->
+    <a href="#main-content" class="skip-link">跳转到主内容</a>
 
-        <!-- 主要内容区 -->
-        <main class="main-content">
-            <!-- 白板区域 -->
-            <section class="whiteboard-section">
-                <div class="whiteboard-header">
-                    <h2>共享白板</h2>
-                    <div class="whiteboard-tools">
-                        <button class="tool-btn active" data-tool="pen">✏️ 画笔</button>
-                        <button class="tool-btn" data-tool="eraser">🧽 橡皮擦</button>
-                        <button class="tool-btn" data-tool="clear">🗑️ 清空</button>
-                        <input type="color" id="colorPicker" value="#000000" class="color-picker">
-                        <input type="range" id="brushSize" min="1" max="20" value="3" class="brush-size">
-                    </div>
-                </div>
-                <canvas id="whiteboard" class="whiteboard"></canvas>
-            </section>
-
-            <!-- 侧边栏 -->
-            <aside class="sidebar">
-                <!-- 参与者列表 -->
-                <div class="participants-section">
-                    <div class="section-header">
-                        <h3>参与者 (<span id="participantCount">4</span>)</h3>
-                    </div>
-                    <ul class="participants-list" id="participantsList">
-                        <li class="participant online">
-                            <span class="avatar">👨‍🏫</span>
-                            <div class="participant-info">
-                                <span class="name">张老师</span>
-                                <span class="role">主持人</span>
-                            </div>
-                            <span class="status online-status">在线</span>
-                        </li>
-                        <li class="participant online">
-                            <span class="avatar">👨‍🎓</span>
-                            <div class="participant-info">
-                                <span class="name">李明</span>
-                                <span class="role">学生</span>
-                            </div>
-                            <span class="status online-status">在线</span>
-                        </li>
-                        <li class="participant">
-                            <span class="avatar">👩‍🎓</span>
-                            <div class="participant-info">
-                                <span class="name">王芳</span>
-                                <span class="role">学生</span>
-                            </div>
-                            <span class="status offline-status">离线</span>
-                        </li>
-                        <li class="participant online">
-                            <span class="avatar">👨‍🎓</span>
-                            <div class="participant-info">
-                                <span class="name">赵伟</span>
-                                <span class="role">学生</span>
-                            </div>
-                            <span class="status online-status">在线</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- 聊天区域 -->
-                <div class="chat-section">
-                    <div class="section-header">
-                        <h3>聊天</h3>
-                    </div>
-                    <div class="chat-messages" id="chatMessages">
-                        <div class="message system">
-                            <span class="message-time">10:00</span>
-                            <span class="message-content">欢迎来到虚拟教室！</span>
-                        </div>
-                        <div class="message">
-                            <span class="message-sender">张老师:</span>
-                            <span class="message-content">大家好，今天我们学习Canvas的基本用法 🎨</span>
-                            <span class="message-time">10:01</span>
-                        </div>
-                        <div class="message">
-                            <span class="message-sender">李明:</span>
-                            <span class="message-content">好的老师！👍</span>
-                            <span class="message-time">10:02</span>
-                        </div>
-                    </div>
-                    <div class="emoji-picker" id="emojiPicker">
-                        <button class="emoji-btn">😀</button>
-                        <button class="emoji-btn">👍</button>
-                        <button class="emoji-btn">❤️</button>
-                        <button class="emoji-btn">🎉</button>
-                        <button class="emoji-btn">🤔</button>
-                        <button class="emoji-btn">👏</button>
-                        <button class="emoji-btn">🙏</button>
-                        <button class="emoji-btn">💡</button>
-                    </div>
-                    <div class="chat-input-area">
-                        <input type="text" id="chatInput" placeholder="输入消息..." class="chat-input">
-                        <button id="sendBtn" class="send-btn">发送</button>
-                    </div>
-                </div>
-            </aside>
-        </main>
-    </div>
-
-    <!-- 屏幕共享区域选择器 -->
-    <div id="shareAreaSelector" class="share-area-selector hidden">
-        <div class="selector-overlay">
-            <div class="selector-instructions">
-                <p>拖动选择要共享的区域</p>
-                <p>点击确认完成选择</p>
-                <button id="cancelShare" class="btn-cancel">取消</button>
-                <button id="confirmShare" class="btn-confirm">确认共享</button>
-            </div>
+    <!-- 无障碍工具栏 -->
+    <div class="a11y-toolbar" role="banner">
+        <h1><i class="fas fa-hospital"></i> 医疗管理系统</h1>
+        <div class="a11y-controls">
+            <label for="font-size" class="sr-only">字体大小</label>
+            <select id="font-size" class="font-selector" aria-label="字体大小选择">
+                <option value="small">小字体</option>
+                <option value="medium" selected>标准字体</option>
+                <option value="large">大字体</option>
+                <option value="xlarge">超大字体</option>
+            </select>
+            <button id="contrast-toggle" class="a11y-btn" aria-pressed="false">
+                <i class="fas fa-adjust"></i> 高对比度
+            </button>
+            <button id="notification-request" class="a11y-btn">
+                <i class="fas fa-bell"></i> 启用通知
+            </button>
         </div>
     </div>
 
-    <!-- 录制指示器 -->
-    <div id="recordIndicator" class="record-indicator hidden">
-        <span class="record-dot"></span>
-        <span class="record-text">录制中</span>
+    <!-- 通知横幅 -->
+    <div id="notification-banner" class="notification-banner" role="alert" aria-live="polite"></div>
+
+    <!-- 主内容 -->
+    <main id="main-content" class="container">
+        <!-- 导航标签 -->
+        <nav class="nav-tabs" role="tablist" aria-label="主导航">
+            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="patients-panel" id="patients-tab">
+                <i class="fas fa-users"></i> 患者管理
+            </button>
+            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="calendar-panel" id="calendar-tab">
+                <i class="fas fa-calendar-alt"></i> 预约日历
+            </button>
+            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="medications-panel" id="medications-tab">
+                <i class="fas fa-pills"></i> 用药提醒
+            </button>
+        </nav>
+
+        <!-- 患者管理面板 -->
+        <section id="patients-panel" class="tab-content active" role="tabpanel" aria-labelledby="patients-tab">
+            <!-- 搜索和筛选 -->
+            <div class="card">
+                <h2><i class="fas fa-search"></i> 搜索患者</h2>
+                <div class="search-filter-bar">
+                    <div class="search-box">
+                        <label for="patient-search" class="sr-only">搜索患者</label>
+                        <input type="text" id="patient-search" placeholder="按姓名、电话、病历号搜索..." aria-label="搜索患者">
+                    </div>
+                    <div class="filter-group">
+                        <label for="age-filter" class="sr-only">年龄筛选</label>
+                        <select id="age-filter" aria-label="按年龄筛选">
+                            <option value="">全部年龄</option>
+                            <option value="0-18">0-18岁</option>
+                            <option value="19-35">19-35岁</option>
+                            <option value="36-50">36-50岁</option>
+                            <option value="51-65">51-65岁</option>
+                            <option value="66+">66岁以上</option>
+                        </select>
+                        <label for="gender-filter" class="sr-only">性别筛选</label>
+                        <select id="gender-filter" aria-label="按性别筛选">
+                            <option value="">全部性别</option>
+                            <option value="male">男</option>
+                            <option value="female">女</option>
+                        </select>
+                        <label for="status-filter" class="sr-only">状态筛选</label>
+                        <select id="status-filter" aria-label="按状态筛选">
+                            <option value="">全部状态</option>
+                            <option value="active">_active</option>
+                            <option value="inactive">非活跃</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="add-patient-btn">
+                        <i class="fas fa-plus"></i> 添加患者
+                    </button>
+                </div>
+            </div>
+
+            <!-- 患者列表 -->
+            <div class="card">
+                <h2><i class="fas fa-list"></i> 患者列表</h2>
+                <div id="patient-list" class="patient-grid">
+                    <!-- 患者卡片将在这里动态生成 -->
+                </div>
+            </div>
+
+            <!-- 患者详情页面（初始隐藏） -->
+            <div id="patient-detail" class="card" style="display: none;">
+                <button class="btn btn-secondary" id="back-to-list" style="margin-bottom: 20px;">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </button>
+                <div id="patient-detail-content">
+                    <!-- 患者详情将在这里动态生成 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 预约日历面板 -->
+        <section id="calendar-panel" class="tab-content" role="tabpanel" aria-labelledby="calendar-tab">
+            <div class="card">
+                <h2><i class="fas fa-calendar-alt"></i> 预约管理</h2>
+                <div class="calendar-container">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 用药提醒面板 -->
+        <section id="medications-panel" class="tab-content" role="tabpanel" aria-labelledby="medications-tab">
+            <div class="card">
+                <h2><i class="fas fa-pills"></i> 用药提醒管理</h2>
+                <div id="medications-list" class="medication-list">
+                    <!-- 用药提醒将在这里动态生成 -->
+                </div>
+                <button class="btn btn-primary" id="add-medication-btn" style="margin-top: 20px;">
+                    <i class="fas fa-plus"></i> 添加用药提醒
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- 添加/编辑患者模态框 -->
+    <div id="patient-modal" class="modal" role="dialog" aria-labelledby="patient-modal-title" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="patient-modal-title">添加患者</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <form id="patient-form">
+                <input type="hidden" id="patient-id">
+                <div class="form-group">
+                    <label for="patient-name">姓名 <span aria-hidden="true">*</span></label>
+                    <input type="text" id="patient-name" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="patient-age">年龄</label>
+                    <input type="number" id="patient-age" min="0" max="150">
+                </div>
+                <div class="form-group">
+                    <label for="patient-gender">性别</label>
+                    <select id="patient-gender">
+                        <option value="">请选择</option>
+                        <option value="male">男</option>
+                        <option value="female">女</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="patient-phone">电话</label>
+                    <input type="tel" id="patient-phone">
+                </div>
+                <div class="form-group">
+                    <label for="patient-email">邮箱</label>
+                    <input type="email" id="patient-email">
+                </div>
+                <div class="form-group">
+                    <label for="patient-address">地址</label>
+                    <textarea id="patient-address" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="patient-medical-id">病历号</label>
+                    <input type="text" id="patient-medical-id">
+                </div>
+                <div class="form-group">
+                    <label for="patient-status">状态</label>
+                    <select id="patient-status">
+                        <option value="active">活跃</option>
+                        <option value="inactive">非活跃</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary close-modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- 添加/编辑预约模态框 -->
+    <div id="appointment-modal" class="modal" role="dialog" aria-labelledby="appointment-modal-title" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="appointment-modal-title">添加预约</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <form id="appointment-form">
+                <input type="hidden" id="appointment-id">
+                <div class="form-group">
+                    <label for="appointment-patient">患者 <span aria-hidden="true">*</span></label>
+                    <select id="appointment-patient" required aria-required="true">
+                        <option value="">请选择患者</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="appointment-title">预约标题 <span aria-hidden="true">*</span></label>
+                    <input type="text" id="appointment-title" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="appointment-start">开始时间 <span aria-hidden="true">*</span></label>
+                    <input type="datetime-local" id="appointment-start" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="appointment-end">结束时间</label>
+                    <input type="datetime-local" id="appointment-end">
+                </div>
+                <div class="form-group">
+                    <label for="appointment-type">预约类型</label>
+                    <select id="appointment-type">
+                        <option value="checkup">常规检查</option>
+                        <option value="followup">随访</option>
+                        <option value="consultation">咨询</option>
+                        <option value="procedure">治疗</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="appointment-notes">备注</label>
+                    <textarea id="appointment-notes" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary close-modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加/编辑用药提醒模态框 -->
+    <div id="medication-modal" class="modal" role="dialog" aria-labelledby="medication-modal-title" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="medication-modal-title">添加用药提醒</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <form id="medication-form">
+                <input type="hidden" id="medication-id">
+                <div class="form-group">
+                    <label for="medication-patient">患者 <span aria-hidden="true">*</span></label>
+                    <select id="medication-patient" required aria-required="true">
+                        <option value="">请选择患者</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="medication-name">药品名称 <span aria-hidden="true">*</span></label>
+                    <input type="text" id="medication-name" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="medication-dosage">剂量</label>
+                    <input type="text" id="medication-dosage" placeholder="例如：500mg">
+                </div>
+                <div class="form-group">
+                    <label for="medication-frequency">服药频率</label>
+                    <select id="medication-frequency">
+                        <option value="once">每日一次</option>
+                        <option value="twice">每日两次</option>
+                        <option value="thrice">每日三次</option>
+                        <option value="fourtimes">每日四次</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="medication-time">服药时间</label>
+                    <input type="time" id="medication-time">
+                </div>
+                <div class="form-group">
+                    <label for="medication-notes">备注</label>
+                    <textarea id="medication-notes" rows="2"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary close-modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加生命体征模态框 -->
+    <div id="vital-modal" class="modal" role="dialog" aria-labelledby="vital-modal-title" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="vital-modal-title">添加生命体征</h2>
+                <button class="close-btn" aria-label="关闭">&times;</button>
+            </div>
+            <form id="vital-form">
+                <input type="hidden" id="vital-patient-id">
+                <div class="form-group">
+                    <label for="vital-date">日期 <span aria-hidden="true">*</span></label>
+                    <input type="date" id="vital-date" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="vital-blood-pressure-systolic">收缩压 (mmHg)</label>
+                    <input type="number" id="vital-blood-pressure-systolic" min="60" max="250">
+                </div>
+                <div class="form-group">
+                    <label for="vital-blood-pressure-diastolic">舒张压 (mmHg)</label>
+                    <input type="number" id="vital-blood-pressure-diastolic" min="40" max="150">
+                </div>
+                <div class="form-group">
+                    <label for="vital-heart-rate">心率 (bpm)</label>
+                    <input type="number" id="vital-heart-rate" min="30" max="200">
+                </div>
+                <div class="form-group">
+                    <label for="vital-temperature">体温 (°C)</label>
+                    <input type="number" id="vital-temperature" min="35" max="42" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="vital-weight">体重 (kg)</label>
+                    <input type="number" id="vital-weight" min="1" max="300" step="0.1">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary close-modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script>
+        // ==================== 数据存储管理 ====================
+        const DataManager = {
+            // 生成唯一ID
+            generateId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            },
+
+            // 获取所有患者
+            getPatients() {
+                const patients = localStorage.getItem('patients');
+                return patients ? JSON.parse(patients) : [];
+            },
+
+            // 保存患者
+            savePatient(patient) {
+                const patients = this.getPatients();
+                if (patient.id) {
+                    const index = patients.findIndex(p => p.id === patient.id);
+                    if (index !== -1) {
+                        patients[index] = patient;
+                    }
+                } else {
+                    patient.id = this.generateId();
+                    patient.createdAt = new Date().toISOString();
+                    patients.push(patient);
+                }
+                localStorage.setItem('patients', JSON.stringify(patients));
+                return patient;
+            },
+
+            // 删除患者
+            deletePatient(patientId) {
+                const patients = this.getPatients().filter(p => p.id !== patientId);
+                localStorage.setItem('patients', JSON.stringify(patients));
+
+                // 同时删除相关的预约、用药和生命体征
+                this.deletePatientAppointments(patientId);
+                this.deletePatientMedications(patientId);
+                this.deletePatientVitals(patientId);
+            },
+
+            // 获取单个患者
+            getPatient(patientId) {
+                const patients = this.getPatients();
+                return patients.find(p => p.id === patientId);
+            },
+
+            // 获取所有预约
+            getAppointments() {
+                const appointments = localStorage.getItem('appointments');
+                return appointments ? JSON.parse(appointments) : [];
+            },
+
+            // 保存预约
+            saveAppointment(appointment) {
+                const appointments = this.getAppointments();
+                if (appointment.id) {
+                    const index = appointments.findIndex(a => a.id === appointment.id);
+                    if (index !== -1) {
+                        appointments[index] = appointment;
+                    }
+                } else {
+                    appointment.id = this.generateId();
+                    appointments.push(appointment);
+                }
+                localStorage.setItem('appointments', JSON.stringify(appointments));
+                return appointment;
+            },
+
+            // 删除预约
+            deleteAppointment(appointmentId) {
+                const appointments = this.getAppointments().filter(a => a.id !== appointmentId);
+                localStorage.setItem('appointments', JSON.stringify(appointments));
+            },
+
+            // 删除患者的所有预约
+            deletePatientAppointments(patientId) {
+                const appointments = this.getAppointments().filter(a => a.patientId !== patientId);
+                localStorage.setItem('appointments', JSON.stringify(appointments));
+            },
+
+            // 获取所有用药提醒
+            getMedications() {
+                const medications = localStorage.getItem('medications');
+                return medications ? JSON.parse(medications) : [];
+            },
+
+            // 保存用药提醒
+            saveMedication(medication) {
+                const medications = this.getMedications();
+                if (medication.id) {
+                    const index = medications.findIndex(m => m.id === medication.id);
+                    if (index !== -1) {
+                        medications[index] = medication;
+                    }
+                } else {
+                    medication.id = this.generateId();
+                    medications.push(medication);
+                }
+                localStorage.setItem('medications', JSON.stringify(medications));
+                return medication;
+            },
+
+            // 删除用药提醒
+            deleteMedication(medicationId) {
+                const medications = this.getMedications().filter(m => m.id !== medicationId);
+                localStorage.setItem('medications', JSON.stringify(medications));
+            },
+
+            // 删除患者的所有用药
+            deletePatientMedications(patientId) {
+                const medications = this.getMedications().filter(m => m.patientId !== patientId);
+                localStorage.setItem('medications', JSON.stringify(medications));
+            },
+
+            // 获取患者的生命体征
+            getVitals(patientId) {
+                const vitals = localStorage.getItem(`vitals_${patientId}`);
+                return vitals ? JSON.parse(vitals) : [];
+            },
+
+            // 保存生命体征
+            saveVital(patientId, vital) {
+                const vitals = this.getVitals(patientId);
+                vital.id = this.generateId();
+                vital.recordedAt = new Date().toISOString();
+                vitals.push(vital);
+
+                // 按日期排序（最新的在前）
+                vitals.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                localStorage.setItem(`vitals_${patientId}`, JSON.stringify(vitals));
+                return vital;
+            },
+
+            // 删除生命体征记录
+            deleteVital(patientId, vitalId) {
+                const vitals = this.getVitals(patientId).filter(v => v.id !== vitalId);
+                localStorage.setItem(`vitals_${patientId}`, JSON.stringify(vitals));
+            },
+
+            // 删除患者的所有生命体征
+            deletePatientVitals(patientId) {
+                localStorage.removeItem(`vitals_${patientId}`);
+            }
+        };
+
+        // ==================== 通知管理 ====================
+        const NotificationManager = {
+            permission: 'default',
+
+            async requestPermission() {
+                if ('Notification' in window) {
+                    this.permission = await Notification.requestPermission();
+                    return this.permission === 'granted';
+                }
+                return false;
+            },
+
+            show(title, options = {}) {
+                // 显示浏览器通知
+                if (this.permission === 'granted' && 'Notification' in window) {
+                    new Notification(title, {
+                        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💊</text></svg>',
+                        badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💊</text></svg>',
+                        ...options
+                    });
+                }
+
+                // 显示应用内通知
+                this.showBanner(title, options.body || '');
+            },
+
+            showBanner(message, detail = '') {
+                const banner = document.getElementById('notification-banner');
+                banner.innerHTML = `<strong>${message}</strong>${detail ? ` - ${detail}` : ''}`;
+                banner.classList.add('show');
+
+                setTimeout(() => {
+                    banner.classList.remove('show');
+                }, 5000);
+            }
+        };
+
+        // ==================== UI 管理 ====================
+        const UIManager = {
+            currentPatientId: null,
+            calendar: null,
+            chart: null,
+
+            init() {
+                this.initAccessibility();
+                this.initTabs();
+                this.initModals();
+                this.initCalendar();
+                this.loadPatients();
+                this.loadMedications();
+                this.initMedicationReminderChecker();
+
+                // 设置日期输入框默认值为今天
+                document.getElementById('vital-date').valueAsDate = new Date();
+            },
+
+            // 初始化无障碍功能
+            initAccessibility() {
+                // 字体大小控制
+                const fontSizeSelect = document.getElementById('font-size');
+                fontSizeSelect.addEventListener('change', (e) => {
+                    const sizes = {
+                        small: '14px',
+                        medium: '16px',
+                        large: '18px',
+                        xlarge: '20px'
+                    };
+                    document.body.style.fontSize = sizes[e.target.value];
+                });
+
+                // 高对比度模式
+                const contrastToggle = document.getElementById('contrast-toggle');
+                contrastToggle.addEventListener('click', () => {
+                    document.body.classList.toggle('high-contrast');
+                    const isHighContrast = document.body.classList.contains('high-contrast');
+                    contrastToggle.setAttribute('aria-pressed', isHighContrast);
+                    contrastToggle.classList.toggle('active', isHighContrast);
+                });
+
+                // 通知权限请求
+                const notificationBtn = document.getElementById('notification-request');
+                notificationBtn.addEventListener('click', async () => {
+                    const granted = await NotificationManager.requestPermission();
+                    if (granted) {
+                        notificationBtn.textContent = '✓ 通知已启用';
+                        notificationBtn.classList.add('active');
+                        NotificationManager.show('通知已启用', '您将收到用药提醒通知');
+                    } else {
+                        NotificationManager.showBanner('通知权限被拒绝', '请在浏览器设置中允许通知');
+                    }
+                });
+
+                // 检查通知权限状态
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    notificationBtn.textContent = '✓ 通知已启用';
+                    notificationBtn.classList.add('active');
+                    NotificationManager.permission = 'granted';
+                }
+            },
+
+            // 初始化标签页
+            initTabs() {
+                const tabs = document.querySelectorAll('.nav-tab');
+                const panels = document.querySelectorAll('.tab-content');
+
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        // 移除所有激活状态
+                        tabs.forEach(t => {
+                            t.classList.remove('active');
+                            t.setAttribute('aria-selected', 'false');
+                        });
+                        panels.forEach(p => p.classList.remove('active'));
+
+                        // 激活当前标签
+                        tab.classList.add('active');
+                        tab.setAttribute('aria-selected', 'true');
+                        const panelId = tab.getAttribute('aria-controls');
+                        document.getElementById(panelId).classList.add('active');
+
+                        // 如果切换到日历标签，重新渲染日历
+                        if (panelId === 'calendar-panel' && this.calendar) {
+                            this.calendar.render();
+                        }
+                    });
+                });
+            },
+
+            // 初始化模态框
+            initModals() {
+                // 患者模态框
+                this.setupModal('patient-modal', 'patient-form', (formData) => {
+                    const patient = {
+                        id: document.getElementById('patient-id').value,
+                        name: formData.get('name') || document.getElementById('patient-name').value,
+                        age: parseInt(document.getElementById('patient-age').value) || 0,
+                        gender: document.getElementById('patient-gender').value,
+                        phone: document.getElementById('patient-phone').value,
+                        email: document.getElementById('patient-email').value,
+                        address: document.getElementById('patient-address').value,
+                        medicalId: document.getElementById('patient-medical-id').value,
+                        status: document.getElementById('patient-status').value
+                    };
+                    return DataManager.savePatient(patient);
+                });
+
+                // 预约模态框
+                this.setupModal('appointment-modal', 'appointment-form', (formData) => {
+                    const appointment = {
+                        id: document.getElementById('appointment-id').value,
+                        patientId: document.getElementById('appointment-patient').value,
+                        title: document.getElementById('appointment-title').value,
+                        start: document.getElementById('appointment-start').value,
+                        end: document.getElementById('appointment-end').value,
+                        type: document.getElementById('appointment-type').value,
+                        notes: document.getElementById('appointment-notes').value
+                    };
+                    return DataManager.saveAppointment(appointment);
+                });
+
+                // 用药模态框
+                this.setupModal('medication-modal', 'medication-form', (formData) => {
+                    const medication = {
+                        id: document.getElementById('medication-id').value,
+                        patientId: document.getElementById('medication-patient').value,
+                        name: document.getElementById('medication-name').value,
+                        dosage: document.getElementById('medication-dosage').value,
+                        frequency: document.getElementById('medication-frequency').value,
+                        time: document.getElementById('medication-time').value,
+                        notes: document.getElementById('medication-notes').value
+                    };
+                    return DataManager.saveMedication(medication);
+                });
+
+                // 生命体征模态框
+                this.setupModal('vital-modal', 'vital-form', (formData) => {
+                    const vital = {
+                        date: document.getElementById('vital-date').value,
+                        bloodPressure: {
+                            systolic: parseInt(document.getElementById('vital-blood-pressure-systolic').value),
+                            diastolic: parseInt(document.getElementById('vital-blood-pressure-diastolic').value)
+                        },
+                        heartRate: parseInt(document.getElementById('vital-heart-rate').value),
+                        temperature: parseFloat(document.getElementById('vital-temperature').value),
+                        weight: parseFloat(document.getElementById('vital-weight').value)
+                    };
+                    return DataManager.saveVital(this.currentPatientId, vital);
+                });
+
+                // 添加患者按钮
+                document.getElementById('add-patient-btn').addEventListener('click', () => {
+                    this.openModal('patient-modal');
+                    document.getElementById('patient-modal-title').textContent = '添加患者';
+                    document.getElementById('patient-form').reset();
+                    document.getElementById('patient-id').value = '';
+                });
+
+                // 添加用药提醒按钮
+                document.getElementById('add-medication-btn').addEventListener('click', () => {
+                    this.openModal('medication-modal');
+                    document.getElementById('medication-modal-title').textContent = '添加用药提醒';
+                    document.getElementById('medication-form').reset();
+                    document.getElementById('medication-id').value = '';
+                    this.populatePatientSelect('medication-patient');
+                });
+
+                // 返回列表按钮
+                document.getElementById('back-to-list').addEventListener('click', () => {
+                    document.getElementById('patient-list').closest('.card').style.display = 'block';
+                    document.getElementById('patient-detail').style.display = 'none';
+                });
+            },
+
+            setupModal(modalId, formId, saveCallback) {
+                const modal = document.getElementById(modalId);
+                const form = document.getElementById(formId);
+                const closeButtons = modal.querySelectorAll('.close-btn, .close-modal');
+
+                closeButtons.forEach(btn => {
+                    btn.addEventListener('click', () => this.closeModal(modalId));
+                });
+
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        this.closeModal(modalId);
+                    }
+                });
+
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(form);
+                    const result = saveCallback(formData);
+                    if (result) {
+                        this.closeModal(modalId);
+                        form.reset();
+                        this.refreshData();
+                    }
+                });
+            },
+
+            openModal(modalId) {
+                const modal = document.getElementById(modalId);
+                modal.classList.add('show');
+                modal.querySelector('input, select').focus();
+            },
+
+            closeModal(modalId) {
+                document.getElementById(modalId).classList.remove('show');
+            },
+
+            populatePatientSelect(selectId) {
+                const select = document.getElementById(selectId);
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">请选择患者</option>';
+
+                const patients = DataManager.getPatients();
+                patients.forEach(patient => {
+                    const option = document.createElement('option');
+                    option.value = patient.id;
+                    option.textContent = `${patient.name} (${patient.medicalId || '无病历号'})`;
+                    select.appendChild(option);
+                });
+
+                select.value = currentValue;
+            },
+
+            // 初始化日历
+            initCalendar() {
+                const calendarEl = document.getElementById('calendar');
+                this.calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'dayGridMonth',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                    },
+                    locale: 'zh-cn',
+                    buttonText: {
+                        today: '今天',
+                        month: '月',
+                        week: '周',
+                        day: '日'
+                    },
+                    events: this.loadCalendarEvents(),
+                    selectable: true,
+                    editable: true,
+                    eventDrop: (info) => {
+                        const appointment = DataManager.getAppointments().find(a => a.id === info.event.id);
+                        if (appointment) {
+                            appointment.start = info.event.start.toISOString();
+                            appointment.end = info.event.end ? info.event.end.toISOString() : null;
+                            DataManager.saveAppointment(appointment);
+                            NotificationManager.show('预约已更新', `${appointment.title} 已移动到 ${info.event.start.toLocaleString()}`);
+                        }
+                    },
+                    eventResize: (info) => {
+                        const appointment = DataManager.getAppointments().find(a => a.id === info.event.id);
+                        if (appointment) {
+                            appointment.start = info.event.start.toISOString();
+                            appointment.end = info.event.end ? info.event.end.toISOString() : null;
+                            DataManager.saveAppointment(appointment);
+                        }
+                    },
+                    eventClick: (info) => {
+                        const appointment = DataManager.getAppointments().find(a => a.id === info.event.id);
+                        if (appointment) {
+                            this.editAppointment(appointment);
+                        }
+                    },
+                    select: (info) => {
+                        this.newAppointment(info.start);
+                    },
+                    eventDidMount: (info) => {
+                        // 添加无障碍属性
+                        info.el.setAttribute('role', 'button');
+                        info.el.setAttribute('tabindex', '0');
+                        info.el.setAttribute('aria-label', `${info.event.title} - ${info.event.start.toLocaleString()}`);
+                    }
+                });
+
+                this.calendar.render();
+            },
+
+            loadCalendarEvents() {
+                const appointments = DataManager.getAppointments();
+                const patients = DataManager.getPatients();
+
+                return appointments.map(app => {
+                    const patient = patients.find(p => p.id === app.patientId);
+                    const typeColors = {
+                        checkup: '#10b981',
+                        followup: '#3b82f6',
+                        consultation: '#f59e0b',
+                        procedure: '#ef4444'
+                    };
+
+                    return {
+                        id: app.id,
+                        title: `${app.title}${patient ? ` - ${patient.name}` : ''}`,
+                        start: app.start,
+                        end: app.end,
+                        backgroundColor: typeColors[app.type] || '#6366f1',
+                        extendedProps: {
+                            patientId: app.patientId,
+                            type: app.type,
+                            notes: app.notes
+                        }
+                    };
+                });
+            },
+
+            newAppointment(startDate = null) {
+                this.openModal('appointment-modal');
+                document.getElementById('appointment-modal-title').textContent = '添加预约';
+                document.getElementById('appointment-form').reset();
+                document.getElementById('appointment-id').value = '';
+
+                this.populatePatientSelect('appointment-patient');
+
+                if (startDate) {
+                    const startDateTime = new Date(startDate);
+                    startDateTime.setHours(startDateTime.getHours() + 1, 0, 0, 0);
+                    document.getElementById('appointment-start').value = this.formatDateTimeLocal(startDateTime);
+
+                    const endDateTime = new Date(startDateTime);
+                    endDateTime.setHours(endDateTime.getHours() + 1);
+                    document.getElementById('appointment-end').value = this.formatDateTimeLocal(endDateTime);
+                }
+            },
+
+            editAppointment(appointment) {
+                this.openModal('appointment-modal');
+                document.getElementById('appointment-modal-title').textContent = '编辑预约';
+                this.populatePatientSelect('appointment-patient');
+
+                document.getElementById('appointment-id').value = appointment.id;
+                document.getElementById('appointment-patient').value = appointment.patientId;
+                document.getElementById('appointment-title').value = appointment.title;
+                document.getElementById('appointment-start').value = this.formatDateTimeLocal(new Date(appointment.start));
+                document.getElementById('appointment-end').value = appointment.end ? this.formatDateTimeLocal(new Date(appointment.end)) : '';
+                document.getElementById('appointment-type').value = appointment.type || 'checkup';
+                document.getElementById('appointment-notes').value = appointment.notes || '';
+            },
+
+            deleteAppointment(appointmentId) {
+                if (confirm('确定要删除这个预约吗？')) {
+                    DataManager.deleteAppointment(appointmentId);
+                    this.refreshData();
+                    NotificationManager.show('预约已删除');
+                }
+            },
+
+            formatDateTimeLocal(date) {
+                const offset = date.getTimezoneOffset() * 60000;
+                const localISOTime = (new Date(date - offset)).toISOString().slice(0, 16);
+                return localISOTime;
+            },
+
+            // 加载患者列表
+            loadPatients() {
+                const patients = DataManager.getPatients();
+                const container = document.getElementById('patient-list');
+
+                if (patients.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-user-plus"></i>
+                            <p>暂无患者记录</p>
+                            <p>点击"添加患者"按钮添加第一个患者</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = patients.map(patient => `
+                    <div class="patient-card" tabindex="0" role="button"
+                         onclick="UIManager.viewPatient('${patient.id}')"
+                         onkeypress="if(event.key==='Enter') UIManager.viewPatient('${patient.id}')"
+                         aria-label="查看 ${patient.name} 的详细信息">
+                        <h3>${patient.name}</h3>
+                        <div class="patient-info">
+                            ${patient.medicalId ? `<span><i class="fas fa-id-card"></i> ${patient.medicalId}</span>` : ''}
+                            ${patient.age ? `<span><i class="fas fa-birthday-cake"></i> ${patient.age}岁</span>` : ''}
+                            ${patient.gender ? `<span><i class="fas ${patient.gender === 'male' ? 'fa-mars' : 'fa-venus'}"></i> ${patient.gender === 'male' ? '男' : '女'}</span>` : ''}
+                            ${patient.phone ? `<span><i class="fas fa-phone"></i> ${patient.phone}</span>` : ''}
+                            <span><i class="fas fa-circle" style="color: ${patient.status === 'active' ? 'var(--success-color)' : 'var(--text-secondary)'}"></i> ${patient.status === 'active' ? '活跃' : '非活跃'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            // 查看患者详情
+            viewPatient(patientId) {
+                this.currentPatientId = patientId;
+                const patient = DataManager.getPatient(patientId);
+                if (!patient) return;
+
+                const vitals = DataManager.getVitals(patientId);
+                const latestVital = vitals.length > 0 ? vitals[0] : null;
+
+                document.getElementById('patient-list').closest('.card').style.display = 'none';
+                const detailCard = document.getElementById('patient-detail');
+                detailCard.style.display = 'block';
+
+                const content = document.getElementById('patient-detail-content');
+                content.innerHTML = `
+                    <div class="patient-detail">
+                        <div>
+                            <div class="card">
+                                <h2><i class="fas fa-user"></i> 患者信息</h2>
+                                <div class="info-section">
+                                    <h3>基本信息</h3>
+                                    <p><strong>姓名：</strong>${patient.name}</p>
+                                    ${patient.medicalId ? `<p><strong>病历号：</strong>${patient.medicalId}</p>` : ''}
+                                    ${patient.age ? `<p><strong>年龄：</strong>${patient.age}岁</p>` : ''}
+                                    ${patient.gender ? `<p><strong>性别：</strong>${patient.gender === 'male' ? '男' : '女'}</p>` : ''}
+                                    ${patient.phone ? `<p><strong>电话：</strong>${patient.phone}</p>` : ''}
+                                    ${patient.email ? `<p><strong>邮箱：</strong>${patient.email}</p>` : ''}
+                                    ${patient.address ? `<p><strong>地址：</strong>${patient.address}</p>` : ''}
+                                    <p><strong>状态：</strong><span style="color: ${patient.status === 'active' ? 'var(--success-color)' : 'var(--text-secondary)'}">${patient.status === 'active' ? '活跃' : '非活跃'}</span></p>
+                                </div>
+                            </div>
+
+                            ${latestVital ? `
+                                <div class="card">
+                                    <h2><i class="fas fa-heartbeat"></i> 最新生命体征 <small>(${this.formatDate(latestVital.date)})</small></h2>
+                                    <div class="vital-signs">
+                                        ${latestVital.bloodPressure ? `
+                                            <div class="vital-card">
+                                                <div class="label">血压</div>
+                                                <div class="value">${latestVital.bloodPressure.systolic}/${latestVital.bloodPressure.diastolic}</div>
+                                                <div class="unit">mmHg</div>
+                                            </div>
+                                        ` : ''}
+                                        ${latestVital.heartRate ? `
+                                            <div class="vital-card">
+                                                <div class="label">心率</div>
+                                                <div class="value">${latestVital.heartRate}</div>
+                                                <div class="unit">bpm</div>
+                                            </div>
+                                        ` : ''}
+                                        ${latestVital.temperature ? `
+                                            <div class="vital-card">
+                                                <div class="label">体温</div>
+                                                <div class="value">${latestVital.temperature}</div>
+                                                <div class="unit">°C</div>
+                                            </div>
+                                        ` : ''}
+                                        ${latestVital.weight ? `
+                                            <div class="vital-card">
+                                                <div class="label">体重</div>
+                                                <div class="value">${latestVital.weight}</div>
+                                                <div class="unit">kg</div>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            <div class="card">
+                                <h2><i class="fas fa-notes-medical"></i> 操作</h2>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <button class="btn btn-primary" onclick="UIManager.editPatient('${patient.id}')">
+                                        <i class="fas fa-edit"></i> 编辑患者
+                                    </button>
+                                    <button class="btn btn-success" onclick="UIManager.addVital('${patient.id}')">
+                                        <i class="fas fa-plus"></i> 添加生命体征
+                                    </button>
+                                    <button class="btn btn-danger" onclick="UIManager.deletePatient('${patient.id}')">
+                                        <i class="fas fa-trash"></i> 删除患者
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            ${vitals.length > 0 ? `
+                                <div class="card">
+                                    <h2><i class="fas fa-chart-line"></i> 血压趋势</h2>
+                                    <div class="chart-container">
+                                        <canvas id="bpChart"></canvas>
+                                    </div>
+                                </div>
+
+                                <div class="card">
+                                    <h2><i class="fas fa-history"></i> 生命体征历史</h2>
+                                    <div class="vitals-history">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>日期</th>
+                                                    <th>血压</th>
+                                                    <th>心率</th>
+                                                    <th>体温</th>
+                                                    <th>体重</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${vitals.map(vital => `
+                                                    <tr>
+                                                        <td>${this.formatDate(vital.date)}</td>
+                                                        <td>${vital.bloodPressure ? `${vital.bloodPressure.systolic}/${vital.bloodPressure.diastolic}` : '-'}</td>
+                                                        <td>${vital.heartRate || '-'}</td>
+                                                        <td>${vital.temperature || '-'}</td>
+                                                        <td>${vital.weight || '-'}</td>
+                                                        <td>
+                                                            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8rem;"
+                                                                    onclick="UIManager.deleteVital('${vital.id}')"
+                                                                    aria-label="删除记录">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="card">
+                                    <div class="empty-state">
+                                        <i class="fas fa-heartbeat"></i>
+                                        <p>暂无生命体征记录</p>
+                                        <button class="btn btn-success" onclick="UIManager.addVital('${patient.id}')">
+                                            <i class="fas fa-plus"></i> 添加生命体征
+                                        </button>
+                                    </div>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+
+                // 渲染血压图表
+                if (vitals.length > 0 && vitals.some(v => v.bloodPressure)) {
+                    this.renderBPChart(vitals);
+                }
+            },
+
+            renderBPChart(vitals) {
+                const ctx = document.getElementById('bpChart');
+                if (!ctx) return;
+
+                // 按日期排序（旧的在前）
+                const sortedVitals = [...vitals].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const bpVitals = sortedVitals.filter(v => v.bloodPressure);
+
+                if (this.chart) {
+                    this.chart.destroy();
+                }
+
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: bpVitals.map(v => this.formatDate(v.date)),
+                        datasets: [
+                            {
+                                label: '收缩压',
+                                data: bpVitals.map(v => v.bloodPressure.systolic),
+                                borderColor: '#ef4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                tension: 0.1,
+                                fill: true
+                            },
+                            {
+                                label: '舒张压',
+                                data: bpVitals.map(v => v.bloodPressure.diastolic),
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.1,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: '血压变化趋势'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                min: 40,
+                                max: 200,
+                                title: {
+                                    display: true,
+                                    text: 'mmHg'
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+            },
+
+            editPatient(patientId) {
+                const patient = DataManager.getPatient(patientId);
+                if (!patient) return;
+
+                this.openModal('patient-modal');
+                document.getElementById('patient-modal-title').textContent = '编辑患者';
+
+                document.getElementById('patient-id').value = patient.id;
+                document.getElementById('patient-name').value = patient.name;
+                document.getElementById('patient-age').value = patient.age || '';
+                document.getElementById('patient-gender').value = patient.gender || '';
+                document.getElementById('patient-phone').value = patient.phone || '';
+                document.getElementById('patient-email').value = patient.email || '';
+                document.getElementById('patient-address').value = patient.address || '';
+                document.getElementById('patient-medical-id').value = patient.medicalId || '';
+                document.getElementById('patient-status').value = patient.status || 'active';
+            },
+
+            deletePatient(patientId) {
+                const patient = DataManager.getPatient(patientId);
+                if (confirm(`确定要删除患者 ${patient.name} 吗？\n\n这将同时删除该患者的所有预约、用药提醒和生命体征记录。`)) {
+                    DataManager.deletePatient(patientId);
+                    this.refreshData();
+                    document.getElementById('patient-list').closest('.card').style.display = 'block';
+                    document.getElementById('patient-detail').style.display = 'none';
+                    NotificationManager.show('患者已删除', `${patient.name} 的所有记录已被删除`);
+                }
+            },
+
+            addVital(patientId) {
+                this.currentPatientId = patientId;
+                this.openModal('vital-modal');
+                document.getElementById('vital-modal-title').textContent = '添加生命体征';
+                document.getElementById('vital-form').reset();
+                document.getElementById('vital-date').valueAsDate = new Date();
+            },
+
+            deleteVital(vitalId) {
+                if (confirm('确定要删除这条生命体征记录吗？')) {
+                    DataManager.deleteVital(this.currentPatientId, vitalId);
+                    this.viewPatient(this.currentPatientId);
+                    NotificationManager.show('记录已删除');
+                }
+            },
+
+            // 加载用药提醒
+            loadMedications() {
+                const medications = DataManager.getMedications();
+                const patients = DataManager.getPatients();
+                const container = document.getElementById('medications-list');
+
+                if (medications.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-pills"></i>
+                            <p>暂无用药提醒</p>
+                            <p>点击"添加用药提醒"按钮添加第一个提醒</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = medications.map(med => {
+                    const patient = patients.find(p => p.id === med.patientId);
+                    const nextDose = this.calculateNextDose(med);
+
+                    return `
+                        <div class="medication-item">
+                            <div class="med-name">${med.name} ${med.dosage ? `(${med.dosage})` : ''}</div>
+                            <div class="med-schedule">
+                                <i class="fas fa-user"></i> ${patient ? patient.name : '未知患者'} |
+                                <i class="fas fa-clock"></i> ${this.getFrequencyText(med.frequency)}
+                                ${med.time ? ` | <i class="fas fa-clock"></i> ${med.time}` : ''}
+                            </div>
+                            <div class="med-next-dose">
+                                <i class="fas fa-bell"></i> 下次服药：${nextDose}
+                            </div>
+                            ${med.notes ? `<div style="margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem;"><i class="fas fa-sticky-note"></i> ${med.notes}</div>` : ''}
+                            <div style="margin-top: 10px;">
+                                <button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.8rem;"
+                                        onclick="UIManager.editMedication('${med.id}')"
+                                        aria-label="编辑用药提醒">
+                                    <i class="fas fa-edit"></i> 编辑
+                                </button>
+                                <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8rem;"
+                                        onclick="UIManager.deleteMedication('${med.id}')"
+                                        aria-label="删除用药提醒">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            getFrequencyText(frequency) {
+                const texts = {
+                    once: '每日一次',
+                    twice: '每日两次',
+                    thrice: '每日三次',
+                    fourtimes: '每日四次'
+                };
+                return texts[frequency] || frequency;
+            },
+
+            calculateNextDose(medication) {
+                if (!medication.time) return '未设置时间';
+
+                const now = new Date();
+                const [hours, minutes] = medication.time.split(':');
+                let nextDose = new Date();
+                nextDose.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+                if (nextDose <= now) {
+                    nextDose.setDate(nextDose.getDate() + 1);
+                }
+
+                const tomorrow = new Date(nextDose);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+
+                options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                return nextDose.toLocaleDateString('zh-CN', options);
+            },
+
+            editMedication(medicationId) {
+                const medication = DataManager.getMedications().find(m => m.id === medicationId);
+                if (!medication) return;
+
+                this.openModal('medication-modal');
+                document.getElementById('medication-modal-title').textContent = '编辑用药提醒';
+                this.populatePatientSelect('medication-patient');
+
+                document.getElementById('medication-id').value = medication.id;
+                document.getElementById('medication-patient').value = medication.patientId;
+                document.getElementById('medication-name').value = medication.name;
+                document.getElementById('medication-dosage').value = medication.dosage || '';
+                document.getElementById('medication-frequency').value = medication.frequency;
+                document.getElementById('medication-time').value = medication.time || '';
+                document.getElementById('medication-notes').value = medication.notes || '';
+            },
+
+            deleteMedication(medicationId) {
+                if (confirm('确定要删除这个用药提醒吗？')) {
+                    DataManager.deleteMedication(medicationId);
+                    this.loadMedications();
+                    NotificationManager.show('用药提醒已删除');
+                }
+            },
+
+            // 初始化用药提醒检查器
+            initMedicationReminderChecker() {
+                // 每分钟检查一次
+                setInterval(() => this.checkMedicationReminders(), 60000);
+
+                // 立即检查一次
+                this.checkMedicationReminders();
+            },
+
+            checkMedicationReminders() {
+                const medications = DataManager.getMedications();
+                const patients = DataManager.getPatients();
+                const now = new Date();
+
+                medications.forEach(med => {
+                    if (!med.time) return;
+
+                    const [hours, minutes] = med.time.split(':');
+                    const medTime = new Date();
+                    medTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+                    // 如果当前时间接近服药时间（在1分钟内）
+                    const timeDiff = Math.abs(now - medTime);
+                    if (timeDiff < 60000) { // 1分钟内
+                        const patient = patients.find(p => p.id === med.patientId);
+                        if (patient) {
+                            NotificationManager.show(
+                                '用药提醒',
+                                {
+                                    body: `${patient.name} 需要服用 ${med.name} ${med.dosage ? `(${med.dosage})` : ''}`,
+                                    tag: med.id,
+                                    requireInteraction: true
+                                }
+                            );
+                        }
+                    }
+                });
+            },
+
+            // 刷新所有数据
+            refreshData() {
+                this.loadPatients();
+                this.loadMedications();
+                if (this.calendar) {
+                    this.calendar.removeAllEvents();
+                    this.calendar.addEventSource(this.loadCalendarEvents());
+                }
+            }
+        };
+
+        // ==================== 搜索和筛选功能 ====================
+        const SearchFilterManager = {
+            init() {
+                const searchInput = document.getElementById('patient-search');
+                const ageFilter = document.getElementById('age-filter');
+                const genderFilter = document.getElementById('gender-filter');
+                const statusFilter = document.getElementById('status-filter');
+
+                const filters = [searchInput, ageFilter, genderFilter, statusFilter];
+                filters.forEach(filter => {
+                    filter.addEventListener('input', () => this.applyFilters());
+                    filter.addEventListener('change', () => this.applyFilters());
+                });
+            },
+
+            applyFilters() {
+                const searchTerm = document.getElementById('patient-search').value.toLowerCase();
+                const ageRange = document.getElementById('age-filter').value;
+                const gender = document.getElementById('gender-filter').value;
+                const status = document.getElementById('status-filter').value;
+
+                let patients = DataManager.getPatients();
+
+                // 文本搜索
+                if (searchTerm) {
+                    patients = patients.filter(p =>
+                        p.name.toLowerCase().includes(searchTerm) ||
+                        (p.phone && p.phone.includes(searchTerm)) ||
+                        (p.medicalId && p.medicalId.toLowerCase().includes(searchTerm))
+                    );
+                }
+
+                // 年龄筛选
+                if (ageRange) {
+                    patients = patients.filter(p => {
+                        if (!p.age) return false;
+                        const [min, max] = ageRange.split('-').map(v => parseInt(v.replace('+', '')));
+                        if (max) {
+                            return p.age >= min && p.age <= max;
+                        } else {
+                            return p.age >= min;
+                        }
+                    });
+                }
+
+                // 性别筛选
+                if (gender) {
+                    patients = patients.filter(p => p.gender === gender);
+                }
+
+                // 状态筛选
+                if (status) {
+                    patients = patients.filter(p => p.status === status);
+                }
+
+                this.displayFilteredPatients(patients);
+            },
+
+            displayFilteredPatients(patients) {
+                const container = document.getElementById('patient-list');
+
+                if (patients.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-search"></i>
+                            <p>未找到匹配的患者</p>
+                            <p>请尝试调整搜索条件</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = patients.map(patient => `
+                    <div class="patient-card" tabindex="0" role="button"
+                         onclick="UIManager.viewPatient('${patient.id}')"
+                         onkeypress="if(event.key==='Enter') UIManager.viewPatient('${patient.id}')"
+                         aria-label="查看 ${patient.name} 的详细信息">
+                        <h3>${patient.name}</h3>
+                        <div class="patient-info">
+                            ${patient.medicalId ? `<span><i class="fas fa-id-card"></i> ${patient.medicalId}</span>` : ''}
+                            ${patient.age ? `<span><i class="fas fa-birthday-cake"></i> ${patient.age}岁</span>` : ''}
+                            ${patient.gender ? `<span><i class="fas ${patient.gender === 'male' ? 'fa-mars' : 'fa-venus'}"></i> ${patient.gender === 'male' ? '男' : '女'}</span>` : ''}
+                            ${patient.phone ? `<span><i class="fas fa-phone"></i> ${patient.phone}</span>` : ''}
+                            <span><i class="fas fa-circle" style="color: ${patient.status === 'active' ? 'var(--success-color)' : 'var(--text-secondary)'}"></i> ${patient.status === 'active' ? '活跃' : '非活跃'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        };
+
+        // ==================== 添加示例数据 ====================
+        function loadSampleData() {
+            // 检查是否已有数据
+            if (DataManager.getPatients().length > 0) {
+                return;
+            }
+
+            // 添加示例患者
+            const patients = [
+                {
+                    name: '张伟',
+                    age: 45,
+                    gender: 'male',
+                    phone: '13800138001',
+                    email: 'zhangwei@example.com',
+                    address: '北京市朝阳区',
+                    medicalId: 'P001',
+                    status: 'active'
+                },
+                {
+                    name: '李娜',
+                    age: 32,
+                    gender: 'female',
+                    phone: '13800138002',
+                    email: 'lina@example.com',
+                    address: '上海市浦东新区',
+                    medicalId: 'P002',
+                    status: 'active'
+                },
+                {
+                    name: '王强',
+                    age: 58,
+                    gender: 'male',
+                    phone: '13800138003',
+                    email: 'wangqiang@example.com',
+                    address: '广州市天河区',
+                    medicalId: 'P003',
+                    status: 'active'
+                }
+            ];
+
+            patients.forEach(p => DataManager.savePatient(p));
+
+            // 获取保存后的患者ID
+            const savedPatients = DataManager.getPatients();
+            const patientIds = savedPatients.map(p => p.id);
+
+            // 添加示例预约
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const appointments = [
+                {
+                    patientId: patientIds[0],
+                    title: '常规体检',
+                    start: new Date(today.setHours(9, 0, 0, 0)).toISOString(),
+                    end: new Date(today.setHours(10, 0, 0, 0)).toISOString(),
+                    type: 'checkup',
+                    notes: '年度常规体检'
+                },
+                {
+                    patientId: patientIds[1],
+                    title: '随访咨询',
+                    start: new Date(tomorrow.setHours(14, 0, 0, 0)).toISOString(),
+                    end: new Date(tomorrow.setHours(15, 0, 0, 0)).toISOString(),
+                    type: 'followup',
+                    notes: '上次治疗后随访'
+                }
+            ];
+
+            appointments.forEach(a => DataManager.saveAppointment(a));
+
+            // 添加示例用药提醒
+            const medications = [
+                {
+                    patientId: patientIds[0],
+                    name: '阿司匹林',
+                    dosage: '100mg',
+                    frequency: 'once',
+                    time: '08:00',
+                    notes: '饭后服用'
+                },
+                {
+                    patientId: patientIds[2],
+                    name: '降压药',
+                    dosage: '5mg',
+                    frequency: 'twice',
+                    time: '08:00',
+                    notes: '早晚各一次'
+                }
+            ];
+
+            medications.forEach(m => DataManager.saveMedication(m));
+
+            // 添加示例生命体征
+            const vitalDates = [
+                new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7天前
+                new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14天前
+                new Date(Date.now() - 21 * 24 * 60 * 60 * 1000)  // 21天前
+            ];
+
+            savedPatients.forEach(patient => {
+                vitalDates.forEach(date => {
+                    DataManager.saveVital(patient.id, {
+                        date: date.toISOString().split('T')[0],
+                        bloodPressure: {
+                            systolic: 120 + Math.floor(Math.random() * 20),
+                            diastolic: 75 + Math.floor(Math.random() * 15)
+                        },
+                        heartRate: 70 + Math.floor(Math.random() * 20),
+                        temperature: 36.5 + Math.random() * 0.8,
+                        weight: 60 + Math.floor(Math.random() * 20)
+                    });
+                });
+            });
+        }
+
+        // ==================== 初始化应用 ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            // 加载示例数据
+            loadSampleData();
+
+            // 初始化UI管理器
+            UIManager.init();
+
+            // 初始化搜索筛选
+            SearchFilterManager.init();
+        });
+
+        // 使 UIManager 全局可用（用于 HTML 中的 onclick 事件）
+        window.UIManager = UIManager;
+    </script>
 </body>
 </html>
