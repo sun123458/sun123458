@@ -1,29 +1,24 @@
 {
-  "name": "ar-showroom-webapp",
+  "name": "kanban-board",
   "version": "1.0.0",
-  "description": "Web-based AR Showroom Application using Three.js and AR.js",
-  "main": "html/index.html",
+  "description": "A React Kanban board application",
   "scripts": {
-    "start": "npx http-server -p 8080 -c-1",
-    "dev": "npx live-server --port=8080",
-    "build": "echo 'Build complete - Static site ready for deployment'"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
-  "keywords": [
-    "ar",
-    "augmented-reality",
-    "three.js",
-    "web-ar",
-    "showroom",
-    "exhibition"
-  ],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "three": "^0.158.0",
-    "ar.js": "^3.4.5"
+    "react": "^18.2.0",
+    "react-beautiful-dnd": "^13.1.1",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "http-server": "^14.1.1",
-    "live-server": "^1.2.2"
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.2",
+    "vite": "^4.3.9"
   }
 }
