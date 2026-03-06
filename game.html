@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>捕虫大冒险</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        #gameCanvas {
+            border: 4px solid #34495e;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            image-rendering: pixelated;
+            background: #7cb342;
+        }
+        #ui {
+            display: flex;
+            gap: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px 30px;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 18px;
+        }
+        .ui-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ui-icon {
+            width: 24px;
+            height: 24px;
+        }
+        #dialog {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            border: 3px solid #fff;
+            border-radius: 10px;
+            padding: 20px;
+            color: #fff;
+            font-size: 16px;
+            max-width: 400px;
+            display: none;
+            z-index: 100;
+        }
+        #dialog.show {
+            display: block;
+            animation: dialogIn 0.2s ease-out;
+        }
+        @keyframes dialogIn {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        #dialog .speaker {
+            color: #ffd700;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        #dialog .message {
+            line-height: 1.5;
+        }
+        #instructions {
+            color: #aaa;
+            font-size: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div class="ui-item">
+                <span>🦋</span>
+                <span>虫子: <span id="bugCount">0</span></span>
+            </div>
+        </div>
+        <div id="instructions">
+            方向键移动 | E键与NPC对话 | 空格键捕捉虫子
+        </div>
+        <div id="dialog">
+            <div class="speaker"></div>
+            <div class="message"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const dialog = document.getElementById('dialog');
+        const dialogSpeaker = dialog.querySelector('.speaker');
+        const dialogMessage = dialog.querySelector('.message');
+        const bugCountEl = document.getElementById('bugCount');
+
+        // 游戏常量
+        const TILE_SIZE = 40;
+        const PLAYER_SIZE = 32;
+        const BUG_SIZE = 20;
+        const PLAYER_SPEED = 3;
+        const BUG_SPEED = 1.5;
+        const NET_RANGE = 50;
+        const INTERACT_RANGE = 60;
+
+        // 游戏状态
+        let bugCount = 0;
+        let dialogOpen = false;
+        let lastFrameTime = 0;
+
+        // 方向枚举
+        const Direction = {
+            DOWN: 0,
+            LEFT: 1,
+            RIGHT: 2,
+            UP: 3
+        };
+
+        // 输入状态
+        const keys = {};
+
+        // 玩家对象
+        const player = {
+            x: 400,
+            y: 300,
+            width: PLAYER_SIZE,
+            height: PLAYER_SIZE,
+            direction: Direction.DOWN,
+            isMoving: false,
+            animFrame: 0,
+            animTimer: 0,
+            netActive: false,
+            netTimer: 0
+        };
+
+        // NPC数据
+        const npcs = [
+            {
+                x: 150,
+                y: 150,
+                width: 32,
+                height: 32,
+                color: '#e74c3c',
+                name: '小红',
+                dialogues: [
+                    '欢迎来到捕虫村！这里的虫子种类可多了！',
+                    '你看到过金色的蝴蝶吗？听说它很稀有！',
+                    '捕虫要耐心，慢慢靠近它们。'
+                ]
+            },
+            {
+                x: 650,
+                y: 150,
+                width: 32,
+                height: 32,
+                color: '#9b59b6',
+                name: '紫花',
+                dialogues: [
+                    '我正在研究昆虫的行为模式。',
+                    '不同的虫子有不同的移动方式，观察一下！',
+                    '早上和傍晚是捕虫的好时间。'
+                ]
+            },
+            {
+                x: 400,
+                y: 100,
+                width: 32,
+                height: 32,
+                color: '#3498db',
+                name: '蓝蓝',
+                dialogues: [
+                    '你是来参加捕虫大赛的吗？',
+                    '我的最高纪录是一天捉到了30只虫子！',
+                    '草地和花朵旁边更容易找到虫子。'
+                ]
+            }
+        ];
+
+        // 障碍物（树木、岩石等）
+        const obstacles = [
+            { x: 100, y: 100, width: 50, height: 50, type: 'tree' },
+            { x: 650, y: 100, width: 50, height: 50, type: 'tree' },
+            { x: 50, y: 400, width: 60, height: 40, type: 'rock' },
+            { x: 700, y: 450, width: 70, height: 50, type: 'rock' },
+            { x: 350, y: 500, width: 45, height: 45, type: 'tree' },
+            { x: 450, y: 500, width: 45, height: 45, type: 'tree' },
+            { x: 200, y: 300, width: 40, height: 40, type: 'bush' },
+            { x: 550, y: 300, width: 40, height: 40, type: 'bush' },
+            { x: 300, y: 200, width: 35, height: 35, type: 'bush' },
+            { x: 500, y: 250, width: 35, height: 35, type: 'bush' }
+        ];
+
+        // 虫子数组
+        let bugs = [];
+
+        // 虫子类型
+        const bugTypes = [
+            { color: '#f39c12', speed: 1.5, points: 1, name: '瓢虫' },
+            { color: '#2ecc71', speed: 2, points: 2, name: '甲虫' },
+            { color: '#3498db', speed: 2.5, points: 3, name: '蝴蝶' },
+            { color: '#e74c3c', speed: 1.8, points: 2, name: '蜻蜓' },
+            { color: '#ffd700', speed: 3, points: 5, name: '金蝉' } // 稀有
+        ];
+
+        // 生成虫子
+        function spawnBug() {
+            if (bugs.length >= 8) return; // 最多8只虫子
+
+            const type = bugTypes[Math.floor(Math.random() * bugTypes.length)];
+            const bug = {
+                x: Math.random() * (canvas.width - BUG_SIZE),
+                y: Math.random() * (canvas.height - BUG_SIZE),
+                width: BUG_SIZE,
+                height: BUG_SIZE,
+                color: type.color,
+                speed: type.speed,
+                points: type.points,
+                name: type.name,
+                direction: Math.floor(Math.random() * 4),
+                moveTimer: 0,
+                moveInterval: 1000 + Math.random() * 2000,
+                animFrame: 0
+            };
+
+            // 确保不生成在障碍物上
+            let validPosition = false;
+            let attempts = 0;
+            while (!validPosition && attempts < 20) {
+                validPosition = true;
+                for (const obs of obstacles) {
+                    if (checkCollision(bug, obs)) {
+                        validPosition = false;
+                        bug.x = Math.random() * (canvas.width - BUG_SIZE);
+                        bug.y = Math.random() * (canvas.height - BUG_SIZE);
+                        break;
+                    }
+                }
+                attempts++;
+            }
+
+            bugs.push(bug);
+        }
+
+        // 碰撞检测
+        function checkCollision(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+
+        // 更新玩家移动
+        function updatePlayer(deltaTime) {
+            if (dialogOpen) return;
+
+            let newX = player.x;
+            let newY = player.y;
+            player.isMoving = false;
+
+            if (keys['ArrowUp'] || keys['KeyW']) {
+                newY -= PLAYER_SPEED;
+                player.direction = Direction.UP;
+                player.isMoving = true;
+            }
+            if (keys['ArrowDown'] || keys['KeyS']) {
+                newY += PLAYER_SPEED;
+                player.direction = Direction.DOWN;
+                player.isMoving = true;
+            }
+            if (keys['ArrowLeft'] || keys['KeyA']) {
+                newX -= PLAYER_SPEED;
+                player.direction = Direction.LEFT;
+                player.isMoving = true;
+            }
+            if (keys['ArrowRight'] || keys['KeyD']) {
+                newX += PLAYER_SPEED;
+                player.direction = Direction.RIGHT;
+                player.isMoving = true;
+            }
+
+            // 边界检测
+            newX = Math.max(0, Math.min(canvas.width - player.width, newX));
+            newY = Math.max(0, Math.min(canvas.height - player.height, newY));
+
+            // 障碍物碰撞检测
+            const testPlayer = { x: newX, y: newY, width: player.width, height: player.height };
+            let canMove = true;
+            for (const obs of obstacles) {
+                if (checkCollision(testPlayer, obs)) {
+                    canMove = false;
+                    break;
+                }
+            }
+
+            if (canMove) {
+                player.x = newX;
+                player.y = newY;
+            }
+
+            // 行走动画
+            if (player.isMoving) {
+                player.animTimer += deltaTime;
+                if (player.animTimer > 150) {
+                    player.animFrame = (player.animFrame + 1) % 4;
+                    player.animTimer = 0;
+                }
+            } else {
+                player.animFrame = 0;
+            }
+
+            // 捕虫网动画
+            if (player.netActive) {
+                player.netTimer -= deltaTime;
+                if (player.netTimer <= 0) {
+                    player.netActive = false;
+                }
+            }
+        }
+
+        // 更新虫子
+        function updateBugs(deltaTime) {
+            for (let i = bugs.length - 1; i >= 0; i--) {
+                const bug = bugs[i];
+
+                // 随机移动方向
+                bug.moveTimer += deltaTime;
+                if (bug.moveTimer > bug.moveInterval) {
+                    bug.direction = Math.floor(Math.random() * 4);
+                    bug.moveTimer = 0;
+                    bug.moveInterval = 1000 + Math.random() * 2000;
+                }
+
+                // 移动
+                let newX = bug.x;
+                let newY = bug.y;
+
+                switch (bug.direction) {
+                    case Direction.UP: newY -= bug.speed; break;
+                    case Direction.DOWN: newY += bug.speed; break;
+                    case Direction.LEFT: newX -= bug.speed; break;
+                    case Direction.RIGHT: newX += bug.speed; break;
+                }
+
+                // 边界检测
+                if (newX < 0 || newX + bug.width > canvas.width ||
+                    newY < 0 || newY + bug.height > canvas.height) {
+                    bug.direction = Math.floor(Math.random() * 4);
+                } else {
+                    // 障碍物碰撞
+                    const testBug = { x: newX, y: newY, width: bug.width, height: bug.height };
+                    let canMove = true;
+                    for (const obs of obstacles) {
+                        if (checkCollision(testBug, obs)) {
+                            canMove = false;
+                            bug.direction = Math.floor(Math.random() * 4);
+                            break;
+                        }
+                    }
+                    if (canMove) {
+                        bug.x = newX;
+                        bug.y = newY;
+                    }
+                }
+
+                // 动画
+                bug.animFrame = (bug.animFrame + deltaTime * 0.01) % 2;
+            }
+        }
+
+        // 使用捕虫网
+        function useNet() {
+            if (dialogOpen || player.netActive) return;
+
+            player.netActive = true;
+            player.netTimer = 300;
+
+            // 获取攻击范围
+            let netX = player.x + player.width / 2;
+            let netY = player.y + player.height / 2;
+
+            switch (player.direction) {
+                case Direction.UP: netY -= NET_RANGE / 2; break;
+                case Direction.DOWN: netY += NET_RANGE / 2; break;
+                case Direction.LEFT: netX -= NET_RANGE / 2; break;
+                case Direction.RIGHT: netX += NET_RANGE / 2; break;
+            }
+
+            // 检测是否捕捉到虫子
+            for (let i = bugs.length - 1; i >= 0; i--) {
+                const bug = bugs[i];
+                const dist = Math.sqrt(
+                    Math.pow(bug.x + bug.width / 2 - netX, 2) +
+                    Math.pow(bug.y + bug.height / 2 - netY, 2)
+                );
+
+                if (dist < NET_RANGE) {
+                    // 捕捉成功
+                    bugCount += bug.points;
+                    bugCountEl.textContent = bugCount;
+                    bugs.splice(i, 1);
+
+                    // 显示捕捉消息
+                    showCaughtMessage(bug);
+                    break;
+                }
+            }
+        }
+
+        // 显示捕捉消息
+        function showCaughtMessage(bug) {
+            const tempDiv = document.createElement('div');
+            tempDiv.textContent = `捕捉到了 ${bug.name}！+${bug.points}`;
+            tempDiv.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0,0,0,0.8);
+                color: #ffd700;
+                padding: 15px 25px;
+                border-radius: 10px;
+                font-size: 20px;
+                font-weight: bold;
+                z-index: 200;
+                animation: fadeOut 1.5s ease-out forwards;
+            `;
+            document.getElementById('gameContainer').appendChild(tempDiv);
+
+            setTimeout(() => tempDiv.remove(), 1500);
+        }
+
+        // 与NPC互动
+        function interactWithNPC() {
+            if (dialogOpen) {
+                closeDialog();
+                return;
+            }
+
+            for (const npc of npcs) {
+                const dist = Math.sqrt(
+                    Math.pow(npc.x + npc.width/2 - player.x - player.width/2, 2) +
+                    Math.pow(npc.y + npc.height/2 - player.y - player.height/2, 2)
+                );
+
+                if (dist < INTERACT_RANGE) {
+                    showDialog(npc);
+                    return;
+                }
+            }
+        }
+
+        // 显示对话框
+        function showDialog(npc) {
+            const dialogue = npc.dialogues[Math.floor(Math.random() * npc.dialogues.length)];
+            dialogSpeaker.textContent = npc.name;
+            dialogMessage.textContent = dialogue;
+            dialog.classList.add('show');
+            dialogOpen = true;
+        }
+
+        // 关闭对话框
+        function closeDialog() {
+            dialog.classList.remove('show');
+            dialogOpen = false;
+        }
+
+        // 绘制草地背景
+        function drawBackground() {
+            ctx.fillStyle = '#7cb342';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制草地纹理
+            ctx.fillStyle = '#8bc34a';
+            for (let x = 0; x < canvas.width; x += 20) {
+                for (let y = 0; y < canvas.height; y += 20) {
+                    if (Math.random() > 0.7) {
+                        ctx.fillRect(x + Math.random() * 10, y + Math.random() * 10, 3, 3);
+                    }
+                }
+            }
+
+            // 绘制一些花朵装饰
+            const flowerPositions = [
+                { x: 100, y: 200 }, { x: 250, y: 400 }, { x: 600, y: 350 },
+                { x: 700, y: 250 }, { x: 400, y: 450 }, { x: 150, y: 500 }
+            ];
+
+            flowerPositions.forEach(pos => {
+                drawFlower(pos.x, pos.y);
+            });
+        }
+
+        // 绘制花朵
+        function drawFlower(x, y) {
+            ctx.fillStyle = '#ffeb3b';
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#e91e63';
+            for (let i = 0; i < 5; i++) {
+                const angle = (i / 5) * Math.PI * 2;
+                const px = x + Math.cos(angle) * 5;
+                const py = y + Math.sin(angle) * 5;
+                ctx.beginPath();
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // 绘制障碍物
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                if (obs.type === 'tree') {
+                    drawTree(obs.x, obs.y, obs.width, obs.height);
+                } else if (obs.type === 'rock') {
+                    drawRock(obs.x, obs.y, obs.width, obs.height);
+                } else if (obs.type === 'bush') {
+                    drawBush(obs.x, obs.y, obs.width, obs.height);
+                }
+            });
+        }
+
+        // 绘制树
+        function drawTree(x, y, w, h) {
+            // 树干
+            ctx.fillStyle = '#795548';
+            ctx.fillRect(x + w/2 - 5, y + h/2, 10, h/2);
+
+            // 树冠
+            ctx.fillStyle = '#4caf50';
+            ctx.beginPath();
+            ctx.arc(x + w/2, y + h/3, w/2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#388e3c';
+            ctx.beginPath();
+            ctx.arc(x + w/2 - 10, y + h/3 + 5, w/3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 绘制岩石
+        function drawRock(x, y, w, h) {
+            ctx.fillStyle = '#78909c';
+            ctx.beginPath();
+            ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#546e7a';
+            ctx.beginPath();
+            ctx.ellipse(x + w/2 - 5, y + h/2 - 5, w/4, h/4, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 绘制灌木
+        function drawBush(x, y, w, h) {
+            ctx.fillStyle = '#689f38';
+            ctx.beginPath();
+            ctx.arc(x + w/3, y + h/2, w/3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(x + w*2/3, y + h/2, w/3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#558b2f';
+            ctx.beginPath();
+            ctx.arc(x + w/2, y + h/3, w/4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 绘制NPC
+        function drawNPCs() {
+            npcs.forEach(npc => {
+                // 身体
+                ctx.fillStyle = npc.color;
+                ctx.fillRect(npc.x, npc.y, npc.width, npc.height);
+
+                // 头部
+                ctx.fillStyle = '#ffcc99';
+                ctx.fillRect(npc.x + 6, npc.y + 4, 20, 16);
+
+                // 眼睛
+                ctx.fillStyle = '#333';
+                ctx.fillRect(npc.x + 10, npc.y + 10, 3, 3);
+                ctx.fillRect(npc.x + 19, npc.y + 10, 3, 3);
+
+                // 标记（表示可以互动）
+                const dist = Math.sqrt(
+                    Math.pow(npc.x + npc.width/2 - player.x - player.width/2, 2) +
+                    Math.pow(npc.y + npc.height/2 - player.y - player.height/2, 2)
+                );
+
+                if (dist < INTERACT_RANGE && !dialogOpen) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.font = 'bold 16px Arial';
+                    ctx.fillText('!', npc.x + npc.width/2 - 4, npc.y - 10);
+                }
+            });
+        }
+
+        // 绘制玩家
+        function drawPlayer() {
+            const x = player.x;
+            const y = player.y;
+
+            // 计算行走位移
+            let walkOffset = 0;
+            if (player.isMoving) {
+                walkOffset = Math.sin(player.animFrame * Math.PI / 2) * 2;
+            }
+
+            // 身体
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(x + 4, y + 8 + walkOffset, 24, 20);
+
+            // 头部
+            ctx.fillStyle = '#ffcc99';
+            ctx.fillRect(x + 8, y + 2 + walkOffset, 16, 14);
+
+            // 头发
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(x + 6, y + walkOffset, 20, 8);
+
+            // 眼睛（根据方向）
+            ctx.fillStyle = '#333';
+            switch (player.direction) {
+                case Direction.DOWN:
+                    ctx.fillRect(x + 11, y + 8 + walkOffset, 3, 3);
+                    ctx.fillRect(x + 18, y + 8 + walkOffset, 3, 3);
+                    break;
+                case Direction.UP:
+                    break; // 后面看不到眼睛
+                case Direction.LEFT:
+                    ctx.fillRect(x + 10, y + 8 + walkOffset, 3, 3);
+                    break;
+                case Direction.RIGHT:
+                    ctx.fillRect(x + 19, y + 8 + walkOffset, 3, 3);
+                    break;
+            }
+
+            // 腿
+            ctx.fillStyle = '#2c3e50';
+            const legOffset = player.isMoving ? Math.sin(player.animFrame * Math.PI / 2) * 3 : 0;
+            ctx.fillRect(x + 8, y + 24 + walkOffset, 6, 8 + legOffset);
+            ctx.fillRect(x + 18, y + 24 + walkOffset, 6, 8 - legOffset);
+
+            // 绘制捕虫网
+            if (player.netActive) {
+                drawNet(x + player.width/2, y + player.height/2);
+            }
+        }
+
+        // 绘制捕虫网
+        function drawNet(cx, cy) {
+            ctx.strokeStyle = '#8b4513';
+            ctx.lineWidth = 2;
+
+            let netEndX = cx;
+            let netEndY = cy;
+
+            switch (player.direction) {
+                case Direction.UP:
+                    netEndY -= NET_RANGE;
+                    break;
+                case Direction.DOWN:
+                    netEndY += NET_RANGE;
+                    break;
+                case Direction.LEFT:
+                    netEndX -= NET_RANGE;
+                    break;
+                case Direction.RIGHT:
+                    netEndX += NET_RANGE;
+                    break;
+            }
+
+            // 网杆
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(netEndX, netEndY);
+            ctx.stroke();
+
+            // 网圈
+            ctx.strokeStyle = '#aaa';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(netEndX, netEndY, 20, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 网格
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(netEndX - 20, netEndY + i * 10);
+                ctx.lineTo(netEndX + 20, netEndY + i * 10);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(netEndX + i * 10, netEndY - 20);
+                ctx.lineTo(netEndX + i * 10, netEndY + 20);
+                ctx.stroke();
+            }
+        }
+
+        // 绘制虫子
+        function drawBugs() {
+            bugs.forEach(bug => {
+                // 身体
+                ctx.fillStyle = bug.color;
+                ctx.beginPath();
+                ctx.ellipse(
+                    bug.x + bug.width/2,
+                    bug.y + bug.height/2,
+                    bug.width/2,
+                    bug.height/2 + Math.sin(bug.animFrame * Math.PI) * 2,
+                    0, 0, Math.PI * 2
+                );
+                ctx.fill();
+
+                // 翅膀
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                const wingOffset = Math.sin(bug.animFrame * Math.PI * 2) * 3;
+                ctx.beginPath();
+                ctx.ellipse(
+                    bug.x + bug.width/2 - 8,
+                    bug.y + bug.height/2 + wingOffset,
+                    6, 10, -0.3, 0, Math.PI * 2
+                );
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.ellipse(
+                    bug.x + bug.width/2 + 8,
+                    bug.y + bug.height/2 - wingOffset,
+                    6, 10, 0.3, 0, Math.PI * 2
+                );
+                ctx.fill();
+
+                // 眼睛
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(bug.x + bug.width/2 - 4, bug.y + bug.height/2 - 2, 2, 0, Math.PI * 2);
+                ctx.arc(bug.x + bug.width/2 + 4, bug.y + bug.height/2 - 2, 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // 主游戏循环
+        function gameLoop(currentTime) {
+            const deltaTime = currentTime - lastFrameTime;
+            lastFrameTime = currentTime;
+
+            // 更新
+            updatePlayer(deltaTime);
+            updateBugs(deltaTime);
+
+            // 绘制
+            drawBackground();
+            drawObstacles();
+            drawBugs();
+            drawNPCs();
+            drawPlayer();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 定期生成虫子
+        setInterval(spawnBug, 3000);
+
+        // 初始生成一些虫子
+        for (let i = 0; i < 5; i++) {
+            spawnBug();
+        }
+
+        // 事件监听
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                useNet();
+            }
+
+            if (e.code === 'KeyE') {
+                interactWithNPC();
+            }
+
+            if (e.code === 'Escape') {
+                closeDialog();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // 添加淡出动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeOut {
+                0% { opacity: 1; transform: translate(-50%, -50%); }
+                100% { opacity: 0; transform: translate(-50%, -80%); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 开始游戏
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
