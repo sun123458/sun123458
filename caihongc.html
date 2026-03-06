@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动态彩虹</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+        }
+        canvas {
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="rainbowCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('rainbowCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 设置画布大小
+        canvas.width = 800;
+        canvas.height = 500;
+
+        // 彩虹颜色
+        const colors = [
+            { name: 'red', color: '#FF0000', speed: 0.02 },
+            { name: 'orange', color: '#FF7F00', speed: 0.025 },
+            { name: 'yellow', color: '#FFFF00', speed: 0.03 },
+            { name: 'green', color: '#00FF00', speed: 0.035 },
+            { name: 'blue', color: '#0000FF', speed: 0.04 },
+            { name: 'indigo', color: '#4B0082', speed: 0.045 },
+            { name: 'violet', color: '#9400D3', speed: 0.05 }
+        ];
+
+        // 动画参数
+        let time = 0;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height * 0.8;
+        const maxRadius = 250;
+
+        // 绘制彩虹
+        function drawRainbow() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制背景云朵
+            drawClouds();
+
+            const baseWidth = 35;
+
+            colors.forEach((colorData, index) => {
+                // 动态半径 - 呼吸效果
+                const breathing = Math.sin(time * colorData.speed) * 10;
+                const innerRadius = maxRadius - (index * baseWidth) + breathing;
+                const outerRadius = innerRadius + baseWidth;
+
+                // 创建渐变
+                const gradient = ctx.createRadialGradient(
+                    centerX, centerY, innerRadius,
+                    centerX, centerY, outerRadius
+                );
+                gradient.addColorStop(0, colorData.color);
+                gradient.addColorStop(0.5, adjustBrightness(colorData.color, 20));
+                gradient.addColorStop(1, colorData.color);
+
+                // 绘制圆弧
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, outerRadius, Math.PI, 0, false);
+                ctx.arc(centerX, centerY, innerRadius, 0, Math.PI, true);
+                ctx.closePath();
+
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // 添加光晕效果
+                ctx.shadowColor = colorData.color;
+                ctx.shadowBlur = 15;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // 绘制雨滴
+            drawRaindrops();
+        }
+
+        // 调整颜色亮度
+        function adjustBrightness(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.min(255, (num >> 16) + amt);
+            const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+            const B = Math.min(255, (num & 0x0000FF) + amt);
+            return `rgb(${R}, ${G}, ${B})`;
+        }
+
+        // 绘制动态云朵
+        function drawClouds() {
+            const cloudOffset = Math.sin(time * 0.01) * 30;
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+
+            // 左边的云
+            drawCloud(100 + cloudOffset, 120, 1);
+            // 右边的云
+            drawCloud(700 - cloudOffset, 140, 0.8);
+        }
+
+        function drawCloud(x, y, scale) {
+            ctx.beginPath();
+            ctx.arc(x, y, 30 * scale, 0, Math.PI * 2);
+            ctx.arc(x + 25 * scale, y - 10 * scale, 25 * scale, 0, Math.PI * 2);
+            ctx.arc(x + 50 * scale, y, 30 * scale, 0, Math.PI * 2);
+            ctx.arc(x + 25 * scale, y + 10 * scale, 20 * scale, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 绘制雨滴
+        const raindrops = [];
+        for (let i = 0; i < 100; i++) {
+            raindrops.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                speed: 2 + Math.random() * 3,
+                length: 10 + Math.random() * 10
+            });
+        }
+
+        function drawRaindrops() {
+            ctx.strokeStyle = 'rgba(150, 200, 255, 0.6)';
+            ctx.lineWidth = 2;
+
+            raindrops.forEach(drop => {
+                ctx.beginPath();
+                ctx.moveTo(drop.x, drop.y);
+                ctx.lineTo(drop.x, drop.y + drop.length);
+                ctx.stroke();
+
+                // 更新位置
+                drop.y += drop.speed;
+                if (drop.y > canvas.height) {
+                    drop.y = -drop.length;
+                    drop.x = Math.random() * canvas.width;
+                }
+            });
+        }
+
+        // 动画循环
+        function animate() {
+            time++;
+            drawRainbow();
+            requestAnimationFrame(animate);
+        }
+
+        // 启动动画
+        animate();
+    </script>
+</body>
+</html>
