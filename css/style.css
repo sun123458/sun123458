@@ -1,293 +1,380 @@
-/* 基础样式重置 */
+/* Reset and Base Styles */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-body {
-    font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+html, body {
+    width: 100%;
+    height: 100%;
     overflow: hidden;
-    background: #000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #000;
+    color: #fff;
 }
 
-/* 加载界面 */
-#loader {
+/* AR Container */
+#ar-container {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    z-index: 1;
+}
+
+/* UI Overlay */
+#ui-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* Enable pointer events for interactive elements */
+#ui-overlay > * {
+    pointer-events: auto;
+}
+
+/* Header */
+.app-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 16px 20px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-header h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ff4444;
+    animation: pulse 1.5s infinite;
+}
+
+.status-dot.active {
+    background-color: #44ff44;
+    animation: none;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+}
+
+.status-text {
+    font-size: 0.875rem;
+    color: #fff;
+}
+
+/* Exhibit Info Panel */
+.info-panel {
+    position: absolute;
+    top: 70px;
+    left: 20px;
+    right: 20px;
+    max-width: 400px;
+    padding: 16px;
+    background: rgba(0,0,0,0.75);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.info-panel.hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+}
+
+.info-panel h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.info-panel p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.9);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.9);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 10000;
-    transition: opacity 0.5s ease;
+    gap: 20px;
+    transition: opacity 0.3s ease;
 }
 
-#loader.hidden {
+.loading-overlay.hidden {
     opacity: 0;
     pointer-events: none;
 }
 
+/* Spinner */
 .spinner {
-    width: 60px;
-    height: 60px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255,255,255,0.2);
     border-top-color: #fff;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
-#loader p {
-    color: #fff;
-    margin-top: 20px;
-    font-size: 18px;
-    font-weight: 300;
+#loading-text {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.9);
 }
 
-/* 标题横幅 */
-#title-banner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
-    color: white;
-    text-align: center;
-    padding: 15px 20px;
-    z-index: 1000;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
+/* Progress Bar */
+.progress-bar {
+    width: 200px;
+    height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    overflow: hidden;
 }
 
-#title-banner h1 {
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 5px;
-    letter-spacing: 1px;
+.progress-fill {
+    height: 100%;
+    background: #4CAF50;
+    width: 0%;
+    transition: width 0.3s ease;
 }
 
-#title-banner .subtitle {
-    font-size: 14px;
-    opacity: 0.9;
-    font-weight: 300;
-}
-
-/* 控制面板 */
-#control-panel {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 10px;
-    z-index: 1000;
-    background: rgba(255, 255, 255, 0.95);
-    padding: 12px 18px;
-    border-radius: 30px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
-}
-
-.btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    outline: none;
-    white-space: nowrap;
-}
-
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn:active {
-    transform: translateY(0);
-}
-
-.btn.active {
-    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
-}
-
-/* 交互提示 */
-#interaction-hint {
-    position: fixed;
+/* Exhibit Navigation */
+.exhibit-nav {
+    position: absolute;
     bottom: 100px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 20px;
-    font-size: 14px;
-    z-index: 999;
-    opacity: 0.9;
-    transition: opacity 0.3s ease;
-}
-
-#interaction-hint.hidden {
-    opacity: 0;
-}
-
-/* 展品信息面板 */
-.info-panel {
-    position: fixed;
-    top: 50%;
-    right: 20px;
-    transform: translateY(-50%);
-    width: 320px;
-    max-height: 80vh;
-    background: rgba(255, 255, 255, 0.98);
-    border-radius: 15px;
-    padding: 25px;
-    z-index: 2000;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 24px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 30px;
     backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
 }
 
-.info-panel.hidden {
+.nav-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.nav-btn:hover {
+    background: rgba(255,255,255,0.25);
+}
+
+.nav-btn:active {
+    transform: scale(0.95);
+}
+
+.nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.exhibit-counter {
+    font-size: 1rem;
+    font-weight: 500;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* Instructions */
+.instructions {
+    position: absolute;
+    bottom: 180px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    max-width: 280px;
+    text-align: center;
+}
+
+.instructions.hidden {
     opacity: 0;
-    transform: translateY(-50%) translateX(400px);
     pointer-events: none;
 }
 
-.info-content h2 {
-    color: #667eea;
-    font-size: 22px;
-    margin-bottom: 15px;
-    font-weight: 600;
+.instructions svg {
+    color: #4CAF50;
 }
 
-.info-content p {
-    color: #555;
-    line-height: 1.6;
-    margin-bottom: 15px;
-    font-size: 15px;
+.instructions p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: rgba(255,255,255,0.9);
 }
 
-#exhibit-details {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
+.marker-link {
+    font-size: 0.875rem;
+    color: #4CAF50;
+    text-decoration: none;
+    border-bottom: 1px dotted #4CAF50;
+    transition: opacity 0.2s ease;
 }
 
-#exhibit-details p {
-    margin-bottom: 8px;
-    font-size: 14px;
+.marker-link:hover {
+    opacity: 0.8;
+    text-decoration: none;
 }
 
-#exhibit-details strong {
-    color: #667eea;
-    font-weight: 600;
-}
-
-.close-btn {
-    width: 100%;
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-    color: white;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-
-.close-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-    #title-banner h1 {
-        font-size: 20px;
+/* Responsive Design */
+@media (max-width: 600px) {
+    .app-header {
+        padding: 12px 16px;
     }
 
-    #title-banner .subtitle {
-        font-size: 12px;
+    .app-header h1 {
+        font-size: 1rem;
     }
 
-    #control-panel {
-        flex-wrap: wrap;
-        justify-content: center;
-        padding: 10px 15px;
+    .status-indicator {
+        padding: 4px 10px;
     }
 
-    .btn {
-        padding: 8px 14px;
-        font-size: 13px;
+    .status-text {
+        font-size: 0.75rem;
     }
 
     .info-panel {
-        width: calc(100% - 40px);
-        right: 20px;
+        top: 60px;
+        left: 16px;
+        right: 16px;
+        padding: 12px;
+    }
+
+    .info-panel h2 {
+        font-size: 1rem;
+    }
+
+    .info-panel p {
+        font-size: 0.85rem;
+    }
+
+    .exhibit-nav {
+        bottom: 80px;
+        padding: 10px 20px;
+    }
+
+    .nav-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .exhibit-counter {
+        font-size: 0.9rem;
+        min-width: 50px;
+    }
+
+    .instructions {
+        bottom: 160px;
+        padding: 16px;
+    }
+
+    .instructions svg {
+        width: 40px;
+        height: 40px;
+    }
+
+    .instructions p {
+        font-size: 0.875rem;
+    }
+}
+
+/* Portrait Orientation */
+@media (orientation: portrait) {
+    .exhibit-nav {
+        bottom: 100px;
+    }
+
+    .instructions {
+        bottom: 180px;
+    }
+}
+
+/* Landscape Orientation */
+@media (orientation: landscape) {
+    .info-panel {
+        top: 60px;
         left: 20px;
-        max-height: 70vh;
+        right: auto;
+        max-width: 350px;
     }
 
-    #interaction-hint {
-        font-size: 12px;
-        padding: 8px 16px;
-    }
-}
-
-@media (max-width: 480px) {
-    #control-panel {
-        bottom: 15px;
-        gap: 8px;
+    .exhibit-nav {
+        bottom: 40px;
     }
 
-    .btn {
-        padding: 8px 12px;
-        font-size: 12px;
+    .instructions {
+        bottom: 100px;
+        right: 20px;
+        left: auto;
+        transform: none;
     }
-
-    .info-panel {
-        padding: 20px;
-    }
-}
-
-/* AR场景样式增强 */
-.a-canvas {
-    width: 100% !important;
-    height: 100% !important;
-}
-
-/* 禁用AR.js默认的UI */
-.a-enter-vr {
-    display: none;
-}
-
-/* 加载完成动画 */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.fade-in-up {
-    animation: fadeInUp 0.6s ease forwards;
 }

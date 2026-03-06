@@ -1,0 +1,19 @@
+# AR.js Camera Parameters File
+# This file contains default camera parameters for AR
+#
+# Format: ARToolKit camera parameter file
+#
+# Camera parameters (calibrated for typical mobile devices)
+# If you experience tracking issues, you may need to calibrate
+# for your specific device using AR.js calibration tools
+
+# Image size
+640 480
+
+# Camera matrix (focal lengths and principal point)
+533.474243 0.000000 319.500000
+0.000000 533.474243 239.500000
+0.000000 0.000000 1.000000
+
+# Distortion coefficients
+0.041976 -0.186675 -0.002278 0.001924 0.000000

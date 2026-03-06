@@ -1,140 +1,262 @@
-# 虚拟教室平台原型
+# AR增强现实展厅应用
 
-一个功能完整的虚拟教室平台原型，使用纯 HTML、CSS 和 JavaScript 实现。
+基于Web技术的AR增强现实展厅应用，让用户通过手机或平板设备的摄像头扫描特定图像标记，在真实空间中展示3D展品模型。
 
 ## 功能特性
 
-### 🎨 共享白板
-- **多种绘图工具**：画笔、橡皮擦、直线、矩形、圆形
-- **自定义设置**：颜色选择器、笔刷大小调整
-- **历史管理**：撤销/重做功能
-- **触摸支持**：完美支持移动设备触摸绘图
-
-### 👥 参与者管理
-- 实时参与者列表
-- 角色标识（主持人/学生）
-- 头像显示
-- 参与者计数
-
-### 💬 实时聊天
-- 消息发送和接收
-- 支持表情符号快捷输入
-- 消息时间戳
-- 自动回复模拟
-
-### 📺 屏幕共享模拟
-- 可拖动的共享区域选择框
-- 高亮显示共享区域
-- 启动/停止共享控制
-
-### 🔴 录制功能
-- 一键开始/停止录制
-- 视觉录制指示器（红点闪烁）
-- 录制状态动画
-
-### 📱 响应式设计
-- 适配桌面、平板和手机屏幕
-- 触摸优化的交互体验
-- 自适应布局
-
-## 使用方法
-
-### 启动应用
-1. 在浏览器中打开 `index.html` 文件
-2. 或使用本地服务器运行：
-   ```bash
-   # 使用 Python
-   python -m http.server 8000
-
-   # 使用 Node.js
-   npx http-server
-   ```
-
-### 白板操作
-1. **选择工具**：点击工具栏上的工具图标
-2. **设置颜色**：点击颜色选择器
-3. **调整笔刷**：拖动笔刷大小滑块
-4. **撤销操作**：点击撤销按钮
-5. **清空画布**：点击清空按钮
-
-### 聊天功能
-1. **发送消息**：在输入框输入文字，点击发送按钮
-2. **添加表情**：点击表情面板中的表情
-3. **查看历史**：滚动聊天窗口查看历史消息
-
-### 屏幕共享
-1. 点击"选择区域"按钮
-2. 拖动出现的蓝色框选择共享区域
-3. 点击"停止"按钮结束共享
-
-### 录制
-1. 点击右上角录制按钮
-2. 看到红色闪烁指示器表示录制中
-3. 再次点击停止录制
+- ✅ 基于图像标记的AR识别（使用Hiro标记）
+- ✅ 3D模型展示（支持GLTF格式）
+- ✅ 多展品切换功能
+- ✅ 交互式UI界面
+- ✅ 响应式设计（支持移动端）
+- ✅ 加载进度显示
+- ✅ 标记识别状态提示
+- ✅ 触摸手势支持（左右滑动切换展品）
 
 ## 技术栈
 
-- **HTML5**：Canvas API 用于绘图
-- **CSS3**：Flexbox 和 Grid 布局，动画效果
-- **JavaScript (ES6+)**：模块化代码结构
+- **Three.js r128**: 3D渲染引擎
+- **AR.js 3.3.2**: AR增强现实框架
+- **HTML5**: 页面结构
+- **原生JavaScript**: 无需构建工具
 
-## 文件结构
+## 项目结构
 
 ```
-虚拟教室平台/
-├── index.html      # 主HTML文件
-├── styles.css      # 样式表
-├── app.js          # 应用逻辑
-└── README.md       # 说明文档
+ar-gallery/
+├── index.html              # 主入口文件
+├── README.md              # 项目说明文档
+├── css/
+│   └── style.css          # 样式文件
+├── js/
+│   ├── app.js            # 主应用逻辑（AR场景初始化、渲染）
+│   ├── gallery.js        # 展厅管理器（展品状态管理）
+│   └── models.js         # 3D模型配置数据
+├── data/
+│   └── camera_para.dat   # AR相机参数文件
+└── assets/
+    └── models/            # 存放3D模型文件（GLTF格式）
+        ├── exhibit1.gltf   # 古代陶罐模型
+        ├── exhibit2.gltf   # 青铜器皿模型
+        └── exhibit3.gltf   # 古代玉器模型
+```
+
+## 快速开始
+
+### 1. 安装本地服务器
+
+由于AR应用需要访问摄像头和加载外部资源，必须通过HTTP服务器运行。选择以下任一方式：
+
+**方式A: 使用Python**
+```bash
+# Python 3
+python3 -m http.server 8000
+
+# 或 Python 2
+python -m SimpleHTTPServer 8000
+```
+
+**方式B: 使用Node.js (http-server)**
+```bash
+# 安装
+npm install -g http-server
+
+# 运行
+http-server -p 8000
+```
+
+**方式C: 使用VS Code Live Server扩展**
+- 安装Live Server扩展
+- 右键点击index.html
+- 选择"Open with Live Server"
+
+### 2. 在移动设备上访问
+
+1. 确保移动设备和电脑连接到同一Wi-Fi网络
+2. 查看电脑的本地IP地址（例如：192.168.1.100）
+3. 在移动设备浏览器中访问：`http://192.168.1.100:8000`
+4. 授予摄像头权限
+5. 将摄像头对准Hiro标记图案
+
+### 3. Hiro标记
+
+点击以下链接查看和打印Hiro标记：
+- [Hiro标记图案](https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/hiro.png)
+- [Hiro Pattern文件](https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/pattern-hiro.patt)
+
+**建议**：
+- 打印在A4纸上，标记大小至少10cm x 10cm
+- 确保打印区域边缘清晰
+- 在光线充足的环境中使用
+- 保持摄像头距离标记30-50cm
+
+## 展品配置
+
+展品配置文件位于 `js/models.js`：
+
+```javascript
+const exhibits = [
+    {
+        id: 'hiro',                    // 唯一标识
+        pattern: 'hiro',              // AR标记类型
+        name: '古代陶罐',             // 展品名称
+        description: '...',            // 展品描述
+        modelPath: 'assets/models/exhibit1.gltf',  // 模型路径
+        thumbnail: 'assets/thumbnails/exhibit1.jpg', // 缩略图
+        scale: 1.0,                    // 缩放系数
+        position: { x: 0, y: 0.5, z: 0 } // 模型位置
+    },
+    // 更多展品...
+];
+```
+
+## 自定义3D模型
+
+### 模型格式要求
+
+- **格式**: GLTF或GLB
+- **单位**: 建议使用米作为单位
+- **尺寸**: 模型最大尺寸建议不超过2个单位
+- **材质**: 支持PBR材质
+- **优化**:
+  - 面数控制在5000以内（保证流畅运行）
+  - 使用压缩纹理
+  - 合并相同材质的网格
+
+### 模型转换工具
+
+常用的模型格式转换工具：
+- [Blender](https://www.blender.org/) - 导出为GLTF
+- [glTF-Validator](https://github.com/KhronosGroup/glTF-Validator) - 验证模型
+- [gltf-pipeline](https://github.com/CesiumGS/gltf-pipeline) - 优化压缩
+
+### 添加新展品
+
+1. 将GLTF模型文件放入 `assets/models/` 目录
+2. 在 `js/models.js` 中添加展品配置：
+
+```javascript
+{
+    id: 'new-exhibit',
+    name: '新展品名称',
+    description: '展品描述文本',
+    modelPath: 'assets/models/new-model.gltf',
+    scale: 1.0,
+    position: { x: 0, y: 0.5, z: 0 }
+}
 ```
 
 ## 浏览器兼容性
 
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 14+
-- 移动浏览器（iOS Safari 14+, Chrome Mobile）
+### 移动端支持
 
-## 核心功能说明
+- ✅ Chrome (Android) 推荐
+- ✅ Safari (iOS) 推荐
+- ⚠️ 其他浏览器可能需要用户特殊配置
 
-### 状态管理
-所有应用状态存储在 `AppState` 对象中，包括：
-- 录制状态
-- 共享状态
-- 当前工具
-- 白板历史
-- 消息历史
+### 功能要求
 
-### 白板实现
-- 使用 Canvas 2D 上下文进行绘制
-- 支持高 DPI 屏幕（Retina 显示器优化）
-- 触摸事件用于移动设备支持
+- WebGL 2.0 支持
+- 摄像头访问权限
+- HTTPS或本地网络环境
 
-### 本地存储
-- 白板绘图状态保存在内存中
-- 聊天消息保存在内存中
-- 刷新页面会清除所有状态
+## 故障排查
 
-## 扩展建议
+### 问题1: 无法识别标记
 
-如需将此原型转为生产应用，可以考虑：
+**解决方案**:
+- 确保光线充足
+- 调整摄像头距离（30-50cm）
+- 确保标记平整，无遮挡
+- 使用高清打印的标记
+- 清理摄像头镜头
 
-1. **后端集成**：
-   - WebSocket 实现实时同步
-   - 用户认证系统
-   - 数据库持久化
+### 问题2: 摄像头无法启动
 
-2. **功能增强**：
-   - 实际的录制功能（MediaRecorder API）
-   - 真实的屏幕共享（WebRTC）
-   - 文件上传功能
-   - 语音/视频通话
+**解决方案**:
+- 确保使用HTTPS或本地IP访问
+- 检查浏览器权限设置
+- 如果是iOS，确保使用Safari
+- 如果是Android，使用Chrome浏览器
 
-3. **性能优化**：
-   - 白板状态压缩
-   - 消息分页加载
-   - 图片懒加载
+### 问题3: 模型加载失败
 
-## 许可
+**解决方案**:
+- 检查模型文件路径是否正确
+- 使用GLTF验证工具检查模型文件
+- 查看浏览器控制台的错误信息
+- 确保通过HTTP服务器访问（不是file://协议）
 
-此项目仅用于学习和演示目的。
+### 问题4: 性能卡顿
+
+**解决方案**:
+- 降低模型面数
+- 减少场景中的光源数量
+- 使用GLB格式（压缩的二进制GLTF）
+- 关闭不必要的后台应用
+
+## 扩展功能建议
+
+### 1. 添加语音讲解
+```javascript
+// 在app.js的_loadCurrentModel方法中添加
+const speak = new SpeechSynthesisUtterance(exhibit.description);
+speechSynthesis.speak(speak);
+```
+
+### 2. 添加手势交互
+- 双指缩放模型
+- 单指旋转模型
+- 长按显示详细信息
+
+### 3. 支持多种标记
+- 使用AR.js Pattern Maker创建自定义标记
+- 为每个展品分配不同的标记图案
+
+### 4. 添加导航引导
+- 在展厅中添加虚拟箭头
+- 指导用户到下一个展品
+
+## 性能优化
+
+### 模型优化
+```
+使用 gltf-pipeline 压缩模型:
+npx gltf-pipeline -i model.gltf -o model.glb -d
+```
+
+### 渲染优化
+- 已启用：`antialias: true`
+- 已实现：加载进度显示
+- 已实现：标记丢失时停止渲染模型
+
+## 开发与调试
+
+### 查看日志
+在移动设备上：
+- Chrome: `chrome://inspect` → 需要USB调试
+- Safari: Mac→Safari→开发→[设备名称]
+
+### 本地测试
+1. 在浏览器控制台查看错误信息
+2. 检查Network标签确认资源加载
+3. 使用WebGL inspector调试渲染问题
+
+## 许可证
+
+MIT License - 欢迎自由使用和修改
+
+## 参考资源
+
+- [AR.js官方文档](https://ar-js-org.github.io/AR.js-Docs/)
+- [Three.js文档](https://threejs.org/docs/)
+- [GLTF格式规范](https://www.khronos.org/gltf/)
+- [Hiro标记下载](https://github.com/AR-js-org/AR.js/tree/master/data/data)
+
+## 贡献
+
+欢迎提交问题和改进建议！
+
+---
+
+**Happy AR Creating!** 🎨📱✨
