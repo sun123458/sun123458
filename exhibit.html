@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR 展示 - 虚拟展厅</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+  <!-- A-Frame -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe-master.min.js"></script>
+  <!-- AR.js with A-Frame integration -->
+  <script src="https://cdn.jsdelivr.net/npm/ar.js@2.2.2/build/aframe-ar.js"></script>
+</head>
+<body style="margin: 0; overflow: hidden;">
+
+  <!-- Loading Overlay -->
+  <div class="ar-loading-overlay" id="arLoading">
+    <div class="ar-loading-spinner"></div>
+    <p class="ar-loading-text" id="loadingText">正在加载AR场景...</p>
+  </div>
+
+  <!-- AR Scene -->
+  <a-scene
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; precision: mediump;"
+    loading-screen="enabled: false"
+  >
+    <!-- Hiro Marker - All exhibits rendered here, switched via bottom nav -->
+    <a-marker
+      preset="hiro"
+      id="marker-hiro"
+      emitevents="true"
+      smooth="true"
+      smoothCount="5"
+      smoothTolerance="0.01"
+      smoothThreshold="2"
+      raycaster="objects: .clickable"
+      cursor="fuse: false; rayOrigin: mouse;"
+    >
+      <!-- Exhibit container - content swapped dynamically -->
+      <a-entity id="exhibit-container" class="clickable">
+      </a-entity>
+    </a-marker>
+
+    <!-- Camera -->
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <!-- UI Overlay -->
+  <div class="ar-ui-overlay" id="arUI">
+    <!-- Top bar -->
+    <div class="ar-top-bar">
+      <button class="ar-back-btn" onclick="window.location.href='index.html'">
+        <i class="fas fa-arrow-left"></i> 返回
+      </button>
+      <div class="ar-status" id="arStatus">
+        <i class="fas fa-circle" style="font-size: 6px; color: #f44336;"></i> 等待扫描
+      </div>
+    </div>
+
+    <!-- Scanner frame -->
+    <div class="ar-scanner-frame" id="scannerFrame"></div>
+
+    <!-- Bottom navigation -->
+    <div class="ar-bottom-nav" id="arBottomNav">
+      <button class="ar-nav-item active" data-exhibit="globe" onclick="window.switchExhibit('globe')">
+        <i class="fas fa-globe-americas"></i>
+        <span>地球仪</span>
+      </button>
+      <button class="ar-nav-item" data-exhibit="crystal" onclick="window.switchExhibit('crystal')">
+        <i class="fas fa-gem"></i>
+        <span>水晶</span>
+      </button>
+      <button class="ar-nav-item" data-exhibit="temple" onclick="window.switchExhibit('temple')">
+        <i class="fas fa-landmark"></i>
+        <span>神殿</span>
+      </button>
+      <button class="ar-nav-item" data-exhibit="dna" onclick="window.switchExhibit('dna')">
+        <i class="fas fa-dna"></i>
+        <span>DNA</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Info Panel -->
+  <div class="ar-info-panel" id="infoPanel">
+    <div class="info-panel-header">
+      <div>
+        <div class="info-panel-title" id="infoPanelTitle">展品名称</div>
+        <span class="info-panel-era" id="infoPanelEra">年代</span>
+      </div>
+      <button class="info-panel-close" onclick="window.hideInfoPanel()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <p class="info-panel-desc" id="infoPanelDesc">展品描述信息</p>
+  </div>
+
+  <script src="js/ar-exhibit.js"></script>
+</body>
+</html>
