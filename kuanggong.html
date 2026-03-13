@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>黄金矿工</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#1a1a2e;font-family:'Microsoft YaHei','PingFang SC',sans-serif;user-select:none}
+canvas{display:block}
+#menu{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;background:linear-gradient(180deg,#87CEEB 0%,#c2956a 40%,#6B4226 100%)}
+.menu-title{font-size:min(72px,10vw);color:#FFD700;text-shadow:3px 3px 0 #B8860B,0 0 30px rgba(255,215,0,0.4);margin-bottom:8px;font-weight:900;letter-spacing:8px}
+.menu-subtitle{font-size:min(22px,3.5vw);color:#FFF8DC;margin-bottom:50px;text-shadow:1px 1px 3px rgba(0,0,0,0.5)}
+.menu-buttons{display:flex;gap:30px;margin-bottom:40px}
+.menu-btn{padding:18px 48px;font-size:min(26px,4vw);border:3px solid #FFD700;background:linear-gradient(180deg,#DAA520,#B8860B);color:#FFF;border-radius:14px;cursor:pointer;transition:all .3s;font-weight:bold;letter-spacing:3px;text-shadow:1px 1px 2px rgba(0,0,0,0.3)}
+.menu-btn:hover{transform:scale(1.08);box-shadow:0 0 35px rgba(255,215,0,0.6)}
+.menu-legend{background:rgba(0,0,0,0.45);border-radius:16px;padding:20px 32px;color:#FFF;font-size:min(15px,2.3vw);line-height:1.9;max-width:560px;text-align:center;backdrop-filter:blur(5px)}
+.menu-legend b{color:#FFD700}
+#victory{position:fixed;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:20;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px)}
+.victory-box{text-align:center;animation:victoryIn .6s ease-out}
+.victory-title{font-size:min(68px,12vw);color:#FFD700;font-weight:900;text-shadow:0 0 40px rgba(255,215,0,0.6),3px 3px 0 #B8860B;margin-bottom:16px}
+.victory-score{font-size:min(32px,5vw);color:#FFF8DC;margin-bottom:36px;text-shadow:1px 1px 3px rgba(0,0,0,0.5)}
+.victory-btn{padding:14px 42px;font-size:22px;border:2px solid #FFD700;background:linear-gradient(180deg,#DAA520,#B8860B);color:#FFF;border-radius:10px;cursor:pointer;font-weight:bold;transition:all .3s}
+.victory-btn:hover{transform:scale(1.05);box-shadow:0 0 25px rgba(255,215,0,0.5)}
+@keyframes victoryIn{from{opacity:0;transform:scale(0.5) translateY(40px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="menu">
+  <div class="menu-title">黄金矿工</div>
+  <div class="menu-subtitle">目标：收集 800 分赢得胜利！</div>
+  <div class="menu-buttons">
+    <button class="menu-btn" onclick="startGame(1)">单 人 模 式</button>
+    <button class="menu-btn" onclick="startGame(2)">双 人 模 式</button>
+  </div>
+  <div class="menu-legend">
+    <b>操作：</b> 玩家A 按 <b>S</b> 键 &nbsp;|&nbsp; 玩家B 按 <b>↓</b> 键 &nbsp; 放下钩子<br>
+    <b>物品价值：</b>
+    💎钻石 800 &nbsp;
+    大金块 350 &nbsp; 中金块 150 &nbsp; 小金块 50<br>
+    大石头 30 &nbsp; 中石头 20 &nbsp; 小石头 10 &nbsp;
+    🐷小猪 3 &nbsp; 💣炸弹 2
+  </div>
+</div>
+
+<div id="victory">
+  <div class="victory-box">
+    <div class="victory-title">🎉 恭喜获胜！🎉</div>
+    <div class="victory-score" id="victoryInfo"></div>
+    <button class="victory-btn" onclick="backToMenu()">返回主菜单</button>
+  </div>
+</div>
+
+<script>
+/* ========== 常量 ========== */
+const WIN_SCORE = 800;
+const SWING_SPEED = 1.4;          // 摆动速度(rad/s)
+const MAX_ANGLE = 1.35;           // 最大摆动角度 ~77°
+const EXTEND_SPEED = 350;         // 钩子伸出速度(px/s)
+const BASE_RETRACT = 260;         // 基础回收速度
+const HOOK_RADIUS = 6;            // 钩尖碰撞半径
+const ROPE_MIN = 28;              // 最短绳长
+const PIG_SPEED = 35;             // 小猪移动速度
+const CONFETTI_COLORS = ['#FF1744','#FFD600','#00E676','#2979FF','#D500F9','#FF9100','#00BFA5','#FF4081'];
+
+/* ========== 物品定义 ========== */
+const DEFS = {
+  DIAMOND: { w:1, v:800, r:14, shape:'diamond' },
+  GOLD_S:  { w:2, v:50,  r:16, shape:'gold' },
+  GOLD_M:  { w:3, v:150, r:23, shape:'gold' },
+  GOLD_L:  { w:5, v:350, r:33, shape:'gold' },
+  ROCK_S:  { w:4, v:10,  r:20, shape:'rock' },
+  ROCK_M:  { w:7, v:20,  r:28, shape:'rock' },
+  ROCK_L:  { w:10,v:30,  r:40, shape:'rock' },
+  BOMB:    { w:1, v:2,   r:14, shape:'bomb' },
+  PIG:     { w:1.5,v:3,  r:19, shape:'pig', moves:true }
+};
+
+/* 生成配置：类型 + 数量 */
+const SPAWN_CFG = [
+  ['DIAMOND',3],['GOLD_S',5],['GOLD_M',3],['GOLD_L',2],
+  ['ROCK_S',3],['ROCK_M',2],['ROCK_L',1],
+  ['BOMB',4],['PIG',2]
+];
+
+/* ========== 全局变量 ========== */
+const cvs = document.getElementById('gameCanvas');
+const ctx = cvs.getContext('2d');
+let W, H, surfaceY;
+let gameState = 'menu';           // menu | playing | victory
+let playerMode = 1;
+let players = [];
+let items = [];
+let effects = [];                 // 爆炸等特效
+let popups = [];                  // 分数弹出
+let confettiParts = [];
+let bgDots = [];                  // 背景碎石纹理
+let lastTs = 0;
+let globalTime = 0;
+
+/* ========== 画布尺寸 ========== */
+function resize() {
+  W = cvs.width = window.innerWidth;
+  H = cvs.height = window.innerHeight;
+  surfaceY = Math.max(110, H * 0.13);
+  genBgDots();
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* 生成背景碎石 */
+function genBgDots() {
+  bgDots = [];
+  for (let i = 0; i < 80; i++) {
+    bgDots.push({
+      x: Math.random() * W,
+      y: surfaceY + 15 + Math.random() * (H - surfaceY - 15),
+      s: 1.5 + Math.random() * 3.5,
+      a: 0.08 + Math.random() * 0.15
+    });
+  }
+}
+
+/* ========== 物品管理 ========== */
+function createItem(type, x, y) {
+  let d = DEFS[type];
+  let it = { type, x, y, w: d.w, v: d.v, r: d.r, shape: d.shape, alive: true, grabbed: false, vx: 0, verts: null };
+  if (d.moves) it.vx = (Math.random() > 0.5 ? 1 : -1) * PIG_SPEED;
+  if (d.shape === 'rock') {
+    it.verts = [];
+    let n = 6 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      let a = (i / n) * Math.PI * 2;
+      it.verts.push({ x: Math.cos(a) * d.r * (0.72 + Math.random() * 0.28), y: Math.sin(a) * d.r * (0.72 + Math.random() * 0.28) });
+    }
+  }
+  return it;
+}
+
+function generateItems() {
+  items = [];
+  let margin = 50;
+  for (let [type, count] of SPAWN_CFG) {
+    let d = DEFS[type];
+    for (let i = 0; i < count; i++) {
+      let placed = false;
+      for (let tries = 0; tries < 120 && !placed; tries++) {
+        let x = d.r + margin + Math.random() * (W - 2 * d.r - 2 * margin);
+        let y = surfaceY + 45 + d.r + Math.random() * (H - surfaceY - 70 - 2 * d.r);
+        let ok = true;
+        for (let o of items) {
+          let dx = x - o.x, dy = y - o.y;
+          if (Math.sqrt(dx*dx + dy*dy) < d.r + o.r + 12) { ok = false; break; }
+        }
+        if (ok) { items.push(createItem(type, x, y)); placed = true; }
+      }
+      if (!placed) {
+        items.push(createItem(type, d.r + margin + Math.random() * (W - 2*d.r - 2*margin)));
+      }
+    }
+  }
+}
+
+/* 补充物品 */
+function refillItems() {
+  let alive = items.filter(i => i.alive).length;
+  if (alive >= 6) return;
+  let types = [['GOLD_S',3],['GOLD_M',2],['GOLD_L',1],['ROCK_S',2],['BOMB',2],['PIG',1]];
+  for (let [type,count] of types) {
+    for (let i = 0; i < count; i++) {
+      let d = DEFS[type];
+      let x = d.r + 50 + Math.random() * (W - 2*d.r - 100);
+      let y = surfaceY + 50 + d.r + Math.random() * (H - surfaceY - 80 - 2*d.r);
+      items.push(createItem(type, x, y));
+    }
+  }
+}
+
+/* ========== 玩家 ========== */
+class Player {
+  constructor(px, label, btnLabel, color) {
+    this.px = px; this.py = surfaceY;
+    this.label = label; this.btnLabel = btnLabel; this.color = color;
+    this.score = 0;
+    this.state = 'swinging';      // swinging | extending | retracting
+    this.time = 0;
+    this.phase = label === 'A' ? 0 : Math.PI * 0.6;
+    this.angle = 0;
+    this.len = ROPE_MIN;
+    this.grabbed = null;
+    this.bombFast = false;
+    this.tipX = px; this.tipY = surfaceY + ROPE_MIN;
+  }
+  reset() { this.score = 0; this.state = 'swinging'; this.time = 0; this.angle = 0; this.len = ROPE_MIN; this.grabbed = null; this.bombFast = false; }
+  tip() { return { x: this.px + this.len * Math.sin(this.angle), y: this.py + this.len * Math.cos(this.angle) }; }
+  release() { if (this.state === 'swinging') this.state = 'extending'; }
+  update(dt) {
+    switch (this.state) {
+      case 'swinging':
+        this.time += dt;
+        this.angle = MAX_ANGLE * Math.sin(this.time * SWING_SPEED + this.phase);
+        this.len = ROPE_MIN;
+        break;
+      case 'extending':
+        this.len += EXTEND_SPEED * dt;
+        { let t = this.tip();
+          if (t.x < -20 || t.x > W + 20 || t.y > H + 20) { this.state = 'retracting'; break; }
+          for (let it of items) {
+            if (!it.alive || it.grabbed) continue;
+            let dx = t.x - it.x, dy = t.y - it.y;
+            if (Math.sqrt(dx*dx+dy*dy) < it.r + HOOK_RADIUS) { this.doGrab(it); break; }
+          }
+        }
+        break;
+      case 'retracting': {
+        let spd = BASE_RETRACT;
+        if (this.bombFast) { spd = EXTEND_SPEED * 1.6; }
+        else if (this.grabbed) { spd = BASE_RETRACT / this.grabbed.w; }
+        this.len -= spd * dt;
+        if (this.len <= ROPE_MIN) {
+          this.len = ROPE_MIN;
+          if (this.grabbed) {
+            this.score += this.grabbed.v;
+            let t = this.tip();
+            popups.push({ x: t.x, y: t.y - 10, val: this.grabbed.v, t: 0, dur: 1.4 });
+            this.grabbed.alive = false;
+            this.grabbed = null;
+            checkWin(this);
+          }
+          this.state = 'swinging';
+          this.bombFast = false;
+        }
+        break;
+      }
+    }
+    let t = this.tip(); this.tipX = t.x; this.tipY = t.y;
+    if (this.grabbed && this.grabbed.shape !== 'bomb') { this.grabbed.x = t.x; this.grabbed.y = t.y; }
+  }
+  doGrab(item) {
+    item.grabbed = true;
+    if (item.shape === 'bomb') {
+      effects.push(new Explosion(item.x, item.y));
+      popups.push({ x: item.x, y: item.y - 10, val: 2, t: 0, dur: 1.4, bomb: true });
+      this.score += 2;
+      item.alive = false;
+      this.grabbed = null;
+      this.bombFast = true;
+      this.state = 'retracting';
+      checkWin(this);
+    } else {
+      this.grabbed = item;
+      item.vx = 0;
+      this.state = 'retracting';
+    }
+  }
+  render() {
+    let t = this.tip();
+    /* 绳子 */
+    ctx.strokeStyle = '#6B3A0A'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(this.px, this.py + 18); ctx.lineTo(t.x, t.y); ctx.stroke();
+    /* 绳索纹理 */
+    let dx = t.x - this.px, dy = t.y - (this.py + 18);
+    let ln = Math.sqrt(dx*dx+dy*dy);
+    if (ln > 10) {
+      let ux = dx/ln, uy = dy/ln;
+      ctx.fillStyle = '#8B5A1B';
+      for (let d = 8; d < ln; d += 12) {
+        ctx.beginPath();
+        ctx.arc(this.px + ux*d, this.py + 18 + uy*d, 2.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+    /* 钩爪 */
+    drawClaw(ctx, t.x, t.y, this.angle, this.state === 'retracting' && this.grabbed);
+    /* 抓住的物品 */
+    if (this.grabbed) drawItemShape(ctx, this.grabbed, t.x, t.y);
+  }
+}
+
+/* ========== 钩爪绘制 ========== */
+function drawClaw(c, x, y, angle, closed) {
+  c.save(); c.translate(x, y); c.rotate(angle);
+  let pl = 14, sp = closed ? 0.12 : 0.5;
+  c.strokeStyle = '#A0A0A0'; c.lineWidth = 3; c.lineCap = 'round';
+  for (let i = -1; i <= 1; i++) {
+    c.beginPath(); c.moveTo(0, 0);
+    c.lineTo(Math.sin(i * sp) * pl, Math.cos(i * sp) * pl);
+    c.stroke();
+  }
+  c.fillStyle = '#888'; c.beginPath(); c.arc(0, 0, 4, 0, Math.PI*2); c.fill();
+  c.restore();
+}
+
+/* ========== 物品绘制 ========== */
+function drawItemShape(c, it, x, y) {
+  switch (it.shape) {
+    case 'diamond': {
+      let r = it.r;
+      /* 闪光外圈 */
+      let glow = r + 4 + Math.sin(globalTime * 3.5) * 2.5;
+      c.fillStyle = 'rgba(0,191,255,0.15)';
+      c.beginPath(); c.arc(x, y, glow, 0, Math.PI*2); c.fill();
+      /* 钻石形状 */
+      c.beginPath();
+      c.moveTo(x, y - r); c.lineTo(x + r * 0.75, y);
+      c.lineTo(x, y + r); c.lineTo(x - r * 0.75, y); c.closePath();
+      let g = c.createLinearGradient(x-r, y-r, x+r, y+r);
+      g.addColorStop(0, '#E8FFFF'); g.addColorStop(0.4, '#00BFFF'); g.addColorStop(1, '#87CEFA');
+      c.fillStyle = g; c.fill();
+      c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 1; c.stroke();
+      /* 高光 */
+      c.fillStyle = 'rgba(255,255,255,0.55)';
+      c.beginPath();
+      c.moveTo(x - r*0.15, y - r*0.55);
+      c.lineTo(x + r*0.3, y - r*0.1);
+      c.lineTo(x - r*0.1, y - r*0.1);
+      c.closePath(); c.fill();
+      /* 闪烁 */
+      if (Math.sin(globalTime * 6) > 0.7) {
+        c.fillStyle = '#FFF';
+        drawStar(c, x + r*0.4, y - r*0.5, 2.5, 6, 3);
+      }
+      break;
+    }
+    case 'gold': {
+      let r = it.r;
+      let g = c.createRadialGradient(x - r*0.25, y - r*0.25, r*0.1, x, y, r);
+      g.addColorStop(0, '#FFFACD'); g.addColorStop(0.35, '#FFD700'); g.addColorStop(1, '#B8860B');
+      c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, Math.PI*2); c.fill();
+      c.strokeStyle = '#DAA520'; c.lineWidth = 1.5; c.stroke();
+      /* 金色数值 */
+      if (r >= 20) {
+        c.fillStyle = 'rgba(139,69,19,0.6)';
+        c.font = `bold ${Math.round(r*0.55)}px sans-serif`;
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText('$', x, y + 1);
+      }
+      break;
+    }
+    case 'rock': {
+      c.beginPath();
+      c.moveTo(x + it.verts[0].x, y + it.verts[0].y);
+      for (let v of it.verts) c.lineTo(x + v.x, y + v.y);
+      c.closePath();
+      let g = c.createRadialGradient(x - it.r*0.2, y - it.r*0.2, it.r*0.1, x, y, it.r);
+      g.addColorStop(0, '#999'); g.addColorStop(1, '#555');
+      c.fillStyle = g; c.fill();
+      c.strokeStyle = '#444'; c.lineWidth = 1.5; c.stroke();
+      break;
+    }
+    case 'bomb': {
+      let r = it.r;
+      c.fillStyle = '#1a1a1a'; c.beginPath(); c.arc(x, y, r, 0, Math.PI*2); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.15)';
+      c.beginPath(); c.arc(x - r*0.25, y - r*0.3, r*0.3, 0, Math.PI*2); c.fill();
+      /* 引线 */
+      c.strokeStyle = '#8B6914'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(x + r*0.4, y - r*0.65);
+      c.quadraticCurveTo(x + r*0.9, y - r*1.1, x + r*0.4, y - r*1.35);
+      c.stroke();
+      /* 火花 */
+      let sp = 2.5 + Math.sin(globalTime * 12) * 1.2;
+      c.fillStyle = '#FF4500'; c.beginPath(); c.arc(x + r*0.4, y - r*1.35, sp + 1, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#FFD700'; c.beginPath(); c.arc(x + r*0.4, y - r*1.35, sp * 0.5, 0, Math.PI*2); c.fill();
+      /* 骷髅标志 */
+      c.fillStyle = '#FF4500'; c.font = `bold ${Math.round(r*0.75)}px sans-serif`;
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('☠', x, y + 1);
+      break;
+    }
+    case 'pig': {
+      let r = it.r;
+      let dir = it.vx >= 0 ? 1 : -1;
+      c.save(); c.translate(x, y);
+      /* 身体 */
+      c.fillStyle = '#FFB6C1'; c.beginPath(); c.ellipse(0, 0, r, r*0.7, 0, 0, Math.PI*2); c.fill();
+      c.strokeStyle = '#E8889A'; c.lineWidth = 1; c.stroke();
+      /* 耳朵 */
+      c.fillStyle = '#E8889A';
+      c.beginPath(); c.ellipse(-r*0.55, -r*0.45, r*0.18, r*0.28, -0.4, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(r*0.55, -r*0.45, r*0.18, r*0.28, 0.4, 0, Math.PI*2); c.fill();
+      /* 眼睛 */
+      c.fillStyle = '#333';
+      c.beginPath(); c.arc(-r*0.25*dir - r*0.05, -r*0.15, 2.2, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(r*0.25*dir - r*0.05, -r*0.15, 2.2, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#FFF';
+      c.beginPath(); c.arc(-r*0.25*dir - r*0.05 + 0.6, -r*0.2, 0.8, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(r*0.25*dir - r*0.05 + 0.6, -r*0.2, 0.8, 0, Math.PI*2); c.fill();
+      /* 鼻子 */
+      c.fillStyle = '#E8889A'; c.beginPath(); c.ellipse(-r*0.05, r*0.12, r*0.22, r*0.16, 0, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#C7607E';
+      c.beginPath(); c.arc(-r*0.12, r*0.12, 1.8, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(r*0.02, r*0.12, 1.8, 0, Math.PI*2); c.fill();
+      /* 腿 */
+      let legAnim = Math.sin(globalTime * 8) * 3;
+      c.fillStyle = '#E8889A';
+      c.fillRect(-r*0.52, r*0.45 + legAnim, 5, 7);
+      c.fillRect(-r*0.18, r*0.55 + legAnim, 5, 7);
+      c.fillRect(r*0.13, r*0.55 - legAnim, 5, 7);
+      c.fillRect(r*0.47, r*0.45 - legAnim, 5, 7);
+      /* 尾巴 */
+      c.strokeStyle = '#E8889A'; c.lineWidth = 2;
+      c.beginPath(); c.arc(-dir*r*0.75, -r*0.1, 4, 0, Math.PI*1.5); c.stroke();
+      c.restore();
+      break;
+    }
+  }
+}
+
+/* 五角星 */
+function drawStar(c, cx, cy, r1, r2, pts) {
+  c.beginPath();
+  for (let i = 0; i < pts * 2; i++) {
+    let r = i % 2 === 0 ? r2 : r1;
+    let a = (i * Math.PI / pts) - Math.PI / 2;
+    if (i === 0) c.moveTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
+    else c.lineTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
+  }
+  c.closePath(); c.fill();
+}
+
+/* ========== 矿工绘制 ========== */
+function drawMiner(c, px, py, color) {
+  /* 身体 */
+  c.fillStyle = color;
+  c.fillRect(px - 11, py - 26, 22, 24);
+  /* 头 */
+  c.fillStyle = '#FFDAB9';
+  c.beginPath(); c.arc(px, py - 36, 11, 0, Math.PI*2); c.fill();
+  /* 安全帽 */
+  c.fillStyle = '#FFD700';
+  c.fillRect(px - 13, py - 49, 26, 7);
+  c.fillRect(px - 9, py - 52, 18, 5);
+  /* 帽灯 */
+  c.fillStyle = '#FFF';
+  c.beginPath(); c.arc(px, py - 52, 3, 0, Math.PI*2); c.fill();
+  /* 眼睛 */
+  c.fillStyle = '#333';
+  c.beginPath(); c.arc(px - 4, py - 37, 1.8, 0, Math.PI*2); c.fill();
+  c.beginPath(); c.arc(px + 4, py - 37, 1.8, 0, Math.PI*2); c.fill();
+  /* 嘴 */
+  c.strokeStyle = '#333'; c.lineWidth = 1;
+  c.beginPath(); c.arc(px, py - 32, 4, 0.2, Math.PI - 0.2); c.stroke();
+  /* 手臂 */
+  c.strokeStyle = color; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(px - 11, py - 22); c.lineTo(px - 18, py - 10); c.stroke();
+  c.beginPath(); c.moveTo(px + 11, py - 22); c.lineTo(px + 18, py - 10); c.stroke();
+  /* 拉杆机器 */
+  c.fillStyle = '#5C3317';
+  c.fillRect(px - 8, py - 6, 16, 10);
+  c.fillStyle = '#8B5A1B';
+  c.beginPath(); c.arc(px, py, 6, 0, Math.PI*2); c.fill();
+}
+
+/* ========== 爆炸特效 ========== */
+class Explosion {
+  constructor(x, y) {
+    this.x = x; this.y = y; this.t = 0; this.dur = 1.0;
+    this.parts = [];
+    for (let i = 0; i < 28; i++) {
+      let a = Math.random() * Math.PI * 2;
+      let spd = 60 + Math.random() * 180;
+      this.parts.push({ x, y, vx: Math.cos(a)*spd, vy: Math.sin(a)*spd,
+        s: 2.5 + Math.random()*5, c: ['#FF4500','#FF6347','#FFD700','#FF8C00','#FFEE58'][Math.floor(Math.random()*5)] });
+    }
+  }
+  update(dt) {
+    this.t += dt;
+    for (let p of this.parts) { p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 120*dt; }
+  }
+  render(c) {
+    let a = 1 - this.t / this.dur; if (a <= 0) return;
+    /* 闪光 */
+    c.globalAlpha = a * 0.4;
+    let fr = this.t * 130;
+    let fg = c.createRadialGradient(this.x, this.y, 0, this.x, this.y, fr);
+    fg.addColorStop(0, '#FFF'); fg.addColorStop(0.4, '#FF8C00'); fg.addColorStop(1, 'rgba(255,69,0,0)');
+    c.fillStyle = fg; c.beginPath(); c.arc(this.x, this.y, fr, 0, Math.PI*2); c.fill();
+    /* 碎片 */
+    c.globalAlpha = a;
+    for (let p of this.parts) {
+      c.fillStyle = p.c; c.beginPath(); c.arc(p.x, p.y, p.s, 0, Math.PI*2); c.fill();
+    }
+    c.globalAlpha = 1;
+  }
+  done() { return this.t >= this.dur; }
+}
+
+/* ========== 胜利五彩纸屑 ========== */
+class Confetti {
+  constructor() {
+    this.x = Math.random() * W;
+    this.y = -10 - Math.random() * H * 0.8;
+    this.w = 4 + Math.random() * 9;
+    this.h = this.w * (0.3 + Math.random() * 0.4);
+    this.c = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+    this.vy = 90 + Math.random() * 180;
+    this.vx = (Math.random() - 0.5) * 80;
+    this.rot = Math.random() * Math.PI * 2;
+    this.rv = (Math.random() - 0.5) * 8;
+    this.wb = Math.random() * Math.PI * 2;
+    this.ws = 2 + Math.random() * 3;
+  }
+  update(dt) {
+    this.y += this.vy * dt;
+    this.x += this.vx * dt + Math.sin(this.wb) * 25 * dt;
+    this.wb += this.ws * dt;
+    this.rot += this.rv * dt;
+    return this.y < H + 30;
+  }
+  render(c) {
+    c.save(); c.translate(this.x, this.y); c.rotate(this.rot);
+    c.fillStyle = this.c;
+    c.fillRect(-this.w/2, -this.h/2, this.w, this.h);
+    c.restore();
+  }
+}
+
+/* ========== 背景绘制 ========== */
+function drawBg() {
+  /* 天空 */
+  let sg = ctx.createLinearGradient(0, 0, 0, surfaceY);
+  sg.addColorStop(0, '#5B9BD5'); sg.addColorStop(1, '#B0D4F1');
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, surfaceY);
+
+  /* 云 */
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  drawCloud(ctx, W*0.1, surfaceY*0.25, 50);
+  drawCloud(ctx, W*0.45, surfaceY*0.15, 65);
+  drawCloud(ctx, W*0.78, surfaceY*0.35, 45);
+  drawCloud(ctx, W*0.3, surfaceY*0.45, 35);
+
+  /* 地下 */
+  let gg = ctx.createLinearGradient(0, surfaceY, 0, H);
+  gg.addColorStop(0, '#8B6914'); gg.addColorStop(0.2, '#6B4226'); gg.addColorStop(0.6, '#4A2E14'); gg.addColorStop(1, '#2E1A08');
+  ctx.fillStyle = gg; ctx.fillRect(0, surfaceY, W, H - surfaceY);
+
+  /* 碎石点缀 */
+  for (let d of bgDots) {
+    ctx.fillStyle = `rgba(100,70,40,${d.a})`;
+    ctx.beginPath(); ctx.arc(d.x, d.y, d.s, 0, Math.PI*2); ctx.fill();
+  }
+
+  /* 草地 */
+  ctx.fillStyle = '#2E8B2E'; ctx.fillRect(0, surfaceY - 3, W, 8);
+  ctx.fillStyle = '#3CB371';
+  for (let x = 0; x < W; x += 14) {
+    let h = 6 + Math.sin(x * 0.3) * 4;
+    ctx.beginPath(); ctx.moveTo(x, surfaceY - 3); ctx.lineTo(x + 5, surfaceY - 3 - h); ctx.lineTo(x + 10, surfaceY - 3); ctx.fill();
+  }
+}
+
+function drawCloud(c, x, y, s) {
+  c.beginPath();
+  c.arc(x, y, s*0.4, 0, Math.PI*2);
+  c.arc(x + s*0.35, y - s*0.15, s*0.35, 0, Math.PI*2);
+  c.arc(x + s*0.7, y, s*0.3, 0, Math.PI*2);
+  c.fill();
+}
+
+/* ========== HUD ========== */
+function drawHUD() {
+  /* 底栏信息 */
+  let barH = 38;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, H - barH, W, barH);
+  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 16px sans-serif';
+  ctx.textBaseline = 'middle';
+
+  if (playerMode === 1) {
+    ctx.textAlign = 'left';
+    ctx.fillText(`目标: ${WIN_SCORE} 分`, 15, H - barH/2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#FFF';
+    ctx.fillText(`得分: ${players[0].score} / ${WIN_SCORE}`, W - 15, H - barH/2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#AAA';
+    ctx.fillText('按 S 放下钩子', W/2, H - barH/2);
+  } else {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#FF6B6B';
+    ctx.fillText(`玩家A (S键): ${players[0].score} 分`, 15, H - barH/2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#6BC5FF';
+    ctx.fillText(`玩家B (↓键): ${players[1].score} 分`, W - 15, H - barH/2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFD700';
+    ctx.fillText(`目标: ${WIN_SCORE} 分`, W/2, H - barH/2);
+  }
+}
+
+/* ========== 分数弹出 ========== */
+function updatePopups(dt) {
+  for (let p of popups) p.t += dt;
+  popups = popups.filter(p => p.t < p.dur);
+}
+function drawPopups() {
+  for (let p of popups) {
+    let a = 1 - p.t / p.dur;
+    ctx.globalAlpha = a;
+    ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (p.bomb) {
+      ctx.fillStyle = '#FF4500';
+      ctx.fillText(`💥 ${p.val}`, p.x, p.y - p.t * 50);
+    } else if (p.val >= 800) {
+      ctx.fillStyle = '#00FFFF';
+      ctx.fillText(`💎 +${p.val}`, p.x, p.y - p.t * 50);
+    } else if (p.val >= 100) {
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText(`+${p.val}`, p.x, p.y - p.t * 50);
+    } else {
+      ctx.fillStyle = '#FFF';
+      ctx.fillText(`+${p.val}`, p.x, p.y - p.t * 50);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ========== 胜利检测 ========== */
+function checkWin(p) {
+  if (p.score >= WIN_SCORE && gameState === 'playing') {
+    gameState = 'victory';
+    let info = document.getElementById('victoryInfo');
+    if (playerMode === 1) {
+      info.innerHTML = `最终得分：<b style="color:#FFD700;font-size:1.4em">${p.score}</b> 分`;
+    } else {
+      info.innerHTML = `${p.label === 'A' ? '玩家A' : '玩家B'} 获胜！得分：<b style="color:#FFD700;font-size:1.4em">${p.score}</b> 分`;
+    }
+    document.getElementById('victory').style.display = 'flex';
+    /* 生成五彩纸屑 */
+    confettiParts = [];
+    for (let i = 0; i < 150; i++) confettiParts.push(new Confetti());
+  }
+}
+
+/* ========== 主更新 ========== */
+function update(dt) {
+  globalTime += dt;
+  for (let it of items) {
+    if (!it.alive || it.grabbed) continue;
+    if (it.shape === 'pig') {
+      it.x += it.vx * dt;
+      if (it.x < it.r + 10 || it.x > W - it.r - 10) it.vx *= -1;
+    }
+  }
+  for (let p of players) p.update(dt);
+  for (let e of effects) e.update(dt);
+  effects = effects.filter(e => !e.done());
+  updatePopups(dt);
+  refillItems();
+}
+
+/* ========== 主渲染 ========== */
+function render() {
+  ctx.clearRect(0, 0, W, H);
+  drawBg();
+
+  /* 绘制所有物品(未被抓住的) */
+  for (let it of items) {
+    if (it.alive && !it.grabbed) drawItemShape(ctx, it, it.x, it.y);
+  }
+
+  /* 绘制玩家（绳索+钩爪+被抓住的物品） */
+  for (let p of players) p.render();
+
+  /* 绘制矿工 */
+  for (let p of players) {
+    drawMiner(ctx, p.px, p.py, p.color);
+    /* 标签 */
+    ctx.fillStyle = p.color;
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(p.label === 'A' ? `玩家A [${p.btnLabel}]` : `玩家B [${p.btnLabel}]`, p.px, p.py - 56);
+  }
+
+  /* 特效 */
+  for (let e of effects) e.render(ctx);
+  drawPopups();
+  drawHUD();
+
+  /* 五彩纸屑(胜利时) */
+  if (gameState === 'victory') {
+    confettiParts = confettiParts.filter(cf => cf.update(1/60));
+    if (confettiParts.length < 80) for (let i = 0; i < 3; i++) confettiParts.push(new Confetti());
+    for (let cf of confettiParts) cf.render(ctx);
+  }
+}
+
+/* ========== 游戏循环 ========== */
+function gameLoop(ts) {
+  let dt = (ts - lastTs) / 1000;
+  if (dt > 0.1) dt = 0.1;
+  lastTs = ts;
+
+  if (gameState === 'playing') { update(dt); render(); }
+  else if (gameState === 'victory') { render(); }  // 继续渲染特效
+
+  requestAnimationFrame(gameLoop);
+}
+
+/* ========== 游戏启动 ========== */
+function startGame(mode) {
+  playerMode = mode;
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('victory').style.display = 'none';
+
+  resize();
+  generateItems();
+
+  players = [];
+  if (mode === 1) {
+    players.push(new Player(W / 2, 'A', 'S', '#FF6B6B'));
+  } else {
+    players.push(new Player(W * 0.28, 'A', 'S', '#FF6B6B'));
+    players.push(new Player(W * 0.72, 'B', '↓', '#6BC5FF'));
+  }
+
+  effects = []; popups = []; confettiParts = [];
+  gameState = 'playing';
+  globalTime = 0;
+}
+
+function backToMenu() {
+  gameState = 'menu';
+  document.getElementById('victory').style.display = 'none';
+  document.getElementById('menu').style.display = 'flex';
+}
+
+/* ========== 键盘事件 ========== */
+window.addEventListener('keydown', (e) => {
+  if (gameState !== 'playing') return;
+  if (e.code === 'KeyS') { if (players[0]) players[0].release(); e.preventDefault(); }
+  if (e.code === 'ArrowDown') { if (players[1]) players[1].release(); e.preventDefault(); }
+  /* 单人模式下↓也能用 */
+  if (e.code === 'ArrowDown' && playerMode === 1 && players[0]) { players[0].release(); e.preventDefault(); }
+});
+
+/* ========== 启动渲染循环 ========== */
+lastTs = performance.now();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
