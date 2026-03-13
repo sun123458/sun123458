@@ -1,0 +1,373 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 920" font-family="'Microsoft YaHei','PingFang SC','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 6" refX="9" refY="3" markerWidth="10" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6Z" fill="#555"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 6" refX="9" refY="3" markerWidth="10" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6Z" fill="#e74c3c"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 6" refX="9" refY="3" markerWidth="10" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6Z" fill="#e67e22"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 6" refX="9" refY="3" markerWidth="10" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6Z" fill="#27ae60"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 6" refX="9" refY="3" markerWidth="10" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6Z" fill="#2980b9"/>
+    </marker>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.1"/>
+    </filter>
+    <linearGradient id="lane1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8f5e9"/><stop offset="100%" stop-color="#c8e6c9"/>
+    </linearGradient>
+    <linearGradient id="lane2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e3f2fd"/><stop offset="100%" stop-color="#bbdefb"/>
+    </linearGradient>
+    <linearGradient id="lane3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff3e0"/><stop offset="100%" stop-color="#ffe0b2"/>
+    </linearGradient>
+    <linearGradient id="lane4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fce4ec"/><stop offset="100%" stop-color="#f8bbd0"/>
+    </linearGradient>
+    <linearGradient id="lane5" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f3e5f5"/><stop offset="100%" stop-color="#e1bee7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="1900" height="920" rx="12" fill="#f8f9fa"/>
+
+  <!-- 标题 -->
+  <text x="950" y="38" text-anchor="middle" font-size="24" font-weight="bold" fill="#2c3e50">医疗急诊处理流程 — 泳道图</text>
+
+  <!-- ====== 泳道（5条水平） ====== -->
+  <!-- 泳道标签列 (x: 0-130) -->
+  <rect x="5" y="55" width="125" height="140" rx="6" fill="url(#lane1)" stroke="#66bb6a" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="67" y="125" text-anchor="middle" font-size="14" font-weight="bold" fill="#2e7d32">分诊护士</text>
+
+  <rect x="5" y="200" width="125" height="140" rx="6" fill="url(#lane2)" stroke="#42a5f5" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="67" y="270" text-anchor="middle" font-size="14" font-weight="bold" fill="#1565c0">急诊医生</text>
+
+  <rect x="5" y="345" width="125" height="140" rx="6" fill="url(#lane3)" stroke="#ffa726" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="67" y="415" text-anchor="middle" font-size="14" font-weight="bold" fill="#e65100">检查/检验科</text>
+
+  <rect x="5" y="490" width="125" height="140" rx="6" fill="url(#lane4)" stroke="#ef5350" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="67" y="555" text-anchor="middle" font-size="13" font-weight="bold" fill="#c62828">专科/</text>
+  <text x="67" y="572" text-anchor="middle" font-size="13" font-weight="bold" fill="#c62828">手术团队</text>
+
+  <rect x="5" y="635" width="125" height="140" rx="6" fill="url(#lane5)" stroke="#ab47bc" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="67" y="705" text-anchor="middle" font-size="13" font-weight="bold" fill="#6a1b9a">行政/</text>
+  <text x="67" y="722" text-anchor="middle" font-size="13" font-weight="bold" fill="#6a1b9a">出入院管理</text>
+
+  <!-- 泳道背景条 -->
+  <rect x="130" y="55"  width="1765" height="140" fill="#f1f8e9" opacity="0.4"/>
+  <rect x="130" y="200" width="1765" height="140" fill="#e8f0fe" opacity="0.4"/>
+  <rect x="130" y="345" width="1765" height="140" fill="#fff8e1" opacity="0.4"/>
+  <rect x="130" y="490" width="1765" height="140" fill="#fce4ec" opacity="0.4"/>
+  <rect x="130" y="635" width="1765" height="140" fill="#f3e5f5" opacity="0.4"/>
+
+  <!-- 泳道分隔线 -->
+  <line x1="130" y1="195" x2="1895" y2="195" stroke="#ccc" stroke-dasharray="6,3"/>
+  <line x1="130" y1="340" x2="1895" y2="340" stroke="#ccc" stroke-dasharray="6,3"/>
+  <line x1="130" y1="485" x2="1895" y2="485" stroke="#ccc" stroke-dasharray="6,3"/>
+  <line x1="130" y1="630" x2="1895" y2="630" stroke="#ccc" stroke-dasharray="6,3"/>
+
+  <!-- ====== 阶段标题 ====== -->
+  <!-- 6 个阶段 — 列中心: 310, 600, 890, 1190, 1480, 1770 -->
+  <text x="310"  y="78" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">患者到达</text>
+  <text x="310"  y="93" text-anchor="middle" font-size="11" fill="#777">分诊判断</text>
+  <text x="600"  y="78" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">急诊医生初诊</text>
+  <text x="600"  y="93" text-anchor="middle" font-size="11" fill="#777">问诊 / 体格检查</text>
+  <text x="890"  y="78" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">检查与诊断</text>
+  <text x="890"  y="93" text-anchor="middle" font-size="11" fill="#777">化验 / 影像 / 心电</text>
+  <text x="1190" y="78" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">急救 / 重症处理</text>
+  <text x="1190" y="93" text-anchor="middle" font-size="11" fill="#777">复苏 / 气道管理</text>
+  <text x="1480" y="78" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">医生诊断与决策</text>
+  <text x="1480" y="93" text-anchor="middle" font-size="11" fill="#777">综合诊断 / 方案制定</text>
+  <text x="1770" y="78" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">出院 / 住院 / 转院</text>
+  <text x="1770" y="93" text-anchor="middle" font-size="11" fill="#777">行政办理</text>
+
+  <!-- 列分隔虚线 -->
+  <line x1="455" y1="55" x2="455" y2="775" stroke="#ddd" stroke-dasharray="4,3"/>
+  <line x1="745" y1="55" x2="745" y2="775" stroke="#ddd" stroke-dasharray="4,3"/>
+  <line x1="1040" y1="55" x2="1040" y2="775" stroke="#ddd" stroke-dasharray="4,3"/>
+  <line x1="1340" y1="55" x2="1340" y2="775" stroke="#ddd" stroke-dasharray="4,3"/>
+  <line x1="1630" y1="55" x2="1630" y2="775" stroke="#ddd" stroke-dasharray="4,3"/>
+
+  <!-- ========================================================= -->
+  <!-- ====== 流程节点 ====== -->
+  <!-- ========================================================= -->
+
+  <!-- 阶段1: 患者到达 (分诊护士) -->
+  <!-- 开始 -->
+  <ellipse cx="170" cy="125" rx="28" ry="16" fill="#27ae60" stroke="#1e8449" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="170" y="130" text-anchor="middle" font-size="11" fill="white" font-weight="bold">开始</text>
+
+  <!-- 患者到达 -->
+  <rect x="220" y="108" width="110" height="34" rx="6" fill="#fff" stroke="#4caf50" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="275" y="123" text-anchor="middle" font-size="11" fill="#2e7d32">患者到达</text>
+  <text x="275" y="136" text-anchor="middle" font-size="9.5" fill="#66bb6a">登记信息</text>
+
+  <!-- 测量生命体征 -->
+  <rect x="220" y="148" width="110" height="30" rx="6" fill="#fff" stroke="#4caf50" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="275" y="167" text-anchor="middle" font-size="11" fill="#2e7d32">测量生命体征</text>
+
+  <!-- 分诊判断（菱形） -->
+  <polygon points="400,115 440,80 480,115 440,150" fill="#fff9c4" stroke="#f9a825" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="440" y="113" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">分诊</text>
+  <text x="440" y="127" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">判断</text>
+
+  <!-- 箭头: 开始 → 患者到达 -->
+  <line x1="198" y1="125" x2="218" y2="125" stroke="#555" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <!-- 箭头: 患者到达 → 测量生命体征 -->
+  <line x1="275" y1="142" x2="275" y2="146" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- 箭头: 测量生命体征 → 分诊判断 -->
+  <line x1="330" y1="163" x2="398" y2="128" stroke="#555" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- 分诊分支标注 -->
+  <!-- 危重（红色）→ 直接送急救处理 -->
+  <line x1="440" y1="80" x2="440" y2="62" stroke="#e74c3c" stroke-width="2" stroke-dasharray="0"/>
+  <line x1="440" y1="62" x2="1155" y2="62" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="1155" y1="62" x2="1155" y2="515" stroke="#e74c3c" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <rect x="680" y="47" width="100" height="20" rx="4" fill="#e74c3c"/>
+  <text x="730" y="61" text-anchor="middle" font-size="10" fill="white" font-weight="bold">危重（红色）</text>
+
+  <!-- 严重（黄色）→ 急诊医生初诊 -->
+  <line x1="440" y1="150" x2="440" y2="168" stroke="#e67e22" stroke-width="2"/>
+  <line x1="440" y1="168" x2="540" y2="168" stroke="#e67e22" stroke-width="2"/>
+  <line x1="540" y1="168" x2="540" y2="270" stroke="#e67e22" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <rect x="462" y="155" width="72" height="18" rx="4" fill="#e67e22"/>
+  <text x="498" y="168" text-anchor="middle" font-size="9.5" fill="white" font-weight="bold">严重（黄色）</text>
+
+  <!-- 轻症（绿色）→ 排队候诊 -->
+  <line x1="480" y1="115" x2="540" y2="115" stroke="#27ae60" stroke-width="2"/>
+  <line x1="540" y1="115" x2="540" y2="108" stroke="#27ae60" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <rect x="490" y="127" width="80" height="18" rx="4" fill="#27ae60"/>
+  <text x="530" y="140" text-anchor="middle" font-size="9.5" fill="white" font-weight="bold">轻症（绿色）</text>
+
+  <!-- 排队候诊等待 -->
+  <rect x="490" y="98" width="100" height="30" rx="6" fill="#e8f5e9" stroke="#66bb6a" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="540" y="113" text-anchor="middle" font-size="10.5" fill="#2e7d32">排队候诊等待</text>
+  <text x="540" y="123" text-anchor="middle" font-size="9" fill="#66bb6a">等待医生</text>
+
+  <!-- 排队 → 急诊医生初诊 -->
+  <line x1="540" y1="128" x2="540" y2="268" stroke="#27ae60" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- 阶段2: 急诊医生初诊 (急诊医生) -->
+  <rect x="490" y="255" width="120" height="34" rx="6" fill="#e3f2fd" stroke="#42a5f5" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="550" y="270" text-anchor="middle" font-size="11" fill="#1565c0">问诊 / 体格检查</text>
+  <text x="550" y="283" text-anchor="middle" font-size="9.5" fill="#64b5f6">急诊初诊</text>
+
+  <rect x="490" y="295" width="120" height="30" rx="6" fill="#e3f2fd" stroke="#42a5f5" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="550" y="314" text-anchor="middle" font-size="11" fill="#1565c0">开具检查单</text>
+
+  <!-- 箭头: 急诊初诊 → 开具检查单 -->
+  <line x1="550" y1="289" x2="550" y2="293" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 需急救判断 → 急救处理 -->
+  <line x1="610" y1="310" x2="690" y2="310" stroke="#e74c3c" stroke-width="1.8"/>
+  <line x1="690" y1="310" x2="690" y2="555" stroke="#e74c3c" stroke-width="1.8"/>
+  <line x1="690" y1="555" x2="910" y2="555" stroke="#e74c3c" stroke-width="1.8" marker-end="url(#arrow-red)"/>
+  <text x="710" y="303" font-size="9.5" fill="#e74c3c" font-weight="bold">需急救</text>
+
+  <!-- 需检查 → 检验科 -->
+  <line x1="610" y1="270" x2="780" y2="270" stroke="#e67e22" stroke-width="1.8"/>
+  <line x1="780" y1="270" x2="780" y2="400" stroke="#e67e22" stroke-width="1.8" marker-end="url(#arrow-orange)"/>
+  <text x="690" y="265" font-size="9.5" fill="#e67e22" font-weight="bold">需进一步检查</text>
+
+  <!-- 轻症可处理 → 开处方 -->
+  <line x1="550" y1="325" x2="550" y2="340" stroke="#27ae60" stroke-width="1.5"/>
+  <line x1="550" y1="340" x2="1480" y2="340" stroke="#27ae60" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="700" y="335" font-size="9.5" fill="#27ae60" font-weight="bold">轻症 → 开处方 / 出院</text>
+
+  <!-- 阶段3: 检查与诊断 (检查/检验科) -->
+  <rect x="770" y="385" width="110" height="32" rx="6" fill="#fff3e0" stroke="#ffa726" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="825" y="405" text-anchor="middle" font-size="11" fill="#e65100">血液 / 尿液化验</text>
+
+  <rect x="770" y="422" width="110" height="30" rx="6" fill="#fff3e0" stroke="#ffa726" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="825" y="441" text-anchor="middle" font-size="11" fill="#e65100">影像学检查</text>
+  <text x="825" y="451" text-anchor="middle" font-size="9" fill="#ffb74d">X光/CT/MRI</text>
+
+  <rect x="770" y="456" width="110" height="28" rx="6" fill="#fff3e0" stroke="#ffa726" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="825" y="474" text-anchor="middle" font-size="11" fill="#e65100">心电图监测</text>
+
+  <!-- 箭头串联检查 -->
+  <line x1="825" y1="417" x2="825" y2="420" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="825" y1="452" x2="825" y2="454" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 检查结果判断（菱形）-->
+  <polygon points="950,415 990,380 1030,415 990,450" fill="#fff9c4" stroke="#f9a825" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="990" y="412" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#e65100">结果</text>
+  <text x="990" y="425" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#e65100">判断</text>
+
+  <line x1="880" y1="442" x2="948" y2="425" stroke="#555" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- 正常 → 返回医生诊断 -->
+  <line x1="990" y1="380" x2="990" y2="270" stroke="#2980b9" stroke-width="1.8"/>
+  <line x1="990" y1="270" x2="1420" y2="270" stroke="#2980b9" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+  <text x="1050" y="263" font-size="9.5" fill="#2980b9" font-weight="bold">结果正常 → 返回医生诊断</text>
+
+  <!-- 异常 → 通知手术团队 -->
+  <line x1="1030" y1="415" x2="1060" y2="415" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="1060" y1="415" x2="1060" y2="540" stroke="#e74c3c" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <text x="1065" y="478" font-size="9.5" fill="#e74c3c" font-weight="bold">异常</text>
+  <text x="1065" y="491" font-size="9.5" fill="#e74c3c" font-weight="bold">通知手术</text>
+  <text x="1065" y="504" font-size="9.5" fill="#e74c3c" font-weight="bold">团队介入</text>
+
+  <!-- 阶段4: 急救/重症处理 (专科/手术团队) -->
+  <rect x="912" y="520" width="120" height="34" rx="6" fill="#fce4ec" stroke="#ef5350" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="972" y="535" text-anchor="middle" font-size="11" fill="#c62828">急救处理</text>
+  <text x="972" y="548" text-anchor="middle" font-size="9.5" fill="#e57373">心肺复苏/气道管理</text>
+
+  <rect x="912" y="558" width="120" height="32" rx="6" fill="#fce4ec" stroke="#ef5350" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="972" y="578" text-anchor="middle" font-size="11" fill="#c62828">用药抢救</text>
+
+  <line x1="972" y1="554" x2="972" y2="556" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 手术/专科干预 -->
+  <rect x="1100" y="525" width="110" height="34" rx="6" fill="#fce4ec" stroke="#ef5350" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="1155" y="540" text-anchor="middle" font-size="11" fill="#c62828">手术 / 专科</text>
+  <text x="1155" y="553" text-anchor="middle" font-size="9.5" fill="#e57373">重症干预</text>
+
+  <rect x="1100" y="563" width="110" height="32" rx="6" fill="#fce4ec" stroke="#ef5350" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1155" y="583" text-anchor="middle" font-size="11" fill="#c62828">住院监护</text>
+
+  <line x1="1155" y1="559" x2="1155" y2="561" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 急救处理 → 手术 -->
+  <line x1="1032" y1="540" x2="1098" y2="540" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 病情评估菱形 -->
+  <polygon points="1270,548 1310,515 1350,548 1310,580" fill="#fff9c4" stroke="#f9a825" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="1310" y="546" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#e65100">病情</text>
+  <text x="1310" y="559" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#e65100">评估</text>
+
+  <line x1="1210" y1="548" x2="1268" y2="548" stroke="#555" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- 稳定 → 返回医生诊断 -->
+  <line x1="1310" y1="515" x2="1310" y2="270" stroke="#2980b9" stroke-width="1.8"/>
+  <line x1="1320" y1="270" x2="1420" y2="270" stroke="#2980b9" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+  <text x="1350" y="263" font-size="9.5" fill="#2980b9" font-weight="bold">病情稳定</text>
+
+  <!-- 恶化 → 再次急救（循环） -->
+  <path d="M1310,580 L1310,600 L920,600 L920,555" stroke="#e74c3c" stroke-width="2" fill="none" marker-end="url(#arrow-red)" stroke-dasharray="5,3"/>
+  <text x="1100" y="612" text-anchor="middle" font-size="9.5" fill="#e74c3c" font-weight="bold">病情恶化 → 再次急救（循环）</text>
+
+  <!-- 无效 → 宣布死亡 -->
+  <line x1="1350" y1="548" x2="1380" y2="548" stroke="#888" stroke-width="1.5"/>
+  <line x1="1380" y1="548" x2="1380" y2="750" stroke="#888" stroke-width="1.5"/>
+  <text x="1385" y="650" font-size="9.5" fill="#888" font-weight="bold">无效</text>
+
+  <ellipse cx="1380" cy="760" rx="40" ry="18" fill="#78909c" stroke="#546e7a" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1380" y="765" text-anchor="middle" font-size="10" fill="white" font-weight="bold">流程结束</text>
+
+  <!-- 阶段5: 医生诊断与决策 (急诊医生) -->
+  <rect x="1420" y="255" width="130" height="34" rx="6" fill="#e3f2fd" stroke="#42a5f5" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="1485" y="270" text-anchor="middle" font-size="11" fill="#1565c0">综合诊断</text>
+  <text x="1485" y="283" text-anchor="middle" font-size="9.5" fill="#64b5f6">结合检查结果</text>
+
+  <rect x="1420" y="295" width="130" height="30" rx="6" fill="#e3f2fd" stroke="#42a5f5" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1485" y="314" text-anchor="middle" font-size="11" fill="#1565c0">制定治疗方案</text>
+
+  <line x1="1485" y1="289" x2="1485" y2="293" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 决策菱形 -->
+  <polygon points="1610,275 1655,238 1700,275 1655,312" fill="#fff9c4" stroke="#f9a825" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="1655" y="273" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#e65100">治疗</text>
+  <text x="1655" y="286" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#e65100">决策</text>
+
+  <line x1="1550" y1="280" x2="1608" y2="278" stroke="#555" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- 门诊治疗 → 行政办理出院 -->
+  <line x1="1655" y1="238" x2="1655" y2="200" stroke="#27ae60" stroke-width="2"/>
+  <line x1="1655" y1="200" x2="1730" y2="200" stroke="#27ae60" stroke-width="2"/>
+  <line x1="1730" y1="200" x2="1730" y2="697" stroke="#27ae60" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <text x="1665" y="195" font-size="9.5" fill="#27ae60" font-weight="bold">门诊治疗</text>
+
+  <!-- 需住院 → 行政办理住院 -->
+  <line x1="1700" y1="275" x2="1730" y2="275" stroke="#2980b9" stroke-width="2"/>
+  <line x1="1730" y1="275" x2="1730" y2="697" stroke="#2980b9" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="1705" y="270" font-size="9.5" fill="#2980b9" font-weight="bold">需住院</text>
+
+  <!-- 需手术 → 通知手术团队 -->
+  <line x1="1655" y1="312" x2="1655" y2="340" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="1655" y1="340" x2="1155" y2="340" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="1155" y1="340" x2="1155" y2="561" stroke="#e74c3c" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <text x="1380" y="355" text-anchor="middle" font-size="9.5" fill="#e74c3c" font-weight="bold">需手术 → 通知手术团队准备</text>
+
+  <!-- 需转院 → 行政协调转院 -->
+  <line x1="1700" y1="290" x2="1780" y2="290" stroke="#e67e22" stroke-width="2"/>
+  <line x1="1780" y1="290" x2="1780" y2="697" stroke="#e67e22" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <text x="1785" y="285" font-size="9.5" fill="#e67e22" font-weight="bold">需转院</text>
+
+  <!-- 阶段6: 出院/住院/转院 (行政/出入院管理) -->
+  <rect x="1680" y="660" width="115" height="32" rx="6" fill="#f3e5f5" stroke="#ab47bc" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="1737" y="680" text-anchor="middle" font-size="11" fill="#6a1b9a">出院结算</text>
+
+  <rect x="1680" y="697" width="115" height="32" rx="6" fill="#f3e5f5" stroke="#ab47bc" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="1737" y="717" text-anchor="middle" font-size="11" fill="#6a1b9a">住院办理 / 病房分配</text>
+
+  <rect x="1680" y="734" width="115" height="28" rx="6" fill="#f3e5f5" stroke="#ab47bc" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1737" y="752" text-anchor="middle" font-size="11" fill="#6a1b9a">转院协调</text>
+
+  <!-- 出院 → 流程结束 -->
+  <line x1="1795" y1="676" x2="1840" y2="676" stroke="#27ae60" stroke-width="2"/>
+  <line x1="1840" y1="676" x2="1840" y2="760" stroke="#27ae60" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <!-- 住院 → 病房护理交接 -->
+  <rect x="1820" y="697" width="68" height="28" rx="14" fill="#e8f5e9" stroke="#66bb6a" stroke-width="1.5"/>
+  <text x="1854" y="715" text-anchor="middle" font-size="9.5" fill="#2e7d32">护理交接</text>
+  <line x1="1795" y1="713" x2="1818" y2="711" stroke="#2980b9" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 转院 → 流程结束 -->
+  <line x1="1795" y1="748" x2="1840" y2="748" stroke="#e67e22" stroke-width="2"/>
+  <line x1="1840" y1="748" x2="1840" y2="772" stroke="#e67e22" stroke-width="2" marker-end="url(#arrow-orange)"/>
+
+  <!-- 最终结束节点 -->
+  <ellipse cx="1840" cy="790" rx="40" ry="18" fill="#27ae60" stroke="#1e8449" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1840" y="795" text-anchor="middle" font-size="10.5" fill="white" font-weight="bold">流程结束</text>
+
+  <!-- ====== 图例 ====== -->
+  <rect x="5" y="800" width="890" height="100" rx="8" fill="white" stroke="#ddd" stroke-width="1" filter="url(#shadow)"/>
+  <text x="20" y="822" font-size="13" font-weight="bold" fill="#333">图例说明</text>
+
+  <!-- 开始/结束 -->
+  <ellipse cx="35" cy="846" rx="18" ry="10" fill="#27ae60"/>
+  <text x="60" y="850" font-size="10" fill="#555">开始 / 结束</text>
+
+  <!-- 流程节点 -->
+  <rect x="130" y="836" width="50" height="20" rx="4" fill="#fff" stroke="#42a5f5" stroke-width="1.5"/>
+  <text x="188" y="850" font-size="10" fill="#555">流程节点</text>
+
+  <!-- 判断节点 -->
+  <polygon points="275,836 295,823 315,836 295,850" fill="#fff9c4" stroke="#f9a825" stroke-width="1.5"/>
+  <text x="324" y="850" font-size="10" fill="#555">判断节点</text>
+
+  <!-- 流向箭头 -->
+  <line x1="400" y1="843" x2="435" y2="843" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="442" y="847" font-size="10" fill="#555">正常流程</text>
+
+  <!-- 分支颜色 -->
+  <line x1="530" y1="843" x2="560" y2="843" stroke="#e74c3c" stroke-width="2"/>
+  <text x="567" y="847" font-size="10" fill="#e74c3c">危重/急救路径</text>
+
+  <line x1="660" y1="843" x2="690" y2="843" stroke="#e67e22" stroke-width="2"/>
+  <text x="697" y="847" font-size="10" fill="#e67e22">严重/检查路径</text>
+
+  <line x1="790" y1="843" x2="820" y2="843" stroke="#27ae60" stroke-width="2"/>
+  <text x="827" y="847" font-size="10" fill="#27ae60">轻症/出院路径</text>
+
+  <!-- 泳道背景色 -->
+  <text x="20" y="878" font-size="10" fill="#555">泳道背景色：</text>
+  <rect x="105" y="866" width="14" height="14" rx="2" fill="#c8e6c9" stroke="#66bb6a" stroke-width="1"/>
+  <text x="123" y="878" font-size="10" fill="#555">分诊护士</text>
+  <rect x="195" y="866" width="14" height="14" rx="2" fill="#bbdefb" stroke="#42a5f5" stroke-width="1"/>
+  <text x="213" y="878" font-size="10" fill="#555">急诊医生</text>
+  <rect x="285" y="866" width="14" height="14" rx="2" fill="#ffe0b2" stroke="#ffa726" stroke-width="1"/>
+  <text x="303" y="878" font-size="10" fill="#555">检查/检验科</text>
+  <rect x="385" y="866" width="14" height="14" rx="2" fill="#f8bbd0" stroke="#ef5350" stroke-width="1"/>
+  <text x="403" y="878" font-size="10" fill="#555">专科/手术团队</text>
+  <rect x="500" y="866" width="14" height="14" rx="2" fill="#e1bee7" stroke="#ab47bc" stroke-width="1"/>
+  <text x="518" y="878" font-size="10" fill="#555">行政/出入院管理</text>
+</svg>
