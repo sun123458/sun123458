@@ -1,399 +1,196 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>微信聊天</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>微信聊天</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #ededed;
-            height: 100vh;
-            overflow: hidden;
-        }
+  .phone { width: 390px; height: 780px; background: #ededed; display: flex; flex-direction: column; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
 
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            max-width: 640px;
-            margin: 0 auto;
-            background-color: #ededed;
-            position: relative;
-        }
+  /* ── 顶部导航 ── */
+  .header { background: #ededed; padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: .5px solid #d9d9d9; flex-shrink: 0; }
+  .header .back { font-size: 22px; color: #111; cursor: pointer; user-select: none; }
+  .header .name { flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #111; }
+  .header .more { font-size: 20px; color: #111; cursor: pointer; width: 30px; text-align: center; user-select: none; }
 
-        /* 顶部导航栏 */
-        .header {
-            background-color: #ededed;
-            border-bottom: 1px solid #dcdcdc;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 56px;
-            position: relative;
-            z-index: 10;
-        }
+  /* ── 消息区 ── */
+  .messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; background: #ededed; }
+  .messages::-webkit-scrollbar { width: 0; }
 
-        .header-left {
-            display: flex;
-            align-items: center;
-        }
+  /* 时间标签 */
+  .time-label { text-align: center; font-size: 12px; color: #b2b2b2; padding: 4px 0; }
 
-        .back-btn {
-            font-size: 20px;
-            margin-right: 12px;
-            cursor: pointer;
-        }
+  /* 单条消息 */
+  .msg-row { display: flex; align-items: flex-start; gap: 8px; max-width: 85%; animation: fadeUp .25s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .msg-row.self { align-self: flex-end; flex-direction: row-reverse; }
 
-        .header-title {
-            font-size: 17px;
-            font-weight: 500;
-            color: #000;
-        }
+  /* 头像 */
+  .avatar { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; background: #50b674; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; font-weight: 600; }
+  .avatar.other-av { background: #4a90d9; }
 
-        .header-right {
-            font-size: 18px;
-        }
+  /* 气泡 */
+  .bubble { position: relative; padding: 10px 14px; border-radius: 6px; font-size: 15px; line-height: 1.5; color: #111; background: #fff; word-break: break-word; white-space: pre-wrap; }
+  .bubble::before { content: ''; position: absolute; top: 12px; border: 6px solid transparent; }
+  .msg-row:not(.self) .bubble::before { left: -10px; border-right-color: #fff; }
+  .msg-row.self .bubble { background: #95ec69; }
+  .msg-row.self .bubble::before { right: -10px; border-left-color: #95ec69; }
 
-        /* 消息列表区域 */
-        .message-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: thin;
-        }
+  /* "正在输入" */
+  .typing { font-size: 13px; color: #999; text-align: center; padding: 2px 0; display: none; }
+  .typing.show { display: block; }
 
-        .message-list::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .message-list::-webkit-scrollbar-thumb {
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 2px;
-        }
-
-        /* 时间戳 */
-        .timestamp {
-            text-align: center;
-            margin: 12px 0;
-        }
-
-        .timestamp-text {
-            background-color: rgba(0, 0, 0, 0.1);
-            color: #fff;
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            display: inline-block;
-        }
-
-        /* 消息气泡 */
-        .message {
-            display: flex;
-            margin-bottom: 16px;
-            align-items: flex-start;
-        }
-
-        .message.other {
-            flex-direction: row;
-        }
-
-        .message.self {
-            flex-direction: row-reverse;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 4px;
-            flex-shrink: 0;
-            background-size: cover;
-            background-position: center;
-        }
-
-        .message.other .avatar {
-            margin-right: 10px;
-        }
-
-        .message.self .avatar {
-            margin-left: 10px;
-        }
-
-        .message-content {
-            max-width: 220px;
-            padding: 10px 14px;
-            border-radius: 4px;
-            font-size: 15px;
-            line-height: 1.5;
-            position: relative;
-            word-wrap: break-word;
-        }
-
-        .message.other .message-content {
-            background-color: #fff;
-            color: #000;
-        }
-
-        .message.self .message-content {
-            background-color: #95ec69;
-            color: #000;
-        }
-
-        /* 输入区域 */
-        .input-area {
-            background-color: #f7f7f7;
-            border-top: 1px solid #dcdcdc;
-            padding: 10px 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            position: relative;
-            z-index: 10;
-        }
-
-        .input-icons {
-            display: flex;
-            gap: 12px;
-            font-size: 26px;
-        }
-
-        .icon-btn {
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .input-wrapper {
-            flex: 1;
-            background-color: #fff;
-            border-radius: 4px;
-            padding: 8px 10px;
-            min-height: 36px;
-            display: flex;
-            align-items: center;
-        }
-
-        #messageInput {
-            flex: 1;
-            border: none;
-            outline: none;
-            font-size: 15px;
-            background: transparent;
-            resize: none;
-            max-height: 100px;
-            font-family: inherit;
-            line-height: 1.5;
-        }
-
-        .send-btn {
-            background-color: #ededed;
-            color: #07c160;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background-color 0.2s;
-        }
-
-        .send-btn:hover {
-            background-color: #d9d9d9;
-        }
-
-        .send-btn.active {
-            background-color: #07c160;
-            color: #fff;
-        }
-
-        .emoji-btn {
-            cursor: pointer;
-            font-size: 24px;
-        }
-
-        @media (max-width: 480px) {
-            .message-content {
-                max-width: 65%;
-            }
-        }
-    </style>
+  /* ── 底部输入栏 ── */
+  .input-bar { background: #f7f7f7; border-top: .5px solid #d9d9d9; padding: 8px 12px; display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .input-bar .tool { font-size: 24px; color: #444; cursor: pointer; user-select: none; line-height: 40px; }
+  .input-bar .tool:active { opacity: .5; }
+  .input-wrap { flex: 1; background: #fff; border-radius: 6px; border: .5px solid #ddd; display: flex; align-items: flex-end; }
+  .input-wrap textarea { width: 100%; border: none; outline: none; resize: none; font-size: 15px; padding: 8px 12px; line-height: 1.4; max-height: 100px; font-family: inherit; background: transparent; }
+  .send-btn { background: #07c160; color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-size: 15px; cursor: pointer; flex-shrink: 0; align-self: center; opacity: .4; pointer-events: none; transition: opacity .15s; }
+  .send-btn.active { opacity: 1; pointer-events: auto; }
+  .send-btn:active { background: #06ad56; }
+</style>
 </head>
 <body>
-    <div class="chat-container">
-        <!-- 顶部导航 -->
-        <div class="header">
-            <div class="header-left">
-                <span class="back-btn">‹</span>
-                <span class="header-title">张三</span>
-            </div>
-            <div class="header-right">
-                <span>⋯</span>
-            </div>
-        </div>
 
-        <!-- 消息列表 -->
-        <div class="message-list" id="messageList">
-            <div class="timestamp">
-                <span class="timestamp-text">昨天 12:30</span>
-            </div>
+<div class="phone">
+  <!-- 顶部 -->
+  <div class="header">
+    <span class="back">&#8592;</span>
+    <span class="name">微信好友</span>
+    <span class="more">···</span>
+  </div>
 
-            <div class="message other">
-                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=other')"></div>
-                <div class="message-content">你好！最近怎么样？</div>
-            </div>
+  <!-- 消息列表 -->
+  <div class="messages" id="msgList"></div>
+  <div class="typing" id="typing">对方正在输入…</div>
 
-            <div class="timestamp">
-                <span class="timestamp-text">今天 09:15</span>
-            </div>
-
-            <div class="message self">
-                <div class="message-content">挺好的，谢谢关心！你呢？</div>
-                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=self')"></div>
-            </div>
-
-            <div class="message other">
-                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=other')"></div>
-                <div class="message-content">我也不错，周末有空吗？想约你出来聊聊</div>
-            </div>
-
-            <div class="message self">
-                <div class="message-content">好啊，周末什么时候都可以</div>
-                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=self')"></div>
-            </div>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="input-area">
-            <div class="input-icons">
-                <span class="icon-btn">🔊</span>
-                <span class="icon-btn">📎</span>
-            </div>
-            <div class="input-wrapper">
-                <textarea id="messageInput" placeholder="" rows="1"></textarea>
-            </div>
-            <span class="emoji-btn">😊</span>
-            <button class="send-btn" id="sendBtn">发送</button>
-        </div>
+  <!-- 输入栏 -->
+  <div class="input-bar">
+    <span class="tool">&#xf508;</span>
+    <div class="input-wrap">
+      <textarea id="input" rows="1" placeholder="输入消息…"></textarea>
     </div>
+    <div class="tool">+</div>
+    <button class="send-btn" id="sendBtn">发送</button>
+  </div>
+</div>
 
-    <script>
-        const messageList = document.getElementById('messageList');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
+<script>
+  const msgList  = document.getElementById('msgList');
+  const input    = document.getElementById('input');
+  const sendBtn  = document.getElementById('sendBtn');
+  const typing   = document.getElementById('typing');
 
-        // 自动滚动到底部
-        function scrollToBottom() {
-            messageList.scrollTop = messageList.scrollHeight;
-        }
+  /* ── 自动回复语料 ── */
+  const replies = [
+    '好的，我知道了 👌',
+    '哈哈，你说的对',
+    '稍等，我看看',
+    '没问题，放心吧',
+    '收到！',
+    '你今天开心吗？',
+    '怎么说呢，让我想想…',
+    '真的吗？太好了！',
+    '好的，我马上处理',
+    '嗯嗯，继续说',
+    '我也是这么觉得的',
+    '太有意思了吧 😂',
+    '哦哦，了解了',
+    '早点休息哦 💤',
+    '改天一起吃饭吧',
+  ];
 
-        // 初始化滚动到底部
-        scrollToBottom();
+  /* ── 预置消息 ── */
+  const initMsgs = [
+    { self: false, text: '在吗？' },
+    { self: false, text: '今天天气真不错，出去走走？' },
+    { self: true,  text: '在的，正想找你呢' },
+    { self: true,  text: '好啊，去哪里？' },
+    { self: false, text: '公园怎么样？听说最近花开得很好' },
+    { self: true,  text: '可以呀，下午三点？' },
+    { self: false, text: '没问题，到时候见！' },
+  ];
 
-        // 监听输入框，自动发送按钮状态
-        messageInput.addEventListener('input', function() {
-            if (this.value.trim()) {
-                sendBtn.classList.add('active');
-            } else {
-                sendBtn.classList.remove('active');
-            }
+  /* ── 时间格式化 ── */
+  function fmtTime(d) {
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  }
 
-            // 自动调整高度
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
-        });
+  /* ── 判断是否需要插入时间标签（超过 3 分钟） ── */
+  let lastTime = null;
+  function needTimeLabel() {
+    const now = new Date();
+    if (!lastTime || now - lastTime > 3 * 60 * 1000) { lastTime = now; return true; }
+    return false;
+  }
 
-        // 监听回车发送
-        messageInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+  /* ── 渲染单条消息 ── */
+  function addMsg(self, text, animate = true) {
+    if (needTimeLabel()) {
+      const t = document.createElement('div');
+      t.className = 'time-label';
+      t.textContent = fmtTime(new Date());
+      msgList.appendChild(t);
+    }
+    const row = document.createElement('div');
+    row.className = 'msg-row' + (self ? ' self' : '');
+    row.innerHTML = `
+      <div class="avatar ${self ? '' : 'other-av'}">${self ? '我' : '友'}</div>
+      <div class="bubble">${escHTML(text)}</div>`;
+    if (!animate) row.style.animation = 'none';
+    msgList.appendChild(row);
+    scrollBottom();
+  }
 
-        // 发送消息函数
-        function sendMessage() {
-            const content = messageInput.value.trim();
-            if (!content) return;
+  function escHTML(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-            // 创建消息 elements
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message self';
+  function scrollBottom() { requestAnimationFrame(() => { msgList.scrollTop = msgList.scrollHeight; }); }
 
-            const avatarTime = new Date().toLocaleString('zh-CN', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+  /* ── 加载历史消息 ── */
+  initMsgs.forEach((m, i) => {
+    lastTime = new Date(Date.now() - (initMsgs.length - i) * 120000);
+    addMsg(m.self, m.text, false);
+  });
 
-            messageDiv.innerHTML = `
-                <div class="message-content">${escapeHtml(content)}</div>
-                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=self')"></div>
-            `;
+  /* ── 发送消息 ── */
+  function send() {
+    const text = input.value.trim();
+    if (!text) return;
+    addMsg(true, text);
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.classList.remove('active');
+    scrollBottom();
 
-            messageList.appendChild(messageDiv);
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
-            sendBtn.classList.remove('active');
+    /* 模拟对方回复 */
+    typing.classList.add('show');
+    const delay = 800 + Math.random() * 1500;
+    setTimeout(() => {
+      typing.classList.remove('show');
+      const reply = replies[Math.floor(Math.random() * replies.length)];
+      addMsg(false, reply);
+    }, delay);
+  }
 
-            scrollToBottom();
+  /* ── 输入框自适应高度 + 按钮状态 ── */
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+    sendBtn.classList.toggle('active', input.value.trim().length > 0);
+  });
 
-            // 模拟对方回复（可选）
-            // setTimeout(() => {
-            //     receiveReply();
-            // }, 1000 + Math.random() * 2000);
-        }
+  /* ── 回车发送（Shift+Enter 换行） ── */
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
 
-        // 接收回复（模拟）
-        function receiveReply() {
-            const replies = [
-                '好的，收到！',
-                '明白了',
-                '嗯嗯',
-                '👌',
-                '我知道了',
-                '没问题！'
-            ];
-
-            const replyContent = replies[Math.floor(Math.random() * replies.length)];
-
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message other';
-
-            messageDiv.innerHTML = `
-                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=other')"></div>
-                <div class="message-content">${replyContent}</div>
-            `;
-
-            messageList.appendChild(messageDiv);
-            scrollToBottom();
-        }
-
-        // HTML转义防止XSS
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // 发送按钮点击事件
-        sendBtn.addEventListener('click', sendMessage);
-
-        // emoji按钮事件（简单示例）
-        document.querySelector('.emoji-btn').addEventListener('click', function() {
-            const emojis = ['😊', '😂', '😍', '👍', '🎉', '🤔', '😭', '😡'];
-            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-            messageInput.value += randomEmoji;
-            messageInput.dispatchEvent(new Event('input'));
-            messageInput.focus();
-        });
-    </script>
+  sendBtn.addEventListener('click', send);
+</script>
 </body>
 </html>
