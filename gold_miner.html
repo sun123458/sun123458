@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黄金矿工</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            width: 900px;
+            height: 700px;
+            position: relative;
+        }
+
+        /* 首页样式 */
+        #homeScreen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 50%, #8B4513 50%, #654321 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        #homeScreen h1 {
+            font-size: 60px;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            margin-bottom: 50px;
+            animation: shine 2s infinite;
+        }
+
+        @keyframes shine {
+            0%, 100% { text-shadow: 3px 3px 6px rgba(0,0,0,0.5), 0 0 20px #FFD700; }
+            50% { text-shadow: 3px 3px 6px rgba(0,0,0,0.5), 0 0 40px #FFD700, 0 0 60px #FFD700; }
+        }
+
+        .modeBtn {
+            width: 250px;
+            height: 60px;
+            margin: 15px;
+            font-size: 24px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        #singleBtn {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #333;
+        }
+
+        #doubleBtn {
+            background: linear-gradient(135deg, #FF6B6B, #EE5A5A);
+            color: white;
+        }
+
+        .modeBtn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* 游戏画面 */
+        #gameScreen {
+            width: 100%;
+            height: 100%;
+            display: none;
+            position: relative;
+            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 30%, #8B4513 30%, #D2691E 100%);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 分数面板 */
+        .scorePanel {
+            position: absolute;
+            top: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #FFD700;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #player1Score {
+            left: 10px;
+        }
+
+        #player2Score {
+            right: 10px;
+            display: none;
+        }
+
+        /* 提示信息 */
+        .hint {
+            position: absolute;
+            bottom: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        #player1Hint {
+            left: 10px;
+        }
+
+        #player2Hint {
+            right: 10px;
+            display: none;
+        }
+
+        /* 胜利弹窗 */
+        #victoryModal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        #victoryModal h2 {
+            font-size: 50px;
+            color: #FFD700;
+            text-shadow: 0 0 20px #FFD700;
+            margin-bottom: 20px;
+            animation: victoryBounce 1s infinite;
+        }
+
+        @keyframes victoryBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        #victoryModal p {
+            font-size: 24px;
+            color: white;
+            margin: 10px;
+        }
+
+        #restartBtn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 20px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #restartBtn:hover {
+            transform: scale(1.1);
+        }
+
+        /* 彩蛋动画 */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            animation: confettiFall 3s linear infinite;
+        }
+
+        @keyframes confettiFall {
+            0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(700px) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- 首页 -->
+        <div id="homeScreen">
+            <h1>黄金矿工</h1>
+            <button class="modeBtn" id="singleBtn" onclick="startGame(1)">单人模式</button>
+            <button class="modeBtn" id="doubleBtn" onclick="startGame(2)">双人模式</button>
+        </div>
+
+        <!-- 游戏画面 -->
+        <div id="gameScreen">
+            <canvas id="gameCanvas" width="900" height="700"></canvas>
+            <div class="scorePanel" id="player1Score">玩家A: 0分</div>
+            <div class="scorePanel" id="player2Score">玩家B: 0分</div>
+            <div class="hint" id="player1Hint">按 S 键下放钩子</div>
+            <div class="hint" id="player2Hint">按 ↓ 键下放钩子</div>
+        </div>
+
+        <!-- 胜利弹窗 -->
+        <div id="victoryModal">
+            <h2>🎉 恭喜胜利! 🎉</h2>
+            <p id="winnerText"></p>
+            <button id="restartBtn" onclick="backToHome()">返回首页</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 游戏状态
+        let gameMode = 1;
+        let scores = [0, 0];
+        let gameRunning = false;
+        let animationId = null;
+
+        // 物品类型
+        const ITEM_TYPES = {
+            GOLD_SMALL: { type: 'gold', size: 'small', value: 50, weight: 1, color: '#FFD700', radius: 15 },
+            GOLD_MEDIUM: { type: 'gold', size: 'medium', value: 100, weight: 2, color: '#FFD700', radius: 25 },
+            GOLD_LARGE: { type: 'gold', size: 'large', value: 200, weight: 3, color: '#FFD700', radius: 35 },
+            GOLD_HUGE: { type: 'gold', size: 'huge', value: 500, weight: 5, color: '#FFD700', radius: 50 },
+            STONE_SMALL: { type: 'stone', size: 'small', value: 20, weight: 4, color: '#808080', radius: 20 },
+            STONE_MEDIUM: { type: 'stone', size: 'medium', value: 30, weight: 6, color: '#696969', radius: 30 },
+            STONE_LARGE: { type: 'stone', size: 'large', value: 40, weight: 8, color: '#505050', radius: 40 },
+            DIAMOND: { type: 'diamond', value: 800, weight: 0.5, color: '#00FFFF', radius: 12 },
+            BOMB: { type: 'bomb', value: 2, weight: 1, color: '#000000', radius: 18 },
+            PIG: { type: 'pig', value: 3, weight: 0.5, color: '#FFB6C1', radius: 20, speed: 1 }
+        };
+
+        // 玩家钩子
+        class Hook {
+            constructor(playerIndex, x, y) {
+                this.playerIndex = playerIndex;
+                this.originX = x;
+                this.originY = y;
+                this.x = x;
+                this.y = y;
+                this.angle = 0;
+                this.swingSpeed = 0.03;
+                this.swingRange = Math.PI / 2.5;
+                this.state = 'swinging'; // swinging, extending, retracting, exploding
+                this.speed = 5;
+                this.direction = { x: 0, y: 0 };
+                this.length = 0;
+                this.maxLength = 0;
+                this.caughtItem = null;
+                this.radius = 8;
+                this.retractSpeed = 5;
+                this.explosionFrame = 0;
+            }
+
+            update() {
+                if (this.state === 'swinging') {
+                    // 左右摆动
+                    this.angle = Math.sin(Date.now() * this.swingSpeed * 0.05) * this.swingRange;
+                } else if (this.state === 'extending') {
+                    // 向下延伸
+                    this.x += this.direction.x * this.speed;
+                    this.y += this.direction.y * this.speed;
+                    this.length += this.speed;
+
+                    // 检查边界
+                    if (this.x < 0 || this.x > canvas.width || this.y > canvas.height || this.length > this.maxLength) {
+                        this.state = 'retracting';
+                    }
+
+                    // 检查碰撞
+                    this.checkCollision();
+                } else if (this.state === 'retracting') {
+                    // 向上收回
+                    let currentSpeed = this.retractSpeed;
+                    if (this.caughtItem) {
+                        // 根据重量调整速度
+                        currentSpeed = this.retractSpeed / (1 + this.caughtItem.weight * 0.3);
+                    }
+
+                    this.x -= this.direction.x * currentSpeed;
+                    this.y -= this.direction.y * currentSpeed;
+                    this.length -= currentSpeed;
+
+                    // 更新抓住的物品位置
+                    if (this.caughtItem) {
+                        this.caughtItem.x = this.x;
+                        this.caughtItem.y = this.y;
+                    }
+
+                    // 回到原点
+                    if (this.length <= 0) {
+                        this.x = this.originX;
+                        this.y = this.originY;
+                        this.length = 0;
+
+                        // 结算分数
+                        if (this.caughtItem) {
+                            if (this.caughtItem.type === 'bomb') {
+                                // 炸弹不扣分，但会清空附近物品
+                            }
+                            scores[this.playerIndex] += this.caughtItem.value;
+                            updateScore();
+                            checkVictory();
+                        }
+
+                        this.caughtItem = null;
+                        this.state = 'swinging';
+                    }
+                } else if (this.state === 'exploding') {
+                    this.explosionFrame++;
+                    if (this.explosionFrame > 30) {
+                        this.state = 'retracting';
+                        this.explosionFrame = 0;
+                    }
+                }
+            }
+
+            checkCollision() {
+                for (let i = items.length - 1; i >= 0; i--) {
+                    const item = items[i];
+                    const dx = this.x - item.x;
+                    const dy = this.y - item.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < this.radius + item.radius) {
+                        // 抓住物品
+                        this.caughtItem = item;
+                        items.splice(i, 1);
+
+                        if (item.type === 'bomb') {
+                            this.state = 'exploding';
+                            // 爆炸效果 - 清除附近物品
+                            explodeAt(item.x, item.y);
+                        } else {
+                            this.state = 'retracting';
+                        }
+                        break;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+
+                // 绘制绳子
+                ctx.strokeStyle = '#8B4513';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(this.originX, this.originY);
+
+                if (this.state === 'swinging') {
+                    const hookLength = 50;
+                    const endX = this.originX + Math.sin(this.angle) * hookLength;
+                    const endY = this.originY + Math.cos(this.angle) * hookLength;
+                    ctx.lineTo(endX, endY);
+
+                    // 绘制钩子
+                    this.drawHook(endX, endY, this.angle);
+                } else {
+                    ctx.lineTo(this.x, this.y);
+
+                    // 绘制钩子
+                    const angle = Math.atan2(this.y - this.originY, this.x - this.originX);
+                    this.drawHook(this.x, this.y, angle - Math.PI/2);
+
+                    // 绘制抓住的物品
+                    if (this.caughtItem) {
+                        drawItem(this.caughtItem);
+                    }
+                }
+
+                ctx.stroke();
+
+                // 绘制爆炸效果
+                if (this.state === 'exploding') {
+                    drawExplosion(this.x, this.y, this.explosionFrame);
+                }
+
+                ctx.restore();
+            }
+
+            drawHook(x, y, angle) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+
+                ctx.fillStyle = '#C0C0C0';
+                ctx.beginPath();
+                ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 钩子形状
+                ctx.strokeStyle = '#C0C0C0';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(-8, 0);
+                ctx.lineTo(-8, 15);
+                ctx.arc(-4, 15, 4, Math.PI, 0, true);
+                ctx.lineTo(4, 0);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            release() {
+                if (this.state === 'swinging') {
+                    this.state = 'extending';
+                    this.direction = {
+                        x: Math.sin(this.angle),
+                        y: Math.cos(this.angle)
+                    };
+                    this.maxLength = Math.sqrt(
+                        Math.pow(canvas.width, 2) + Math.pow(canvas.height, 2)
+                    );
+                }
+            }
+        }
+
+        // 游戏物品
+        let items = [];
+        let hooks = [];
+        let pigs = [];
+
+        // 生成物品
+        function generateItems() {
+            items = [];
+            pigs = [];
+
+            const groundY = 210;
+            const safeZone = 50;
+
+            // 生成至少3个钻石
+            for (let i = 0; i < 3; i++) {
+                addRandomItem(ITEM_TYPES.DIAMOND, groundY);
+            }
+
+            // 生成金矿
+            addRandomItem(ITEM_TYPES.GOLD_SMALL, groundY);
+            addRandomItem(ITEM_TYPES.GOLD_SMALL, groundY);
+            addRandomItem(ITEM_TYPES.GOLD_SMALL, groundY);
+            addRandomItem(ITEM_TYPES.GOLD_MEDIUM, groundY);
+            addRandomItem(ITEM_TYPES.GOLD_MEDIUM, groundY);
+            addRandomItem(ITEM_TYPES.GOLD_LARGE, groundY);
+            addRandomItem(ITEM_TYPES.GOLD_HUGE, groundY);
+
+            // 生成石头
+            addRandomItem(ITEM_TYPES.STONE_SMALL, groundY);
+            addRandomItem(ITEM_TYPES.STONE_SMALL, groundY);
+            addRandomItem(ITEM_TYPES.STONE_MEDIUM, groundY);
+            addRandomItem(ITEM_TYPES.STONE_MEDIUM, groundY);
+            addRandomItem(ITEM_TYPES.STONE_LARGE, groundY);
+
+            // 生成炸弹
+            addRandomItem(ITEM_TYPES.BOMB, groundY);
+            addRandomItem(ITEM_TYPES.BOMB, groundY);
+
+            // 生成小猪
+            for (let i = 0; i < 2; i++) {
+                const pig = {
+                    ...ITEM_TYPES.PIG,
+                    x: 100 + Math.random() * (canvas.width - 200),
+                    y: groundY + 50 + Math.random() * (canvas.height - groundY - 100),
+                    direction: Math.random() > 0.5 ? 1 : -1
+                };
+                pigs.push(pig);
+                items.push(pig);
+            }
+        }
+
+        function addRandomItem(itemType, groundY) {
+            let x, y, valid;
+            let attempts = 0;
+
+            do {
+                valid = true;
+                x = 50 + Math.random() * (canvas.width - 100);
+                y = groundY + 50 + Math.random() * (canvas.height - groundY - 100);
+
+                // 检查是否与其他物品重叠
+                for (const item of items) {
+                    const dx = x - item.x;
+                    const dy = y - item.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < itemType.radius + item.radius + 20) {
+                        valid = false;
+                        break;
+                    }
+                }
+                attempts++;
+            } while (!valid && attempts < 100);
+
+            if (valid) {
+                items.push({
+                    ...itemType,
+                    x: x,
+                    y: y
+                });
+            }
+        }
+
+        // 爆炸效果
+        function explodeAt(x, y) {
+            // 清除附近物品
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                const dx = x - item.x;
+                const dy = y - item.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < 100 && item.type !== 'bomb') {
+                    items.splice(i, 1);
+                    // 从pigs数组中也移除
+                    const pigIndex = pigs.indexOf(item);
+                    if (pigIndex > -1) {
+                        pigs.splice(pigIndex, 1);
+                    }
+                }
+            }
+        }
+
+        function drawExplosion(x, y, frame) {
+            const colors = ['#FF0000', '#FF4500', '#FFFF00', '#FFA500'];
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const distance = frame * 3;
+                const px = x + Math.cos(angle) * distance;
+                const py = y + Math.sin(angle) * distance;
+                const size = 20 - frame * 0.5;
+
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.beginPath();
+                ctx.arc(px, py, Math.max(5, size), 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // 绘制物品
+        function drawItem(item) {
+            ctx.save();
+            ctx.translate(item.x, item.y);
+
+            switch(item.type) {
+                case 'gold':
+                    // 绘制金矿
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#B8860B';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    // 高光
+                    ctx.fillStyle = '#FFFACD';
+                    ctx.beginPath();
+                    ctx.arc(-item.radius/3, -item.radius/3, item.radius/4, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+
+                case 'stone':
+                    // 绘制石头
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#404040';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    // 纹理
+                    ctx.fillStyle = '#606060';
+                    ctx.beginPath();
+                    ctx.arc(-item.radius/4, -item.radius/4, item.radius/5, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+
+                case 'diamond':
+                    // 绘制钻石
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -item.radius);
+                    ctx.lineTo(item.radius, 0);
+                    ctx.lineTo(0, item.radius);
+                    ctx.lineTo(-item.radius, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#00CED1';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    // 闪光效果
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, item.radius/3, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+
+                case 'bomb':
+                    // 绘制炸弹
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 引线
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -item.radius);
+                    ctx.quadraticCurveTo(5, -item.radius-8, 10, -item.radius-5);
+                    ctx.stroke();
+                    // 火花
+                    ctx.fillStyle = '#FF4500';
+                    ctx.beginPath();
+                    ctx.arc(10, -item.radius-5, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+
+                case 'pig':
+                    // 绘制小猪
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, item.radius, item.radius * 0.8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 眼睛
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc(-6, -5, 5, 0, Math.PI * 2);
+                    ctx.arc(6, -5, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc(-6, -5, 2, 0, Math.PI * 2);
+                    ctx.arc(6, -5, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 鼻子
+                    ctx.fillStyle = '#FF69B4';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 2, 6, 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 鼻孔
+                    ctx.fillStyle = '#C71585';
+                    ctx.beginPath();
+                    ctx.arc(-2, 2, 1.5, 0, Math.PI * 2);
+                    ctx.arc(2, 2, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 耳朵
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.moveTo(-10, -12);
+                    ctx.lineTo(-15, -20);
+                    ctx.lineTo(-5, -15);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(10, -12);
+                    ctx.lineTo(15, -20);
+                    ctx.lineTo(5, -15);
+                    ctx.fill();
+                    // 腿
+                    ctx.fillStyle = item.color;
+                    ctx.fillRect(-12, 12, 6, 10);
+                    ctx.fillRect(6, 12, 6, 10);
+                    break;
+            }
+
+            ctx.restore();
+        }
+
+        // 更新小猪位置
+        function updatePigs() {
+            for (const pig of pigs) {
+                pig.x += pig.speed * pig.direction;
+
+                // 边界检查
+                if (pig.x <= pig.radius || pig.x >= canvas.width - pig.radius) {
+                    pig.direction *= -1;
+                }
+
+                // 随机改变方向
+                if (Math.random() < 0.01) {
+                    pig.direction *= -1;
+                }
+            }
+        }
+
+        // 绘制背景
+        function drawBackground() {
+            // 天空渐变
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, 210);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, 210);
+
+            // 地表
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, 200, canvas.width, 10);
+
+            // 地下渐变
+            const groundGradient = ctx.createLinearGradient(0, 210, 0, canvas.height);
+            groundGradient.addColorStop(0, '#D2691E');
+            groundGradient.addColorStop(1, '#8B4513');
+            ctx.fillStyle = groundGradient;
+            ctx.fillRect(0, 210, canvas.width, canvas.height - 210);
+
+            // 绘制矿工小屋
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(50, 140, 80, 60);
+            ctx.fillStyle = '#8B0000';
+            ctx.beginPath();
+            ctx.moveTo(40, 140);
+            ctx.lineTo(90, 90);
+            ctx.lineTo(140, 140);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#4A4A4A';
+            ctx.fillRect(75, 160, 30, 40);
+
+            // 右侧小矿工（双人模式）
+            if (gameMode === 2) {
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.fillStyle = '#654321';
+                ctx.fillRect(-850, 140, 80, 60);
+                ctx.fillStyle = '#8B0000';
+                ctx.beginPath();
+                ctx.moveTo(-860, 140);
+                ctx.lineTo(-810, 90);
+                ctx.lineTo(-760, 140);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#4A4A4A';
+                ctx.fillRect(-825, 160, 30, 40);
+                ctx.restore();
+            }
+        }
+
+        // 游戏主循环
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBackground();
+
+            // 更新和绘制物品
+            updatePigs();
+            for (const item of items) {
+                drawItem(item);
+            }
+
+            // 更新和绘制钩子
+            for (const hook of hooks) {
+                hook.update();
+                hook.draw();
+            }
+
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        // 开始游戏
+        function startGame(mode) {
+            gameMode = mode;
+            scores = [0, 0];
+
+            document.getElementById('homeScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('player2Score').style.display = mode === 2 ? 'block' : 'none';
+            document.getElementById('player2Hint').style.display = mode === 2 ? 'block' : 'none';
+
+            updateScore();
+
+            // 初始化钩子
+            hooks = [];
+            hooks.push(new Hook(0, 130, 200));
+            if (mode === 2) {
+                hooks.push(new Hook(1, 770, 200));
+            }
+
+            generateItems();
+
+            gameRunning = true;
+            gameLoop();
+        }
+
+        // 更新分数显示
+        function updateScore() {
+            document.getElementById('player1Score').textContent = `玩家A: ${scores[0]}分`;
+            document.getElementById('player2Score').textContent = `玩家B: ${scores[1]}分`;
+        }
+
+        // 检查胜利
+        function checkVictory() {
+            let winner = -1;
+
+            if (gameMode === 1) {
+                if (scores[0] >= 800) {
+                    winner = 0;
+                }
+            } else {
+                if (scores[0] >= 800) winner = 0;
+                if (scores[1] >= 800) {
+                    if (winner === -1) winner = 1;
+                    else winner = 2; // 平局
+                }
+            }
+
+            if (winner !== -1) {
+                gameRunning = false;
+                cancelAnimationFrame(animationId);
+                showVictory(winner);
+            }
+        }
+
+        // 显示胜利画面
+        function showVictory(winner) {
+            const modal = document.getElementById('victoryModal');
+            const text = document.getElementById('winnerText');
+
+            if (gameMode === 1) {
+                text.textContent = `你获得了 ${scores[0]} 分！`;
+            } else if (winner === 2) {
+                text.textContent = `平局！玩家A: ${scores[0]}分, 玩家B: ${scores[1]}分`;
+            } else {
+                text.textContent = `玩家${winner === 0 ? 'A' : 'B'}获胜！得分: ${scores[winner]}`;
+            }
+
+            modal.style.display = 'flex';
+
+            // 添加彩带效果
+            for (let i = 0; i < 50; i++) {
+                createConfetti();
+            }
+        }
+
+        // 创建彩带
+        function createConfetti() {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            confetti.style.animationDelay = Math.random() * 2 + 's';
+            confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+            document.getElementById('victoryModal').appendChild(confetti);
+        }
+
+        // 返回首页
+        function backToHome() {
+            document.getElementById('victoryModal').style.display = 'none';
+            document.getElementById('homeScreen').style.display = 'flex';
+            document.getElementById('gameScreen').style.display = 'none';
+
+            // 清除彩带
+            const confettis = document.querySelectorAll('.confetti');
+            confettis.forEach(c => c.remove());
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+
+            if (e.key === 's' || e.key === 'S') {
+                // 玩家A
+                if (hooks[0] && hooks[0].state === 'swinging') {
+                    hooks[0].release();
+                }
+            } else if (e.key === 'ArrowDown' && gameMode === 2) {
+                // 玩家B
+                if (hooks[1] && hooks[1].state === 'swinging') {
+                    hooks[1].release();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
