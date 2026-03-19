@@ -1,130 +1,112 @@
-# 游戏年度对战数据可视化 - 规格文档
+# 商品秒杀模块规格文档
 
 ## 1. Project Overview
-- **项目名称**: Game Annual Battle Data Dashboard
-- **项目类型**: 交互式数据可视化单页应用
-- **核心功能**: 展示随机生成的年度游戏对战数据，通过柱状图和折线图呈现，支持赛季/模式筛选
-- **目标用户**: 游戏玩家、电竞爱好者
+
+- **Project Name**: Flash Sale Module
+- **Type**: Single-page interactive web component
+- **Core Functionality**: Real-time countdown flash sale with stock management, purchase limits, and simulated purchase states
+- **Target Users**: E-commerce shoppers
 
 ## 2. Visual & Rendering Specification
 
-### 场景设置
-- 全屏深色背景，带有微妙的网格纹理
-- 科技感边框装饰，霓虹光晕效果
+### Layout Structure
+- Centered card container (max-width: 480px)
+- Product image banner at top
+- Countdown timer section
+- Stock progress bar
+- Purchase limit notice
+- Buy button with state changes
+- Toast notification system
 
-### 色彩方案 (电竞深色风格)
-- **背景主色**: #0a0e17 (深蓝黑)
-- **卡片背景**: #111827 (深灰蓝)
-- **主色调**: #00f0ff (电光青)
-- **强调色1**: #ff3366 (霓虹粉)
-- **强调色2**: #00ff88 (电光绿)
-- **文字色**: #e0e6ed (亮灰白)
-- **次要文字**: #64748b (暗灰)
+### Color Palette
+- Primary: `#ff3b3b` (urgent red for flash sale)
+- Secondary: `#1a1a2e` (dark background)
+- Accent: `#ffd700` (gold for highlights)
+- Success: `#22c55e` (green)
+- Disabled: `#4a4a4a` (gray)
+- Background: `#0f0f1a` (deep dark)
+- Text: `#ffffff` / `#a0a0a0`
 
-### 图表配色
-- 胜场柱状图: #00f0ff (电光青)
-- 败场柱状图: #ff3366 (霓虹粉)
-- KD曲线: #00ff88 (电光绿)
-- 时长曲线: #ffcc00 (金色)
+### Typography
+- Font: "Noto Sans SC" (Chinese support)
+- Countdown numbers: Bold, large size (48px)
+- Labels: Small, uppercase
 
-### 动效
-- 图表切换: 科技感过渡动画 (glitch效果 + 缩放淡入)
-- 悬停效果: 发光边框 + 数据高亮
-- 加载动画: 霓虹扫描线效果
-- 过渡时长: 400-600ms, ease-out曲线
+### Visual Effects
+- Pulsing animation on countdown when < 1 hour
+- Progress bar with gradient fill
+- Button hover glow effect
+- Shake animation on purchase failure
+- Confetti burst on purchase success
 
-## 3. Data Specification
+## 3. Functional Specification
 
-### 数据结构
+### Core Features
+
+#### 3.1 Countdown Timer
+- Display: DD : HH : MM : SS format
+- Updates every second
+- When reaches zero: triggers "flash sale started" state
+- Visual pulse animation when under 1 hour remaining
+
+#### 3.2 Stock Progress Bar
+- Shows current stock / total stock
+- Animated fill on load
+- Color changes based on percentage:
+  - > 50%: Green gradient
+  - 20-50%: Yellow gradient
+  - < 20%: Red gradient with pulse
+
+#### 3.3 Purchase Limit System
+- Display "限购 X 件" notice
+- Track user's attempted purchases
+- Block purchases exceeding limit
+- Show warning toast when limit exceeded
+
+#### 3.4 Buy Button States
+- **Before start**: Disabled (gray), shows "即将开始"
+- **During sale**: Active (red), shows "立即抢购"
+- **During purchase**: Loading spinner, shows "抢购中..."
+- **After limit reached**: Disabled, shows "已达上限"
+
+#### 3.5 Purchase Simulation
+- 70% success rate
+- Random stock decrement (1-3 units on success)
+- Success: Green toast "恭喜，抢购成功！"
+- Failure: Red toast "抱歉，已抢完！"
+
+### Data Model
 ```javascript
 {
-  season: "S1" | "S2" | "S3" | "S4",  // 赛季
-  mode: "排位" | "匹配" | "娱乐",      // 模式
-  wins: number,   // 胜场
-  losses: number, // 败场
-  kd: number,     // KD比 (0.5-5.0)
-  avgDuration: number // 场均时长(分钟, 10-45)
+  productName: "iPhone 16 Pro Max",
+  originalPrice: 9999,
+  salePrice: 7999,
+  totalStock: 100,
+  currentStock: 100,
+  purchaseLimit: 2,
+  userPurchased: 0,
+  saleStartTime: Date, // Set to 30 seconds from now for demo
+  saleEndTime: Date
 }
 ```
 
-### 数据量
-- 每个赛季 × 每个模式: 3个月 × 3种模式 = 12组数据
-- 每个赛季显示一个月的数据
+### User Interactions
+1. Page load → Show countdown to sale start
+2. Countdown ends → Enable buy button
+3. Click buy →
+   - If under limit → Simulate purchase → Show result
+   - If at limit → Show warning toast
+4. Stock depleted → Disable button, show "已售罄"
 
-### 随机数据生成规则
-- 胜场: 15-50场
-- 败场: 10-40场
-- KD: 0.5-3.5
-- 场均时长: 15-35分钟
+## 4. Acceptance Criteria
 
-## 4. Chart Specification
-
-### 柱状图 (左Y轴)
-- 类别: 月份/周
-- 数据: 胜场(青色)、败场(粉色)
-- 柱宽: 动态计算, 带圆角
-- 间距: 8px
-
-### 折线图 (右Y轴)
-- 数据1: KD比 (绿色, 带数据点)
-- 数据2: 场均时长 (金色, 带数据点)
-- 线宽: 3px
-- 数据点: 8px圆形, 发光效果
-
-### 坐标轴
-- X轴: 月份标签, 电光青色
-- 左Y轴: 场次 (0-60)
-- 右Y轴: KD/时长 (0-40分钟)
-
-## 5. Interaction Specification
-
-### 筛选器
-- **赛季选择**: 下拉菜单, 4个赛季选项 + 全部
-- **模式选择**: 按钮组, 排位/匹配/娱乐
-- 选中状态: 霓虹发光边框
-
-### 悬停交互
-- 柱状图悬停: 显示tooltip包含 胜场/败场/该场胜负
-- 折线图悬停: 显示tooltip包含 KD/时长
-- Tooltip样式: 深色毛玻璃背景, 霓虹边框
-
-### 图表切换动画
-- 旧数据: glitch闪烁 → 缩小淡出
-- 新数据: 从底部滑入 → 稳定
-- 持续时间: 500ms
-
-## 6. Layout Specification
-
-```
-┌─────────────────────────────────────────────────┐
-│  ▸ GAME BATTLE DATA        [Season▼] [Mode]    │  Header
-├─────────────────────────────────────────────────┤
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌───────┐  │
-│  │ 总胜场  │ │ 总败场  │ │  平均KD │ │场均时长│  │  Stats Cards
-│  │  247    │ │  183    │ │  1.42   │ │ 23.5  │  │
-│  └─────────┘ └─────────┘ └─────────┘ └───────┘  │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ████  ████                                    │
-│  ████  ████  ╭─ KD曲线                        │  Chart Area
-│  ████  ████  ╰─ 时长曲线                      │
-│  ████  ████                                    │
-│                                                 │
-└─────────────────────────────────────────────────┘
-```
-
-## 7. Technical Implementation
-- **框架**: 纯HTML + CSS + JavaScript
-- **图表库**: Chart.js 4.x (CDN)
-- **动画**: CSS transitions + JS控制
-- **响应式**: 支持1024px以上屏幕
-
-## 8. Acceptance Criteria
-- [ ] 页面加载显示随机生成的完整年度数据
-- [ ] 赛季筛选正确切换数据
-- [ ] 模式筛选正确切换数据
-- [ ] 柱状图正确显示胜场/败场
-- [ ] 双折线图正确显示KD/时长
-- [ ] 悬停显示详细数据tooltip
-- [ ] 筛选切换有科技感过渡动画
-- [ ] 深色电竞风格明显 (霓虹色/发光效果)
+- [ ] Countdown timer accurately counts down in DD:HH:MM:SS format
+- [ ] Button is visually disabled before sale starts
+- [ ] Stock bar reflects current stock percentage
+- [ ] Purchase limit notice clearly visible
+- [ ] Clicking buy when under limit triggers success/failure simulation
+- [ ] Clicking buy when at limit shows warning toast
+- [ ] Success toast appears on successful purchase
+- [ ] Failure toast appears when stock depleted
+- [ ] All animations play smoothly at 60fps
+- [ ] Responsive layout works on mobile (375px+) and desktop

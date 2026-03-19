@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>限时秒杀</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: #0f0f1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background-image:
+        radial-gradient(ellipse at 20% 80%, rgba(255, 59, 59, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(255, 215, 0, 0.06) 0%, transparent 50%);
+    }
+
+    .flash-sale-card {
+      width: 100%;
+      max-width: 480px;
+      background: linear-gradient(145deg, #1a1a2e 0%, #16162a 100%);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow:
+        0 25px 80px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .product-banner {
+      position: relative;
+      height: 220px;
+      background: linear-gradient(135deg, #2a2a4a 0%, #1a1a2e 100%);
+      overflow: hidden;
+    }
+
+    .product-banner::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 30% 70%, rgba(255, 59, 59, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 70% 30%, rgba(255, 215, 0, 0.2) 0%, transparent 40%);
+    }
+
+    .product-image {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .product-image svg {
+      width: 180px;
+      height: 180px;
+      filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+    }
+
+    .sale-tag {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: linear-gradient(135deg, #ff3b3b, #ff6b6b);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 15px rgba(255, 59, 59, 0.4);
+      z-index: 2;
+    }
+
+    .card-content {
+      padding: 28px 24px 32px;
+    }
+
+    .product-info {
+      margin-bottom: 24px;
+    }
+
+    .product-name {
+      font-size: 24px;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .sale-price {
+      font-size: 36px;
+      font-weight: 900;
+      color: #ff3b3b;
+      letter-spacing: -1px;
+    }
+
+    .sale-price::before {
+      content: '¥';
+      font-size: 20px;
+      margin-right: 2px;
+    }
+
+    .original-price {
+      font-size: 16px;
+      color: #666;
+      text-decoration: line-through;
+    }
+
+    .original-price::before {
+      content: '¥';
+    }
+
+    .discount-badge {
+      background: linear-gradient(135deg, #ffd700, #ffaa00);
+      color: #1a1a2e;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* Countdown Section */
+    .countdown-section {
+      margin-bottom: 24px;
+    }
+
+    .countdown-label {
+      font-size: 13px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .countdown-timer {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .countdown-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 64px;
+    }
+
+    .countdown-value {
+      background: linear-gradient(180deg, #2a2a4a 0%, #1f1f3a 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px 8px;
+      min-width: 64px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .countdown-value::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+    }
+
+    .countdown-number {
+      font-size: 32px;
+      font-weight: 900;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+      position: relative;
+      z-index: 1;
+    }
+
+    .countdown-unit-label {
+      font-size: 11px;
+      color: #666;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .countdown-separator {
+      font-size: 28px;
+      font-weight: 700;
+      color: #ff3b3b;
+      margin-top: -20px;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .countdown-timer.urgent .countdown-value {
+      animation: pulse 0.5s infinite alternate;
+      border-color: rgba(255, 59, 59, 0.5);
+    }
+
+    @keyframes pulse {
+      from { box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.4); }
+      to { box-shadow: 0 0 20px 5px rgba(255, 59, 59, 0.2); }
+    }
+
+    /* Stock Progress */
+    .stock-section {
+      margin-bottom: 20px;
+    }
+
+    .stock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .stock-label {
+      font-size: 13px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stock-count {
+      font-size: 14px;
+      color: #ffd700;
+      font-weight: 700;
+    }
+
+    .stock-bar {
+      height: 12px;
+      background: #1a1a2e;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .stock-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.5s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stock-fill.high {
+      background: linear-gradient(90deg, #22c55e, #4ade80);
+    }
+
+    .stock-fill.medium {
+      background: linear-gradient(90deg, #eab308, #facc15);
+    }
+
+    .stock-fill.low {
+      background: linear-gradient(90deg, #ff3b3b, #ff6b6b);
+      animation: stockPulse 0.8s infinite alternate;
+    }
+
+    @keyframes stockPulse {
+      from { opacity: 0.8; }
+      to { opacity: 1; }
+    }
+
+    .stock-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      to { left: 100%; }
+    }
+
+    /* Purchase Limit */
+    .limit-notice {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      padding: 12px 16px;
+      background: rgba(255, 215, 0, 0.08);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 12px;
+    }
+
+    .limit-icon {
+      width: 20px;
+      height: 20px;
+      color: #ffd700;
+      flex-shrink: 0;
+    }
+
+    .limit-text {
+      font-size: 14px;
+      color: #ffd700;
+    }
+
+    .limit-count {
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    /* Buy Button */
+    .buy-button {
+      width: 100%;
+      padding: 18px 24px;
+      border: none;
+      border-radius: 14px;
+      font-family: inherit;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+    }
+
+    .buy-button.disabled {
+      background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .buy-button.enabled {
+      background: linear-gradient(180deg, #ff3b3b 0%, #e62e2e 100%);
+      color: white;
+      box-shadow: 0 8px 30px rgba(255, 59, 59, 0.4);
+    }
+
+    .buy-button.enabled:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(255, 59, 59, 0.5);
+    }
+
+    .buy-button.enabled:active {
+      transform: translateY(0);
+    }
+
+    .buy-button.loading {
+      background: linear-gradient(180deg, #ff6b6b 0%, #ff3b3b 100%);
+      color: transparent;
+      cursor: wait;
+    }
+
+    .buy-button.loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 24px;
+      height: 24px;
+      margin: -12px 0 0 -12px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .buy-button.soldout {
+      background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+      color: #888;
+      cursor: not-allowed;
+    }
+
+    .buy-button.maxed {
+      background: linear-gradient(180deg, #ffd700 0%, #ffaa00 100%);
+      color: #1a1a2e;
+      cursor: not-allowed;
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      animation: toastIn 0.4s ease forwards;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+    }
+
+    .toast.success {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+    }
+
+    .toast.error {
+      background: linear-gradient(135deg, #ff3b3b, #dc2626);
+    }
+
+    .toast.warning {
+      background: linear-gradient(135deg, #ffd700, #eab308);
+      color: #1a1a2e;
+    }
+
+    .toast.hiding {
+      animation: toastOut 0.3s ease forwards;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes toastOut {
+      to {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+      }
+    }
+
+    .toast-icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    /* Confetti */
+    .confetti {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
+      overflow: hidden;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #ffd700;
+      animation: confettiFall 3s ease-out forwards;
+    }
+
+    @keyframes confettiFall {
+      0% {
+        transform: translateY(-100px) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+
+    /* Shake animation */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+
+    .shake {
+      animation: shake 0.5s ease;
+    }
+
+    /* Sale Started State */
+    .sale-started .countdown-section {
+      display: none;
+    }
+
+    .started-badge {
+      display: none;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      animation: pulse 1s infinite alternate;
+    }
+
+    .sale-started .started-badge {
+      display: inline-block;
+    }
+
+    /* User purchased count */
+    .user-purchased {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .user-purchased span {
+      color: #ffd700;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="flash-sale-card" id="flashSaleCard">
+    <div class="product-banner">
+      <div class="sale-tag">限时秒杀</div>
+      <div class="product-image">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="15" y="20" width="70" height="60" rx="8" fill="url(#phoneGrad)"/>
+          <rect x="20" y="25" width="60" height="50" rx="4" fill="#1a1a2e"/>
+          <rect x="22" y="28" width="56" height="44" rx="2" fill="url(#screenGrad)"/>
+          <circle cx="50" cy="78" r="3" fill="#333"/>
+          <rect x="40" y="16" width="20" height="4" rx="2" fill="#2a2a4a"/>
+          <defs>
+            <linearGradient id="phoneGrad" x1="15" y1="20" x2="85" y2="80">
+              <stop offset="0%" stop-color="#3a3a5a"/>
+              <stop offset="100%" stop-color="#2a2a4a"/>
+            </linearGradient>
+            <linearGradient id="screenGrad" x1="22" y1="28" x2="78" y2="72">
+              <stop offset="0%" stop-color="#1a1a3a"/>
+              <stop offset="100%" stop-color="#0f0f2a"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+
+    <div class="card-content">
+      <div class="started-badge">秒杀进行中</div>
+
+      <div class="product-info">
+        <h1 class="product-name">iPhone 16 Pro Max 256GB</h1>
+        <div class="price-row">
+          <span class="sale-price">7999</span>
+          <span class="original-price">9999</span>
+          <span class="discount-badge">省2000</span>
+        </div>
+      </div>
+
+      <div class="countdown-section" id="countdownSection">
+        <div class="countdown-label">距离秒杀开始</div>
+        <div class="countdown-timer" id="countdownTimer">
+          <div class="countdown-unit">
+            <div class="countdown-value">
+              <span class="countdown-number" id="days">00</span>
+            </div>
+            <span class="countdown-unit-label">天</span>
+          </div>
+          <span class="countdown-separator">:</span>
+          <div class="countdown-unit">
+            <div class="countdown-value">
+              <span class="countdown-number" id="hours">00</span>
+            </div>
+            <span class="countdown-unit-label">时</span>
+          </div>
+          <span class="countdown-separator">:</span>
+          <div class="countdown-unit">
+            <div class="countdown-value">
+              <span class="countdown-number" id="minutes">00</span>
+            </div>
+            <span class="countdown-unit-label">分</span>
+          </div>
+          <span class="countdown-separator">:</span>
+          <div class="countdown-unit">
+            <div class="countdown-value">
+              <span class="countdown-number" id="seconds">00</span>
+            </div>
+            <span class="countdown-unit-label">秒</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stock-section">
+        <div class="stock-header">
+          <span class="stock-label">库存进度</span>
+          <span class="stock-count" id="stockCount">100 / 100</span>
+        </div>
+        <div class="stock-bar">
+          <div class="stock-fill high" id="stockFill" style="width: 100%"></div>
+        </div>
+      </div>
+
+      <div class="limit-notice">
+        <svg class="limit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+        <span class="limit-text">本商品限购 <span class="limit-count" id="limitCount">2</span> 件</span>
+      </div>
+
+      <button class="buy-button disabled" id="buyButton" disabled>
+        即将开始
+      </button>
+
+      <div class="user-purchased" id="userPurchased" style="display: none;">
+        您已抢购 <span id="purchasedCount">0</span> 件
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+  <div class="confetti" id="confetti"></div>
+
+  <script>
+    const state = {
+      totalStock: 100,
+      currentStock: 100,
+      purchaseLimit: 2,
+      userPurchased: 0,
+      saleStarted: false,
+      saleEnded: false,
+      saleStartTime: new Date(Date.now() + 30 * 1000)
+    };
+
+    const elements = {
+      days: document.getElementById('days'),
+      hours: document.getElementById('hours'),
+      minutes: document.getElementById('minutes'),
+      seconds: document.getElementById('seconds'),
+      countdownTimer: document.getElementById('countdownTimer'),
+      countdownSection: document.getElementById('countdownSection'),
+      flashSaleCard: document.getElementById('flashSaleCard'),
+      stockFill: document.getElementById('stockFill'),
+      stockCount: document.getElementById('stockCount'),
+      limitCount: document.getElementById('limitCount'),
+      buyButton: document.getElementById('buyButton'),
+      userPurchased: document.getElementById('userPurchased'),
+      purchasedCount: document.getElementById('purchasedCount'),
+      toastContainer: document.getElementById('toastContainer'),
+      confetti: document.getElementById('confetti')
+    };
+
+    function padZero(num) {
+      return num.toString().padStart(2, '0');
+    }
+
+    function updateCountdown() {
+      const now = new Date();
+      const diff = state.saleStartTime - now;
+
+      if (diff <= 0) {
+        startSale();
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      elements.days.textContent = padZero(days);
+      elements.hours.textContent = padZero(hours);
+      elements.minutes.textContent = padZero(minutes);
+      elements.seconds.textContent = padZero(seconds);
+
+      if (diff < 60 * 60 * 1000) {
+        elements.countdownTimer.classList.add('urgent');
+      }
+    }
+
+    function startSale() {
+      state.saleStarted = true;
+      elements.flashSaleCard.classList.add('sale-started');
+      elements.buyButton.classList.remove('disabled');
+      elements.buyButton.classList.add('enabled');
+      elements.buyButton.disabled = false;
+      elements.buyButton.textContent = '立即抢购';
+      elements.userPurchased.style.display = 'block';
+    }
+
+    function updateStockUI() {
+      const percentage = (state.currentStock / state.totalStock) * 100;
+      elements.stockFill.style.width = percentage + '%';
+      elements.stockCount.textContent = `${state.currentStock} / ${state.totalStock}`;
+
+      elements.stockFill.classList.remove('high', 'medium', 'low');
+      if (percentage > 50) {
+        elements.stockFill.classList.add('high');
+      } else if (percentage > 20) {
+        elements.stockFill.classList.add('medium');
+      } else {
+        elements.stockFill.classList.add('low');
+      }
+    }
+
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+
+      let iconSvg = '';
+      if (type === 'success') {
+        iconSvg = '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+      } else if (type === 'error') {
+        iconSvg = '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+      } else {
+        iconSvg = '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+      }
+
+      toast.innerHTML = iconSvg + message;
+      elements.toastContainer.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function triggerConfetti() {
+      const colors = ['#ffd700', '#ff3b3b', '#22c55e', '#3b82f6', '#a855f7'];
+
+      for (let i = 0; i < 50; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + '%';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDelay = Math.random() * 0.5 + 's';
+        piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+        piece.style.width = (5 + Math.random() * 10) + 'px';
+        piece.style.height = (5 + Math.random() * 10) + 'px';
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+        elements.confetti.appendChild(piece);
+      }
+
+      setTimeout(() => {
+        elements.confetti.innerHTML = '';
+      }, 4000);
+    }
+
+    function triggerShake() {
+      elements.buyButton.classList.add('shake');
+      setTimeout(() => {
+        elements.buyButton.classList.remove('shake');
+      }, 500);
+    }
+
+    function updateButtonState() {
+      if (state.saleEnded) {
+        elements.buyButton.className = 'buy-button soldout';
+        elements.buyButton.textContent = '已售罄';
+        elements.buyButton.disabled = true;
+      } else if (state.userPurchased >= state.purchaseLimit) {
+        elements.buyButton.className = 'buy-button maxed';
+        elements.buyButton.textContent = '已达上限';
+        elements.buyButton.disabled = true;
+      }
+    }
+
+    function attemptPurchase() {
+      if (!state.saleStarted || state.saleEnded) return;
+
+      if (state.userPurchased >= state.purchaseLimit) {
+        showToast('您已达到购买上限，请勿重复抢购！', 'warning');
+        triggerShake();
+        return;
+      }
+
+      elements.buyButton.className = 'buy-button loading';
+      elements.buyButton.textContent = '抢购中...';
+      elements.buyButton.disabled = true;
+
+      setTimeout(() => {
+        const success = Math.random() < 0.7;
+
+        if (success && state.currentStock > 0) {
+          const deduct = Math.min(1 + Math.floor(Math.random() * 3), state.currentStock);
+          state.currentStock -= deduct;
+          state.userPurchased += deduct;
+
+          updateStockUI();
+          elements.purchasedCount.textContent = state.userPurchased;
+
+          showToast(`恭喜，抢购成功！`, 'success');
+          triggerConfetti();
+
+          if (state.currentStock === 0) {
+            state.saleEnded = true;
+          }
+        } else {
+          showToast('抱歉，已抢完！', 'error');
+          triggerShake();
+
+          if (state.currentStock === 0) {
+            state.saleEnded = true;
+          }
+        }
+
+        updateButtonState();
+      }, 1200);
+    }
+
+    elements.buyButton.addEventListener('click', attemptPurchase);
+
+    elements.limitCount.textContent = state.purchaseLimit;
+    updateStockUI();
+
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
+  </script>
+</body>
+</html>
