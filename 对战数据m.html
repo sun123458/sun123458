@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Battle Data Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a2332;
+      --accent-cyan: #00f0ff;
+      --accent-pink: #ff3366;
+      --accent-green: #00ff88;
+      --accent-gold: #ffcc00;
+      --text-primary: #e0e6ed;
+      --text-secondary: #64748b;
+      --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.5);
+      --glow-pink: 0 0 20px rgba(255, 51, 102, 0.5);
+      --glow-green: 0 0 20px rgba(0, 255, 136, 0.5);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        linear-gradient(90deg, transparent 49.5%, rgba(0, 240, 255, 0.03) 50%, transparent 50.5%),
+        linear-gradient(0deg, transparent 49.5%, rgba(0, 240, 255, 0.03) 50%, transparent 50.5%);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px 30px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0 30px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      margin-bottom: 30px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      position: relative;
+    }
+
+    .logo-icon::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 3px solid var(--accent-cyan);
+      transform: rotate(45deg);
+      animation: logoPulse 2s ease-in-out infinite;
+    }
+
+    .logo-icon::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      background: var(--accent-cyan);
+      transform: translate(-50%, -50%);
+      box-shadow: var(--glow-cyan);
+    }
+
+    @keyframes logoPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .logo-text {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .controls {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .select-wrapper {
+      position: relative;
+    }
+
+    .select-wrapper::after {
+      content: '';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--accent-cyan);
+      pointer-events: none;
+    }
+
+    select {
+      appearance: none;
+      background: var(--bg-card);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--text-primary);
+      padding: 10px 40px 10px 16px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    select:hover, select:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: var(--glow-cyan);
+      outline: none;
+    }
+
+    .mode-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mode-btn {
+      background: var(--bg-card);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--text-secondary);
+      padding: 10px 20px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mode-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .mode-btn:hover::before {
+      left: 100%;
+    }
+
+    .mode-btn:hover {
+      border-color: var(--accent-cyan);
+      color: var(--text-primary);
+    }
+
+    .mode-btn.active {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: var(--glow-cyan), inset 0 0 20px rgba(0, 240, 255, 0.1);
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .stat-card:nth-child(1)::before { background: var(--accent-cyan); }
+    .stat-card:nth-child(2)::before { background: var(--accent-pink); }
+    .stat-card:nth-child(3)::before { background: var(--accent-green); }
+    .stat-card:nth-child(4)::before { background: var(--accent-gold); }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(0, 240, 255, 0.4);
+    }
+
+    .stat-card:nth-child(1):hover { box-shadow: var(--glow-cyan); }
+    .stat-card:nth-child(2):hover { box-shadow: var(--glow-pink); }
+    .stat-card:nth-child(3):hover { box-shadow: var(--glow-green); }
+    .stat-card:nth-child(4):hover { box-shadow: 0 0 20px rgba(255, 204, 0, 0.5); }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+    }
+
+    .stat-card:nth-child(1) .stat-value { color: var(--accent-cyan); }
+    .stat-card:nth-child(2) .stat-value { color: var(--accent-pink); }
+    .stat-card:nth-child(3) .stat-value { color: var(--accent-green); }
+    .stat-card:nth-child(4) .stat-value { color: var(--accent-gold); }
+
+    .stat-sub {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Chart Container */
+    .chart-container {
+      background: var(--bg-card);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .chart-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-green), transparent);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .chart-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+      color: var(--accent-cyan);
+      letter-spacing: 1px;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 24px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    .legend-dot.wins { background: var(--accent-cyan); }
+    .legend-dot.losses { background: var(--accent-pink); }
+    .legend-dot.kd { background: var(--accent-green); }
+    .legend-dot.duration { background: var(--accent-gold); }
+
+    .chart-wrapper {
+      position: relative;
+      height: 400px;
+    }
+
+    /* Chart Transition Animation */
+    .chart-transition {
+      animation: chartGlitch 0.5s ease-out;
+    }
+
+    @keyframes chartGlitch {
+      0% {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+        filter: hue-rotate(90deg);
+      }
+      30% {
+        opacity: 0.5;
+        transform: scale(1.02) translateY(0);
+        filter: hue-rotate(0deg);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: hue-rotate(0deg);
+      }
+    }
+
+    /* Tooltip Styles */
+    .custom-tooltip {
+      position: absolute;
+      background: rgba(17, 24, 39, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--accent-cyan);
+      padding: 12px 16px;
+      pointer-events: none;
+      z-index: 100;
+      min-width: 160px;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .custom-tooltip.visible {
+      opacity: 1;
+    }
+
+    .tooltip-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      margin: 4px 0;
+    }
+
+    .tooltip-label {
+      color: var(--text-secondary);
+    }
+
+    .tooltip-value {
+      font-weight: 700;
+    }
+
+    .tooltip-value.cyan { color: var(--accent-cyan); }
+    .tooltip-value.pink { color: var(--accent-pink); }
+    .tooltip-value.green { color: var(--accent-green); }
+    .tooltip-value.gold { color: var(--accent-gold); }
+
+    /* Scan line effect */
+    .scanline {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+      opacity: 0.3;
+      animation: scanlineMove 4s linear infinite;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    @keyframes scanlineMove {
+      0% { top: -4px; }
+      100% { top: 100%; }
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .controls {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+    }
+
+    /* Loading state */
+    .loading {
+      position: relative;
+    }
+
+    .loading::after {
+      content: 'LOADING...';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Orbitron', sans-serif;
+      color: var(--accent-cyan);
+      animation: blink 0.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scanline"></div>
+
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon"></div>
+        <span class="logo-text">GAME BATTLE DATA</span>
+      </div>
+
+      <div class="controls">
+        <div class="select-wrapper">
+          <select id="seasonSelect">
+            <option value="all">全部赛季</option>
+            <option value="S1">S1 赛季</option>
+            <option value="S2">S2 赛季</option>
+            <option value="S3">S3 赛季</option>
+            <option value="S4">S4 赛季</option>
+          </select>
+        </div>
+
+        <div class="mode-buttons">
+          <button class="mode-btn active" data-mode="all">全部</button>
+          <button class="mode-btn" data-mode="排位">排位</button>
+          <button class="mode-btn" data-mode="匹配">匹配</button>
+          <button class="mode-btn" data-mode="娱乐">娱乐</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">总胜场</div>
+        <div class="stat-value" id="totalWins">0</div>
+        <div class="stat-sub">总场次 <span id="totalGames">0</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">总败场</div>
+        <div class="stat-value" id="totalLosses">0</div>
+        <div class="stat-sub">胜率 <span id="winRate">0%</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">平均 KD</div>
+        <div class="stat-value" id="avgKD">0.00</div>
+        <div class="stat-sub">最高 KD <span id="maxKD">0.00</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">场均时长</div>
+        <div class="stat-value" id="avgDuration">0</div>
+        <div class="stat-sub">总时长 <span id="totalDuration">0</span> 分钟</div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <div class="chart-header">
+        <div class="chart-title">月度对战数据统计</div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot wins"></div>胜场</div>
+          <div class="legend-item"><div class="legend-dot losses"></div>败场</div>
+          <div class="legend-item"><div class="legend-dot kd"></div>KD比</div>
+          <div class="legend-item"><div class="legend-dot duration"></div>场均时长</div>
+        </div>
+      </div>
+      <div class="chart-wrapper" id="chartWrapper">
+        <canvas id="battleChart"></canvas>
+      </div>
+      <div class="custom-tooltip" id="tooltip"></div>
+    </div>
+  </div>
+
+  <script>
+    // Data Generation
+    const seasons = ['S1', 'S2', 'S3', 'S4'];
+    const modes = ['排位', '匹配', '娱乐'];
+    const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+
+    function generateRandomData() {
+      const data = [];
+      for (const season of seasons) {
+        for (const mode of modes) {
+          for (let i = 0; i < 3; i++) {
+            const wins = Math.floor(Math.random() * 36) + 15;
+            const losses = Math.floor(Math.random() * 31) + 10;
+            data.push({
+              season,
+              mode,
+              month: months[Math.floor(Math.random() * 12)],
+              wins,
+              losses,
+              kd: parseFloat((Math.random() * 3 + 0.5).toFixed(2)),
+              avgDuration: parseFloat((Math.random() * 20 + 15).toFixed(1))
+            });
+          }
+        }
+      }
+      return data;
+    }
+
+    let rawData = generateRandomData();
+    let currentSeason = 'all';
+    let currentMode = 'all';
+    let chart = null;
+
+    // Filter data
+    function filterData() {
+      return rawData.filter(item => {
+        const seasonMatch = currentSeason === 'all' || item.season === currentSeason;
+        const modeMatch = currentMode === 'all' || item.mode === currentMode;
+        return seasonMatch && modeMatch;
+      });
+    }
+
+    // Group by month
+    function groupByMonth(data) {
+      const grouped = {};
+      months.forEach(m => grouped[m] = { wins: 0, losses: 0, kd: 0, duration: 0, count: 0 });
+
+      data.forEach(item => {
+        if (grouped[item.month]) {
+          grouped[item.month].wins += item.wins;
+          grouped[item.month].losses += item.losses;
+          grouped[item.month].kd += item.kd;
+          grouped[item.month].duration += item.avgDuration;
+          grouped[item.month].count++;
+        }
+      });
+
+      return Object.entries(grouped)
+        .filter(([_, v]) => v.count > 0)
+        .map(([month, v]) => ({
+          month,
+          wins: v.wins,
+          losses: v.losses,
+          kd: parseFloat((v.kd / v.count).toFixed(2)),
+          avgDuration: parseFloat((v.duration / v.count).toFixed(1))
+        }));
+    }
+
+    // Update stats cards
+    function updateStats(data) {
+      const totalWins = data.reduce((sum, d) => sum + d.wins, 0);
+      const totalLosses = data.reduce((sum, d) => sum + d.losses, 0);
+      const totalGames = totalWins + totalLosses;
+      const avgKD = data.length > 0 ? data.reduce((sum, d) => sum + d.kd, 0) / data.length : 0;
+      const maxKD = data.length > 0 ? Math.max(...data.map(d => d.kd)) : 0;
+      const avgDuration = data.length > 0 ? data.reduce((sum, d) => sum + d.avgDuration, 0) / data.length : 0;
+      const totalDuration = data.reduce((sum, d) => sum + d.avgDuration * d.count, 0);
+
+      document.getElementById('totalWins').textContent = totalWins;
+      document.getElementById('totalLosses').textContent = totalLosses;
+      document.getElementById('totalGames').textContent = totalGames;
+      document.getElementById('winRate').textContent = totalGames > 0
+        ? Math.round((totalWins / totalGames) * 100) + '%'
+        : '0%';
+      document.getElementById('avgKD').textContent = avgKD.toFixed(2);
+      document.getElementById('maxKD').textContent = maxKD.toFixed(2);
+      document.getElementById('avgDuration').textContent = avgDuration.toFixed(1);
+      document.getElementById('totalDuration').textContent = Math.round(totalDuration);
+    }
+
+    // Create/Update Chart
+    function updateChart() {
+      const filtered = filterData();
+      const grouped = groupByMonth(filtered);
+
+      updateStats(grouped.map(g => ({
+        ...g,
+        count: 1
+      })));
+
+      const labels = grouped.map(g => g.month);
+      const winsData = grouped.map(g => g.wins);
+      const lossesData = grouped.map(g => g.losses);
+      const kdData = grouped.map(g => g.kd);
+      const durationData = grouped.map(g => g.avgDuration);
+
+      const ctx = document.getElementById('battleChart').getContext('2d');
+
+      if (chart) {
+        chart.destroy();
+      }
+
+      // Apply transition animation
+      const wrapper = document.getElementById('chartWrapper');
+      wrapper.classList.remove('chart-transition');
+      void wrapper.offsetWidth;
+      wrapper.classList.add('chart-transition');
+
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: '胜场',
+              data: winsData,
+              backgroundColor: 'rgba(0, 240, 255, 0.7)',
+              borderColor: '#00f0ff',
+              borderWidth: 1,
+              borderRadius: 4,
+              yAxisID: 'y'
+            },
+            {
+              label: '败场',
+              data: lossesData,
+              backgroundColor: 'rgba(255, 51, 102, 0.7)',
+              borderColor: '#ff3366',
+              borderWidth: 1,
+              borderRadius: 4,
+              yAxisID: 'y'
+            },
+            {
+              label: 'KD比',
+              data: kdData,
+              type: 'line',
+              borderColor: '#00ff88',
+              backgroundColor: 'rgba(0, 255, 136, 0.2)',
+              borderWidth: 3,
+              pointBackgroundColor: '#00ff88',
+              pointBorderColor: '#00ff88',
+              pointRadius: 6,
+              pointHoverRadius: 10,
+              pointHoverBackgroundColor: '#fff',
+              tension: 0.4,
+              fill: true,
+              yAxisID: 'y1'
+            },
+            {
+              label: '场均时长',
+              data: durationData,
+              type: 'line',
+              borderColor: '#ffcc00',
+              backgroundColor: 'rgba(255, 204, 0, 0.2)',
+              borderWidth: 3,
+              pointBackgroundColor: '#ffcc00',
+              pointBorderColor: '#ffcc00',
+              pointRadius: 6,
+              pointHoverRadius: 10,
+              pointHoverBackgroundColor: '#fff',
+              tension: 0.4,
+              fill: true,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              enabled: false,
+              external: function(context) {
+                const tooltip = document.getElementById('tooltip');
+
+                if (context.tooltip.opacity === 0) {
+                  tooltip.classList.remove('visible');
+                  return;
+                }
+
+                const dataPoints = context.tooltip.dataPoints;
+                if (!dataPoints) return;
+
+                let html = `<div class="tooltip-title">${context.tooltip.title}</div>`;
+
+                dataPoints.forEach(point => {
+                  let label = point.dataset.label;
+                  let value = point.raw;
+                  let colorClass = '';
+
+                  if (label === '胜场') colorClass = 'cyan';
+                  else if (label === '败场') colorClass = 'pink';
+                  else if (label === 'KD比') colorClass = 'green';
+                  else if (label === '场均时长') {
+                    colorClass = 'gold';
+                    value = value + ' 分钟';
+                  }
+
+                  html += `<div class="tooltip-row">
+                    <span class="tooltip-label">${label}</span>
+                    <span class="tooltip-value ${colorClass}">${value}</span>
+                  </div>`;
+                });
+
+                tooltip.innerHTML = html;
+                tooltip.classList.add('visible');
+
+                const chartRect = document.getElementById('battleChart').getBoundingClientRect();
+                const containerRect = document.querySelector('.chart-container').getBoundingClientRect();
+
+                let left = context.tooltip.caretX + 15;
+                let top = context.tooltip.caretY - 30;
+
+                if (left + 180 > containerRect.width) {
+                  left = context.tooltip.caretX - 180;
+                }
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(0, 240, 255, 0.1)',
+                lineWidth: 1
+              },
+              ticks: {
+                color: '#00f0ff',
+                font: {
+                  family: 'Orbitron',
+                  size: 11
+                }
+              }
+            },
+            y: {
+              type: 'linear',
+              position: 'left',
+              grid: {
+                color: 'rgba(0, 240, 255, 0.1)'
+              },
+              ticks: {
+                color: '#64748b',
+                font: {
+                  family: 'Rajdhani'
+                }
+              },
+              title: {
+                display: true,
+                text: '场次',
+                color: '#64748b'
+              }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              grid: {
+                display: false
+              },
+              ticks: {
+                color: '#64748b',
+                font: {
+                  family: 'Rajdhani'
+                }
+              },
+              title: {
+                display: true,
+                text: 'KD / 时长(分钟)',
+                color: '#64748b'
+              },
+              min: 0,
+              max: 40
+            }
+          }
+        }
+      });
+    }
+
+    // Event Listeners
+    document.getElementById('seasonSelect').addEventListener('change', (e) => {
+      currentSeason = e.target.value;
+      updateChart();
+    });
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentMode = btn.dataset.mode;
+        updateChart();
+      });
+    });
+
+    // Initialize
+    updateChart();
+  </script>
+</body>
+</html>
