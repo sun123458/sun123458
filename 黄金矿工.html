@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黄金矿工</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.3), 0 0 80px rgba(255, 215, 0, 0.1);
+        }
+
+        #gameCanvas {
+            display: block;
+            background: #87CEEB;
+        }
+
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0d1b2a 100%);
+            z-index: 10;
+        }
+
+        #menu h1 {
+            font-size: 64px;
+            color: #FFD700;
+            text-shadow: 0 0 20px #FFD700, 0 4px 0 #B8860B;
+            margin-bottom: 60px;
+            letter-spacing: 8px;
+        }
+
+        .menuBtn {
+            width: 240px;
+            padding: 18px 40px;
+            margin: 12px;
+            font-size: 28px;
+            font-family: 'ZCOOL KuaiLe', cursive;
+            color: #FFD700;
+            background: linear-gradient(180deg, #2d2d44 0%, #1a1a2e 100%);
+            border: 3px solid #FFD700;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .menuBtn:hover {
+            background: linear-gradient(180deg, #FFD700 0%, #DAA520 100%);
+            color: #1a1a2e;
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+        }
+
+        #victoryScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 20;
+        }
+
+        #victoryScreen h1 {
+            font-size: 72px;
+            color: #FFD700;
+            text-shadow: 0 0 30px #FFD700, 0 0 60px #FFA500;
+            animation: victoryPulse 0.5s ease-in-out infinite alternate;
+        }
+
+        #victoryScreen p {
+            font-size: 32px;
+            color: #fff;
+            margin-top: 30px;
+        }
+
+        @keyframes victoryPulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <div id="menu">
+            <h1>黄金矿工</h1>
+            <button class="menuBtn" onclick="startGame(1)">单人模式</button>
+            <button class="menuBtn" onclick="startGame(2)">双人模式</button>
+        </div>
+
+        <div id="victoryScreen">
+            <h1>胜利!</h1>
+            <p id="victoryText"></p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const menu = document.getElementById('menu');
+        const victoryScreen = document.getElementById('victoryScreen');
+        const victoryText = document.getElementById('victoryText');
+
+        // Game state
+        let gameMode = 1;
+        let gameRunning = false;
+        let score = 0;
+        let targetScore = 800;
+
+        // Ground level
+        const GROUND_Y = 130;
+
+        // Player hooks
+        let hooks = [];
+
+        // Underground items
+        let items = [];
+
+        // Particles for effects
+        let particles = [];
+
+        // Keys state
+        let keys = {};
+
+        class Hook {
+            constructor(x, isReversed = false) {
+                this.x = x;
+                this.y = GROUND_Y;
+                this.angle = 0;
+                this.angleSpeed = 0.025;
+                this.angleDirection = isReversed ? -1 : 1;
+                this.maxAngle = Math.PI / 3;
+                this.released = false;
+                this.extending = true;
+                this.hookLength = 30;
+                this.maxLength = 550;
+                this.pullingItem = null;
+                this.speed = 6;
+                this.isReversed = isReversed;
+            }
+
+            get tipX() {
+                return this.x + Math.sin(this.angle) * this.hookLength;
+            }
+
+            get tipY() {
+                return this.y + Math.cos(this.angle) * this.hookLength;
+            }
+
+            update() {
+                if (!this.released) {
+                    this.angle += this.angleSpeed * this.angleDirection;
+                    if (Math.abs(this.angle) > this.maxAngle) {
+                        this.angleDirection *= -1;
+                    }
+                } else if (this.extending) {
+                    this.hookLength += this.speed;
+                    const tipX = this.tipX;
+                    const tipY = this.tipY;
+
+                    // Check collision with items
+                    for (let item of items) {
+                        if (!item.grabbed && this.checkCollision(tipX, tipY, item)) {
+                            item.grabbed = true;
+                            this.pullingItem = item;
+                            this.extending = false;
+                            break;
+                        }
+                    }
+
+                    // Check boundaries
+                    if (tipX < 0 || tipX > canvas.width || tipY > canvas.height || this.hookLength > this.maxLength) {
+                        this.extending = false;
+                    }
+                } else {
+                    let pullSpeed;
+                    if (this.pullingItem) {
+                        pullSpeed = this.pullingItem.pullSpeed;
+                        this.hookLength -= pullSpeed;
+
+                        if (this.hookLength <= 30) {
+                            this.collectItem();
+                        }
+                    } else {
+                        pullSpeed = this.speed;
+                        this.hookLength -= pullSpeed;
+
+                        if (this.hookLength <= 30) {
+                            this.reset();
+                        }
+                    }
+                }
+            }
+
+            checkCollision(tipX, tipY, item) {
+                const dx = tipX - item.x;
+                const dy = tipY - item.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                return dist < item.radius + 8;
+            }
+
+            collectItem() {
+                if (this.pullingItem) {
+                    const value = this.pullingItem.value;
+
+                    if (this.pullingItem.type === 'bomb') {
+                        this.createExplosion(this.pullingItem.x, this.pullingItem.y);
+                    }
+
+                    score += value;
+                    createScoreParticles(this.x, this.y, value);
+
+                    if (score >= targetScore) {
+                        triggerVictory();
+                    }
+                }
+                this.reset();
+            }
+
+            createExplosion(x, y) {
+                for (let i = 0; i < 30; i++) {
+                    particles.push({
+                        x: x,
+                        y: y,
+                        vx: (Math.random() - 0.5) * 12,
+                        vy: (Math.random() - 0.5) * 12,
+                        life: 60,
+                        color: Math.random() > 0.5 ? '#FF4500' : '#FFD700',
+                        size: Math.random() * 8 + 4
+                    });
+                }
+            }
+
+            reset() {
+                this.released = false;
+                this.extending = true;
+                this.hookLength = 30;
+                this.pullingItem = null;
+            }
+
+            release() {
+                if (!this.released) {
+                    this.released = true;
+                    this.extending = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+
+                // Draw rope
+                ctx.strokeStyle = '#8B4513';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+
+                if (this.released && this.pullingItem) {
+                    const item = this.pullingItem;
+                    ctx.lineTo(item.x, item.y);
+                    ctx.lineTo(this.tipX, this.tipY);
+                } else {
+                    ctx.lineTo(this.tipX, this.tipY);
+                }
+                ctx.stroke();
+
+                // Draw hook
+                ctx.translate(this.tipX, this.tipY);
+                ctx.rotate(this.angle);
+
+                ctx.fillStyle = '#708090';
+                ctx.strokeStyle = '#4A4A4A';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 8, 0, Math.PI, false);
+                ctx.lineTo(12, 8);
+                ctx.lineTo(8, 8);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw pulled item
+                if (this.pullingItem) {
+                    this.pullingItem.draw();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Item {
+            constructor(x, y, type, radius, value, pullSpeed) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.radius = radius;
+                this.value = value;
+                this.pullSpeed = pullSpeed;
+                this.grabbed = false;
+                this.sparkleAngle = 0;
+                this.vx = type === 'pig' ? (Math.random() > 0.5 ? 0.5 : -0.5) : 0;
+            }
+
+            update() {
+                if (this.grabbed) {
+                    // Follow hook direction
+                    const hook = hooks.find(h => h.pullingItem === this);
+                    if (hook) {
+                        const dx = hook.x - this.x;
+                        const dy = hook.y - this.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 0) {
+                            this.x += (dx / dist) * this.pullSpeed;
+                            this.y += (dy / dist) * this.pullSpeed;
+                        }
+                    }
+                } else if (this.type === 'pig') {
+                    // Pig moves horizontally
+                    this.x += this.vx;
+                    if (this.x < 100 || this.x > canvas.width - 100) {
+                        this.vx *= -1;
+                    }
+                }
+                this.sparkleAngle += 0.1;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                switch(this.type) {
+                    case 'diamond':
+                        this.drawDiamond();
+                        break;
+                    case 'gold':
+                        this.drawGold();
+                        break;
+                    case 'rock':
+                        this.drawRock();
+                        break;
+                    case 'bomb':
+                        this.drawBomb();
+                        break;
+                    case 'pig':
+                        this.drawPig();
+                        break;
+                }
+
+                ctx.restore();
+            }
+
+            drawDiamond() {
+                // Sparkle effect
+                const sparkle = Math.sin(this.sparkleAngle) * 0.3 + 0.7;
+
+                // Diamond shape
+                ctx.fillStyle = `rgba(185, 242, 255, ${sparkle})`;
+                ctx.strokeStyle = '#87CEEB';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -this.radius);
+                ctx.lineTo(this.radius * 0.7, 0);
+                ctx.lineTo(0, this.radius);
+                ctx.lineTo(-this.radius * 0.7, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Inner shine
+                ctx.fillStyle = `rgba(255, 255, 255, ${sparkle * 0.6})`;
+                ctx.beginPath();
+                ctx.moveTo(0, -this.radius * 0.5);
+                ctx.lineTo(this.radius * 0.3, 0);
+                ctx.lineTo(0, this.radius * 0.3);
+                ctx.lineTo(-this.radius * 0.3, 0);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            drawGold() {
+                // Gold nugget
+                const gradient = ctx.createRadialGradient(-3, -3, 0, 0, 0, this.radius);
+                gradient.addColorStop(0, '#FFE066');
+                gradient.addColorStop(0.5, '#FFD700');
+                gradient.addColorStop(1, '#B8860B');
+
+                ctx.fillStyle = gradient;
+                ctx.strokeStyle = '#8B6914';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.arc(-this.radius * 0.3, -this.radius * 0.3, this.radius * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawRock() {
+                const gradient = ctx.createRadialGradient(-2, -2, 0, 0, 0, this.radius);
+                gradient.addColorStop(0, '#909090');
+                gradient.addColorStop(1, '#505050');
+
+                ctx.fillStyle = gradient;
+                ctx.strokeStyle = '#404040';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                // Irregular rock shape
+                const points = 8;
+                for (let i = 0; i < points; i++) {
+                    const angle = (i / points) * Math.PI * 2;
+                    const r = this.radius * (0.8 + Math.sin(i * 2.5) * 0.2);
+                    const x = Math.cos(angle) * r;
+                    const y = Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            drawBomb() {
+                // Bomb body
+                ctx.fillStyle = '#2F2F2F';
+                ctx.strokeStyle = '#1a1a1a';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Fuse
+                ctx.strokeStyle = '#8B4513';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, -this.radius);
+                ctx.quadraticCurveTo(5, -this.radius - 8, 0, -this.radius - 12);
+                ctx.stroke();
+
+                // Fuse spark
+                const sparkPulse = Math.sin(Date.now() * 0.02) * 0.5 + 0.5;
+                ctx.fillStyle = `rgba(255, ${100 + sparkPulse * 100}, 0, ${sparkPulse})`;
+                ctx.beginPath();
+                ctx.arc(0, -this.radius - 12, 4 + sparkPulse * 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawPig() {
+                // Body
+                ctx.fillStyle = '#FFB6C1';
+                ctx.strokeStyle = '#FF69B4';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.radius, this.radius * 0.8, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Snout
+                ctx.fillStyle = '#FF91A4';
+                ctx.beginPath();
+                ctx.ellipse(this.radius * 0.5, 0, this.radius * 0.35, this.radius * 0.25, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Nostrils
+                ctx.fillStyle = '#DB7093';
+                ctx.beginPath();
+                ctx.arc(this.radius * 0.55, -3, 2, 0, Math.PI * 2);
+                ctx.arc(this.radius * 0.55, 3, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(-this.radius * 0.3, -this.radius * 0.2, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ears
+                ctx.fillStyle = '#FFB6C1';
+                ctx.beginPath();
+                ctx.ellipse(-this.radius * 0.5, -this.radius * 0.6, 5, 8, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initItems() {
+            items = [];
+
+            // Diamonds (at least 3)
+            items.push(new Item(150, 280, 'diamond', 18, 800, 8));
+            items.push(new Item(450, 350, 'diamond', 18, 800, 8));
+            items.push(new Item(650, 250, 'diamond', 18, 800, 8));
+
+            // Gold nuggets - various sizes
+            items.push(new Item(250, 400, 'gold', 25, 500, 3));
+            items.push(new Item(550, 450, 'gold', 22, 500, 3));
+            items.push(new Item(350, 300, 'gold', 18, 200, 5));
+            items.push(new Item(180, 500, 'gold', 16, 200, 5));
+            items.push(new Item(600, 380, 'gold', 14, 50, 6));
+            items.push(new Item(420, 520, 'gold', 12, 50, 6));
+            items.push(new Item(700, 480, 'gold', 15, 200, 5));
+
+            // Rocks
+            items.push(new Item(300, 450, 'rock', 28, 10, 2));
+            items.push(new Item(500, 300, 'rock', 32, 10, 2));
+            items.push(new Item(380, 200, 'rock', 22, 10, 2));
+            items.push(new Item(620, 550, 'rock', 26, 10, 2));
+
+            // Pigs
+            items.push(new Item(200, 350, 'pig', 16, 3, 8));
+            items.push(new Item(580, 420, 'pig', 16, 3, 8));
+
+            // Bombs
+            items.push(new Item(280, 520, 'bomb', 14, 2, 10));
+            items.push(new Item(480, 250, 'bomb', 14, 2, 10));
+            items.push(new Item(720, 320, 'bomb', 14, 2, 10));
+        }
+
+        function createScoreParticles(x, y, value) {
+            const colors = value >= 500 ? ['#FFD700', '#FFA500'] : value >= 200 ? ['#FFD700', '#87CEEB'] : ['#90EE90', '#98FB98'];
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: -Math.random() * 5 - 2,
+                    life: 40,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 4 + 2,
+                    text: i === 0 ? '+' + value : ''
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.15;
+                p.life--;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles() {
+            for (let p of particles) {
+                ctx.save();
+                ctx.globalAlpha = p.life / 40;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (p.text) {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.font = 'bold 16px ZCOOL KuaiLe';
+                    ctx.fillText(p.text, p.x, p.y);
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawBackground() {
+            // Sky gradient
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(1, '#E0F4FF');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, GROUND_Y);
+
+            // Underground gradient
+            const groundGradient = ctx.createLinearGradient(0, GROUND_Y, 0, canvas.height);
+            groundGradient.addColorStop(0, '#654321');
+            groundGradient.addColorStop(0.3, '#4a3728');
+            groundGradient.addColorStop(1, '#2d1f14');
+            ctx.fillStyle = groundGradient;
+            ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+
+            // Ground surface
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, GROUND_Y - 10, canvas.width, 25);
+
+            // Grass
+            ctx.fillStyle = '#228B22';
+            for (let x = 0; x < canvas.width; x += 15) {
+                ctx.beginPath();
+                ctx.moveTo(x, GROUND_Y - 10);
+                ctx.lineTo(x + 7, GROUND_Y - 20);
+                ctx.lineTo(x + 14, GROUND_Y - 10);
+                ctx.fill();
+            }
+
+            // Dirt layers
+            ctx.strokeStyle = 'rgba(101, 67, 33, 0.3)';
+            ctx.lineWidth = 1;
+            for (let y = GROUND_Y + 50; y < canvas.height; y += 60) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                for (let x = 0; x < canvas.width; x += 20) {
+                    ctx.lineTo(x + 10, y + Math.sin(x * 0.1) * 5);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function drawUI() {
+            // Score panel
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.roundRect(10, 10, 180, 60, 10);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFD700';
+            ctx.font = '24px ZCOOL KuaiLe';
+            ctx.fillText('分数: ' + score, 25, 42);
+
+            ctx.fillStyle = '#90EE90';
+            ctx.font = '16px ZCOOL KuaiLe';
+            ctx.fillText('目标: ' + targetScore, 25, 62);
+
+            // Player labels
+            if (gameMode === 2) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.roundRect(10, 80, 80, 30, 8);
+                ctx.fill();
+                ctx.fillStyle = '#FF6B6B';
+                ctx.font = '16px ZCOOL KuaiLe';
+                ctx.fillText('玩家A: S', 20, 100);
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.roundRect(canvas.width - 100, 80, 90, 30, 8);
+                ctx.fill();
+                ctx.fillStyle = '#4ECDC4';
+                ctx.font = '16px ZCOOL KuaiLe';
+                ctx.fillText('玩家B: ↓', canvas.width - 90, 100);
+            }
+        }
+
+        function drawVictoryParticles() {
+            if (gameRunning) {
+                // Celebration particles
+                if (Math.random() < 0.3) {
+                    const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181'];
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: -10,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: Math.random() * 3 + 2,
+                        life: 100,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        size: Math.random() * 6 + 3
+                    });
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+
+            // Update and draw items
+            for (let item of items) {
+                item.update();
+                if (!item.grabbed) {
+                    item.draw();
+                }
+            }
+
+            // Update and draw hooks
+            for (let hook of hooks) {
+                hook.update();
+                hook.draw();
+            }
+
+            // Particles
+            updateParticles();
+            drawParticles();
+            drawVictoryParticles();
+
+            // UI
+            drawUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleKeyDown(e) {
+            if (!gameRunning) return;
+
+            if (e.key === 's' || e.key === 'S') {
+                if (hooks[0]) hooks[0].release();
+            }
+            if (e.key === 'ArrowDown') {
+                if (gameMode === 2 && hooks[1]) hooks[1].release();
+                e.preventDefault();
+            }
+        }
+
+        function startGame(mode) {
+            gameMode = mode;
+            score = 0;
+            gameRunning = true;
+            menu.style.display = 'none';
+            victoryScreen.style.display = 'none';
+
+            initItems();
+            hooks = [];
+
+            if (mode === 1) {
+                hooks.push(new Hook(120, false));
+            } else {
+                hooks.push(new Hook(120, false));
+                hooks.push(new Hook(canvas.width - 120, true));
+            }
+
+            document.addEventListener('keydown', handleKeyDown);
+            gameLoop();
+        }
+
+        function triggerVictory() {
+            gameRunning = false;
+            victoryText.textContent = '玩家A 达到 ' + score + ' 分!';
+            victoryScreen.style.display = 'flex';
+        }
+
+        // Polyfill for roundRect
+        if (!ctx.roundRect) {
+            ctx.roundRect = function(x, y, w, h, r) {
+                this.beginPath();
+                this.moveTo(x + r, y);
+                this.lineTo(x + w - r, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + r);
+                this.lineTo(x + w, y + h - r);
+                this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                this.lineTo(x + r, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - r);
+                this.lineTo(x, y + r);
+                this.quadraticCurveTo(x, y, x + r, y);
+                this.closePath();
+            };
+        }
+    </script>
+</body>
+</html>

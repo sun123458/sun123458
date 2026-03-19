@@ -1,123 +1,116 @@
-# Pixel Art Bug Catching Game - Specification
+# 黄金矿工 - Golden Miner Game Specification
 
 ## Project Overview
-- **Project Name**: Bug Catcher (捕虫)
-- **Type**: 2D top-down pixel art game
-- **Core Functionality**: Player explores a world, interacts with NPCs via dialogue, and catches bugs with a net
-- **Target Users**: Casual gamers, retro game enthusiasts
+- **Project Name**: 黄金矿工 (Golden Miner)
+- **Type**: 2D Canvas Game
+- **Core Functionality**: A fishing-hook mining game where players timing-based mechanics to grab treasures underground
+- **Target Users**: Casual gamers, 1-2 players
+
+## Game Modes
+- **Single Player**: One player with hook on left side
+- **Two Player**: Two players - Player A (left side, 'S' key) and Player B (right side, Down Arrow key)
 
 ## Visual & Rendering Specification
 
-### Canvas Setup
-- **Resolution**: 640x480 pixels
-- **Pixel Scale**: 2x (each game pixel = 2x2 screen pixels)
-- **Target FPS**: 60
+### Scene Setup
+- **Canvas Size**: 800x600 pixels
+- **Background**:
+  - Top 100px: Sky (gradient blue)
+  - 100-150px: Ground surface (brown earth with grass)
+  - 150-600px: Underground (darker earth tones, layered soil)
 
-### Color Palette (Limited Retro)
-- Background grass: #3d5a3d (dark green)
-- Grass highlights: #5a7a5a
-- Player: #e8c170 (warm tan)
-- NPCs: #707070, #909090, #606060 (grays)
-- Bugs: #ff6b6b (coral red)
-- Net: #8b4513 (brown handle), #c0c0c0 (silver mesh)
-- Obstacles (rocks): #5a5a6a, #4a4a5a
-- Trees: #2d4a2d (dark green foliage), #5a3a2a (brown trunk)
-- UI Background: #1a1a2e (dark blue)
-- UI Text: #ffffff
+### Visual Elements
+- **Hook/Rope**:
+  - Rope: Brown/tan line from anchor point
+  - Hook: Metallic gray hook shape
+  - Swing arc: ±60 degrees from vertical
 
-### Scene Elements
-- **World Size**: 1280x960 pixels (2x2 screens)
-- **Tile Size**: 32x32 pixels (16x16 game pixels)
-- **Camera**: Follows player, clamped to world bounds
+- **Color Palette**:
+  - Sky: #87CEEB to #E0F4FF gradient
+  - Ground: #8B4513 (surface), #654321 (underground)
+  - Gold: #FFD700 with #DAA520 highlight
+  - Diamond: #B9F2FF with sparkle effect
+  - Rock: #808080 to #696969
+  - Pig: #FFB6C1 with #FF69B4 accents
+  - Bomb: #2F2F2F with red fuse glow
 
-### Player Character
-- Size: 16x16 game pixels (32x32 on screen)
-- 4-directional movement (Up, Down, Left, Right)
-- Walking animation: 4 frames per direction
-- Appearance: Simple humanoid shape with head, body, legs
+### UI Elements
+- **Score Display**: Top-left corner, large bold font
+- **Target Score**: "目标: 800" indicator
+- **Player Labels**: "玩家A" / "玩家B"
+- **Win Screen**: Celebratory animation with particles
 
-### NPCs (3 minimum)
-- Size: 16x16 game pixels
-- Stationary positions
-- Simple appearance distinguishing each
-- Interaction indicator when player is near
+## Game Mechanics Specification
 
-### Obstacles
-- Rocks: 32x32 pixels, irregular shapes
-- Trees: 48x48 pixels with trunk and canopy
-- Fence posts: 16x32 pixels
-- Ponds: 64x64 pixels (dark blue, impassable)
+### Hook Behavior
+- **Swing Speed**: ~1.5 radians/second oscillation
+- **Swing Range**: 120 degrees total (±60° from vertical)
+- **Hook Speed (going down)**: 5 pixels/frame base
+- **Pull Speed Formula**: `baseSpeed / weight`
+  - Light (diamond, pig): 8 pixels/frame
+  - Medium (small gold): 5 pixels/frame
+  - Heavy (large gold): 3 pixels/frame
+  - Very Heavy (rock): 2 pixels/frame
 
-### Bugs
-- Size: 8x8 game pixels
-- Random movement patterns
-- Spawn every 3-5 seconds
-- Max 10 bugs on screen
-- Disappear after 10 seconds if not caught
+### Underground Items
 
-###捕虫网 (Bug Net)
-- Appears when Space is pressed
-- Swinging animation
-- Catches bug if within range
+| Item | Weight | Value | Behavior |
+|------|--------|-------|----------|
+| Diamond (钻石) | 1 | 800 | Sparkle effect, at least 3 per level |
+| Pig (小猪) | 1 | 3 | Moves horizontally left/right slowly |
+| Large Gold | 5 | 500 | Static |
+| Medium Gold | 3 | 200 | Static |
+| Small Gold | 2 | 50 | Static |
+| Rock (石头) | 6 | 10 | Static |
+| Bomb (炸弹) | 1 | 2 | Explosion animation, quick pull |
+
+### Collision Detection
+- Circle-based collision for all items
+- Hook tip is the collision point
+- Items pulled at their center point
+
+### Win Condition
+- Player reaches **800 points** to win
+- Victory screen with particle effects and "胜利!" message
 
 ## Interaction Specification
 
 ### Controls
-- **Arrow Keys / WASD**: Move player (4 directions)
-- **E Key**: Interact with NPC (when in range)
-- **Space**: Swing bug net
+- **Player A (Single/Dual)**:
+  - 'S' key: Release hook
+  - Position: Left side of screen
 
-### NPC Interaction
-- Interaction range: 48 pixels
-- Visual indicator (floating "E" icon) when in range
-- Dialogue box appears centered on screen
-- Press E or Space to dismiss dialogue
+- **Player B (Dual only)**:
+  - Down Arrow key: Release hook
+  - Position: Right side of screen
 
-### Bug Catching
-- Net swing range: 32 pixels
-- Net swing duration: 300ms
-- Successful catch: bug disappears, counter increments, particle effect
-- Miss: net swings with whoosh sound
+### Game Flow
+1. Title screen with mode selection
+2. Game starts with hooks swinging
+3. Player presses key to release hook
+4. Hook travels in current angle until:
+   - Hits an item → pulls it up
+   - Goes off screen → returns empty
+   - Player presses key again (in single mode)
+5. Score updates when item reaches top
+6. Repeat until 800 points reached
 
-## UI Specification
-
-### HUD Elements
-- **Bug Counter**: Top-left corner
-  - Format: "🐛 x [count]"
-  - Font: Pixel style, 16px
-- **Mini-map**: Top-right corner
-  - Size: 120x90 pixels
-  - Shows player position, NPCs, bugs
-
-### Dialogue Box
-- Centered, 400x120 pixels
-- Dark semi-transparent background
-- NPC name at top
-- Dialogue text below
-- "Press E to close" hint
-
-## Audio (Optional - Placeholder)
-- Step sounds (simple beeps)
-- Net swing sound
-- Catch success sound
-
-## Game World Layout
-```
-[Trees and rocks scattered across the map]
-[3 NPCs placed at different locations]
-[Pond in the center-right area]
-[Fence border around edges]
-[Spawn points for bugs - random grass areas]
-```
+## Audio (Optional - Visual feedback primary)
+- Hook release: whoosh sound
+- Item grab: different tones based on value
+- Bomb: explosion sound
+- Win: celebration fanfare
 
 ## Acceptance Criteria
-1. Player moves smoothly in 4 directions with visible walking animation
-2. Player cannot walk through obstacles
-3. All 3 NPCs can be interacted with via E key
-4. Dialogue displays correctly and can be dismissed
-5. Bugs spawn randomly and move
-6. Space key swings net
-7. Catching a bug increments counter
-8. Bug counter persists in UI at all times
-9. Game runs at stable 60 FPS
-10. Camera follows player within world bounds
+
+1. ✅ Title screen with Single/Dual player buttons
+2. ✅ Hooks swing smoothly in opposite directions
+3. ✅ 'S' key (Player A) and Down Arrow (Player B) release hooks
+4. ✅ At least 3 diamonds visible underground
+5. ✅ All items have correct values and weights
+6. ✅ Pigs move horizontally
+7. ✅ Bombs cause explosion effect
+8. ✅ Score updates correctly on item retrieval
+9. ✅ Victory screen at 800 points
+10. ✅ Heavier items pull up slower
+11. ✅ Hooks return if nothing is caught
