@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电子鱼缸</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      font-family: 'Segoe UI', sans-serif;
+      overflow: hidden;
+    }
+
+    .tank-container {
+      position: relative;
+      width: 90vmin;
+      height: 75vmin;
+    }
+
+    #fishTank {
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .tail-wag {
+      animation: wag 0.3s ease-in-out infinite alternate;
+      transform-origin: 100% 50%;
+    }
+
+    .tail-wag-reverse {
+      animation: wag-reverse 0.3s ease-in-out infinite alternate;
+      transform-origin: 0% 50%;
+    }
+
+    .fin-flutter {
+      animation: flutter 0.5s ease-in-out infinite alternate;
+      transform-origin: center;
+    }
+
+    @keyframes wag {
+      0% { transform: rotate(-15deg); }
+      100% { transform: rotate(15deg); }
+    }
+
+    @keyframes wag-reverse {
+      0% { transform: rotate(15deg) scaleX(-1); }
+      100% { transform: rotate(-15deg) scaleX(-1); }
+    }
+
+    @keyframes flutter {
+      0% { transform: rotate(-8deg); }
+      100% { transform: rotate(8deg); }
+    }
+
+    @keyframes sway {
+      0% { transform: rotate(-3deg); }
+      100% { transform: rotate(3deg); }
+    }
+
+    .plant-sway {
+      animation: sway 2s ease-in-out infinite alternate;
+      transform-origin: bottom center;
+    }
+
+    .plant-sway-delayed {
+      animation: sway 2.5s ease-in-out infinite alternate-reverse;
+      transform-origin: bottom center;
+    }
+
+    @keyframes wobble {
+      0% { transform: translateX(-1px) rotate(-2deg); }
+      50% { transform: translateX(1px) rotate(2deg); }
+      100% { transform: translateX(-1px) rotate(-2deg); }
+    }
+
+    .food-wobble {
+      animation: wobble 0.4s ease-in-out infinite;
+    }
+
+    .eating {
+      animation: eat 0.15s ease-in-out 3;
+    }
+
+    @keyframes eat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="tank-container">
+    <svg id="fishTank" viewBox="0 0 800 600">
+      <defs>
+        <!-- Water gradient -->
+        <linearGradient id="waterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#87CEEB;stop-opacity:0.3" />
+          <stop offset="100%" style="stop-color:#4682B4;stop-opacity:0.5" />
+        </linearGradient>
+
+        <!-- Glass reflection gradient -->
+        <linearGradient id="glassReflection" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:white;stop-opacity:0.4" />
+          <stop offset="50%" style="stop-color:white;stop-opacity:0.1" />
+          <stop offset="100%" style="stop-color:white;stop-opacity:0" />
+        </linearGradient>
+
+        <!-- Fish body gradient -->
+        <linearGradient id="fishBodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#FFD700" />
+          <stop offset="50%" style="stop-color:#FFA500" />
+          <stop offset="100%" style="stop-color:#FF8C00" />
+        </linearGradient>
+
+        <!-- Fish belly gradient -->
+        <linearGradient id="fishBellyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#FFE4B5" />
+          <stop offset="100%" style="stop-color:#FFD700" />
+        </linearGradient>
+
+        <!-- Tank shadow -->
+        <filter id="tankShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="5" dy="8" stdDeviation="10" flood-color="#000" flood-opacity="0.4"/>
+        </filter>
+
+        <!-- Stone texture -->
+        <radialGradient id="stoneGradient1" cx="30%" cy="30%">
+          <stop offset="0%" style="stop-color:#A0522D" />
+          <stop offset="100%" style="stop-color:#8B4513" />
+        </radialGradient>
+
+        <radialGradient id="stoneGradient2" cx="40%" cy="30%">
+          <stop offset="0%" style="stop-color:#D2691E" />
+          <stop offset="100%" style="stop-color:#8B7355" />
+        </radialGradient>
+
+        <!-- Plant gradient -->
+        <linearGradient id="plantGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#228B22" />
+          <stop offset="50%" style="stop-color:#32CD32" />
+          <stop offset="100%" style="stop-color:#228B22" />
+        </linearGradient>
+      </defs>
+
+      <!-- Tank background (water) -->
+      <rect x="50" y="50" width="700" height="500" rx="15" fill="url(#waterGradient)" />
+
+      <!-- Tank border -->
+      <rect x="50" y="50" width="700" height="500" rx="15" fill="none" stroke="#5F9EA0" stroke-width="8"/>
+
+      <!-- Glass reflection highlight -->
+      <ellipse cx="200" cy="120" rx="150" ry="60" fill="url(#glassReflection)" opacity="0.6"/>
+
+      <!-- Sandy bottom -->
+      <ellipse cx="400" cy="530" rx="320" ry="30" fill="#C2B280" opacity="0.6"/>
+
+      <!-- Stones group -->
+      <g id="stones">
+        <ellipse cx="180" cy="520" rx="45" ry="25" fill="url(#stoneGradient1)"/>
+        <ellipse cx="250" cy="530" rx="35" ry="20" fill="url(#stoneGradient2)"/>
+        <ellipse cx="350" cy="525" rx="50" ry="22" fill="url(#stoneGradient1)"/>
+        <ellipse cx="480" cy="530" rx="40" ry="18" fill="url(#stoneGradient2)"/>
+        <ellipse cx="580" cy="520" rx="55" ry="28" fill="url(#stoneGradient1)"/>
+        <ellipse cx="650" cy="528" rx="38" ry="20" fill="url(#stoneGradient2)"/>
+        <ellipse cx="300" cy="535" rx="30" ry="15" fill="#8B7765"/>
+      </g>
+
+      <!-- Water plants -->
+      <g id="plants">
+        <!-- Plant 1 -->
+        <g class="plant-sway" transform-origin="150 530">
+          <path d="M150 530 Q145 500 140 470 Q135 450 145 430 Q150 420 148 400" stroke="url(#plantGradient)" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <ellipse cx="135" cy="420" rx="15" ry="8" fill="#32CD32" transform="rotate(-30 135 420)"/>
+          <ellipse cx="155" cy="445" rx="12" ry="6" fill="#228B22" transform="rotate(25 155 445)"/>
+          <ellipse cx="140" cy="480" rx="14" ry="7" fill="#32CD32" transform="rotate(-20 140 480)"/>
+        </g>
+
+        <!-- Plant 2 -->
+        <g class="plant-sway-delayed" transform-origin="250 530">
+          <path d="M250 530 Q255 490 260 450 Q265 420 255 380" stroke="#228B22" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="270" cy="400" rx="18" ry="9" fill="#3CB371" transform="rotate(35 270 400)"/>
+          <ellipse cx="245" cy="430" rx="14" ry="7" fill="#228B22" transform="rotate(-25 245 430)"/>
+          <ellipse cx="260" cy="470" rx="16" ry="8" fill="#32CD32" transform="rotate(15 260 470)"/>
+        </g>
+
+        <!-- Plant 3 -->
+        <g class="plant-sway" transform-origin="400 530" style="animation-delay: 0.5s">
+          <path d="M400 530 Q395 480 390 440 Q385 400 400 360 Q410 340 395 310" stroke="#2E8B57" stroke-width="7" fill="none" stroke-linecap="round"/>
+          <ellipse cx="375" cy="330" rx="20" ry="10" fill="#32CD32" transform="rotate(-40 375 330)"/>
+          <ellipse cx="415" cy="360" rx="18" ry="9" fill="#228B22" transform="rotate(30 415 360)"/>
+          <ellipse cx="385" cy="400" rx="16" ry="8" fill="#3CB371" transform="rotate(-20 385 400)"/>
+          <ellipse cx="395" cy="450" rx="15" ry="7" fill="#32CD32" transform="rotate(25 395 450)"/>
+        </g>
+
+        <!-- Plant 4 -->
+        <g class="plant-sway-delayed" transform-origin="520 530">
+          <path d="M520 530 Q525 490 530 450 Q540 410 525 370" stroke="#228B22" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="545" cy="390" rx="16" ry="8" fill="#32CD32" transform="rotate(40 545 390)"/>
+          <ellipse cx="515" cy="420" rx="13" ry="6" fill="#228B22" transform="rotate(-30 515 420)"/>
+          <ellipse cx="530" cy="465" rx="15" ry="7" fill="#3CB371" transform="rotate(20 530 465)"/>
+        </g>
+
+        <!-- Plant 5 -->
+        <g class="plant-sway" transform-origin="620 530" style="animation-delay: 0.3s">
+          <path d="M620 530 Q615 500 610 470 Q600 440 615 410" stroke="url(#plantGradient)" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <ellipse cx="595" cy="425" rx="17" ry="8" fill="#32CD32" transform="rotate(-35 595 425)"/>
+          <ellipse cx="630" cy="450" rx="14" ry="7" fill="#228B22" transform="rotate(28 630 450)"/>
+          <ellipse cx="608" cy="485" rx="15" ry="7" fill="#3CB371" transform="rotate(-15 608 485)"/>
+        </g>
+
+        <!-- Plant 6 -->
+        <g class="plant-sway-delayed" transform-origin="700 530" style="animation-delay: 0.7s">
+          <path d="M700 530 Q705 490 700 450 Q695 410 705 380" stroke="#2E8B57" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <ellipse cx="715" cy="400" rx="14" ry="7" fill="#32CD32" transform="rotate(32 715 400)"/>
+          <ellipse cx="690" cy="435" rx="12" ry="6" fill="#228B22" transform="rotate(-25 690 435)"/>
+        </g>
+      </g>
+
+      <!-- Bubbles -->
+      <g id="bubbles">
+        <circle cx="150" cy="400" r="4" fill="white" opacity="0.4">
+          <animate attributeName="cy" values="400;350;300" dur="4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.4;0.2;0" dur="4s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="350" cy="350" r="3" fill="white" opacity="0.3">
+          <animate attributeName="cy" values="350;280;220" dur="5s" repeatCount="indefinite" begin="1s"/>
+          <animate attributeName="opacity" values="0.3;0.15;0" dur="5s" repeatCount="indefinite" begin="1s"/>
+        </circle>
+        <circle cx="550" cy="380" r="5" fill="white" opacity="0.35">
+          <animate attributeName="cy" values="380;300;230" dur="4.5s" repeatCount="indefinite" begin="2s"/>
+          <animate attributeName="opacity" values="0.35;0.2;0" dur="4.5s" repeatCount="indefinite" begin="2s"/>
+        </circle>
+        <circle cx="450" cy="420" r="3" fill="white" opacity="0.3">
+          <animate attributeName="cy" values="420;350;280" dur="3.5s" repeatCount="indefinite" begin="0.5s"/>
+          <animate attributeName="opacity" values="0.3;0.15;0" dur="3.5s" repeatCount="indefinite" begin="0.5s"/>
+        </circle>
+      </g>
+
+      <!-- Food pellets group (dynamically managed) -->
+      <g id="foodGroup"></g>
+
+      <!-- Fish group -->
+      <g id="fishGroup"></g>
+
+      <!-- Glass overlay for reflection -->
+      <rect x="50" y="50" width="700" height="500" rx="15" fill="none" stroke="url(#glassReflection)" stroke-width="3" opacity="0.5"/>
+
+      <!-- Tank shine -->
+      <path d="M60 60 L60 540 Q60 550 70 550 L100 550 L100 60 Q100 50 60 60" fill="url(#glassReflection)" opacity="0.3"/>
+    </svg>
+  </div>
+
+  <script>
+    const svg = document.getElementById('fishTank');
+    const fishGroup = document.getElementById('fishGroup');
+    const foodGroup = document.getElementById('foodGroup');
+
+    const TANK_PADDING = 70;
+    const TANK_TOP = 60;
+    const TANK_BOTTOM = 520;
+
+    class Fish {
+      constructor(id, size, startX, startY) {
+        this.id = id;
+        this.size = size;
+        this.x = startX;
+        this.y = startY;
+        this.vx = (Math.random() - 0.5) * 3;
+        this.vy = (Math.random() - 0.5) * 2;
+        this.targetX = startX;
+        this.targetY = startY;
+        this.facingRight = Math.random() > 0.5;
+        this.changingDirectionTime = Date.now() + 2000 + Math.random() * 3000;
+        this.eating = false;
+        this.element = this.createSVG();
+      }
+
+      createSVG() {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('id', this.id);
+
+        const bodyLength = 60 * this.size;
+        const bodyHeight = 25 * this.size;
+
+        // Fish body
+        const body = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        body.setAttribute('cx', bodyLength * 0.4);
+        body.setAttribute('cy', 0);
+        body.setAttribute('rx', bodyLength * 0.45);
+        body.setAttribute('ry', bodyHeight);
+        body.setAttribute('fill', 'url(#fishBodyGradient)');
+        g.appendChild(body);
+
+        // Fish belly
+        const belly = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        belly.setAttribute('cx', bodyLength * 0.35);
+        belly.setAttribute('cy', bodyHeight * 0.3);
+        belly.setAttribute('rx', bodyLength * 0.35);
+        belly.setAttribute('ry', bodyHeight * 0.5);
+        belly.setAttribute('fill', 'url(#fishBellyGradient)');
+        belly.setAttribute('opacity', '0.7');
+        g.appendChild(belly);
+
+        // Dorsal fin
+        const dorsalFin = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const dorsalPath = `M ${bodyLength * 0.3} ${-bodyHeight * 0.8}
+                           Q ${bodyLength * 0.5} ${-bodyHeight * 1.5} ${bodyLength * 0.6} ${-bodyHeight * 0.7}
+                           Q ${bodyLength * 0.45} ${-bodyHeight * 0.5} ${bodyLength * 0.3} ${-bodyHeight * 0.8}`;
+        dorsalFin.setAttribute('d', dorsalPath);
+        dorsalFin.setAttribute('fill', '#FF8C00');
+        dorsalFin.setAttribute('opacity', '0.9');
+        g.appendChild(dorsalFin);
+
+        // Tail base
+        const tailBase = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        tailBase.setAttribute('cx', 0);
+        tailBase.setAttribute('cy', 0);
+        tailBase.setAttribute('rx', bodyLength * 0.15);
+        tailBase.setAttribute('ry', bodyHeight * 0.6);
+        tailBase.setAttribute('fill', 'url(#fishBodyGradient)');
+        g.appendChild(tailBase);
+
+        // Tail fin (left)
+        const tailLeft = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        tailLeft.setAttribute('d', `M ${-bodyLength * 0.1} ${-bodyHeight * 0.4}
+                                    Q ${-bodyLength * 0.5} ${-bodyHeight * 0.8} ${-bodyLength * 0.6} ${-bodyHeight * 0.2}
+                                    Q ${-bodyLength * 0.3} ${-bodyHeight * 0.1} ${-bodyLength * 0.1} ${-bodyHeight * 0.4}`);
+        tailLeft.setAttribute('fill', '#FFA500');
+        tailLeft.setAttribute('class', 'tail-wag');
+        g.appendChild(tailLeft);
+
+        // Tail fin (right)
+        const tailRight = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        tailRight.setAttribute('d', `M ${-bodyLength * 0.1} ${bodyHeight * 0.4}
+                                     Q ${-bodyLength * 0.5} ${bodyHeight * 0.8} ${-bodyLength * 0.6} ${bodyHeight * 0.2}
+                                     Q ${-bodyLength * 0.3} ${bodyHeight * 0.1} ${-bodyLength * 0.1} ${bodyHeight * 0.4}`);
+        tailRight.setAttribute('fill', '#FFA500');
+        tailRight.setAttribute('class', 'tail-wag');
+        g.appendChild(tailRight);
+
+        // Pectoral fin (top)
+        const pectoralTop = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        pectoralTop.setAttribute('cx', bodyLength * 0.25);
+        pectoralTop.setAttribute('cy', bodyHeight * 0.6);
+        pectoralTop.setAttribute('rx', bodyLength * 0.12);
+        pectoralTop.setAttribute('ry', bodyHeight * 0.35);
+        pectoralTop.setAttribute('fill', '#FFA500');
+        pectoralTop.setAttribute('opacity', '0.8');
+        pectoralTop.setAttribute('class', 'fin-flutter');
+        g.appendChild(pectoralTop);
+
+        // Pectoral fin (bottom)
+        const pectoralBottom = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        pectoralBottom.setAttribute('cx', bodyLength * 0.25);
+        pectoralBottom.setAttribute('cy', -bodyHeight * 0.6);
+        pectoralBottom.setAttribute('rx', bodyLength * 0.1);
+        pectoralBottom.setAttribute('ry', bodyHeight * 0.3);
+        pectoralBottom.setAttribute('fill', '#FFA500');
+        pectoralBottom.setAttribute('opacity', '0.8');
+        pectoralBottom.setAttribute('class', 'fin-flutter');
+        pectoralBottom.style.animationDelay = '0.1s';
+        g.appendChild(pectoralBottom);
+
+        // Eye (white)
+        const eyeWhite = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        eyeWhite.setAttribute('cx', bodyLength * 0.6);
+        eyeWhite.setAttribute('cy', -bodyHeight * 0.2);
+        eyeWhite.setAttribute('r', bodyHeight * 0.35);
+        eyeWhite.setAttribute('fill', 'white');
+        g.appendChild(eyeWhite);
+
+        // Eye (pupil)
+        const eyePupil = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        eyePupil.setAttribute('cx', bodyLength * 0.62);
+        eyePupil.setAttribute('cy', -bodyHeight * 0.2);
+        eyePupil.setAttribute('r', bodyHeight * 0.18);
+        eyePupil.setAttribute('fill', '#1a1a1a');
+        g.appendChild(eyePupil);
+
+        // Eye highlight
+        const eyeHighlight = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        eyeHighlight.setAttribute('cx', bodyLength * 0.64);
+        eyeHighlight.setAttribute('cy', -bodyHeight * 0.28);
+        eyeHighlight.setAttribute('r', bodyHeight * 0.08);
+        eyeHighlight.setAttribute('fill', 'white');
+        g.appendChild(eyeHighlight);
+
+        // Mouth
+        const mouth = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        mouth.setAttribute('cx', bodyLength * 0.85);
+        mouth.setAttribute('cy', bodyHeight * 0.15);
+        mouth.setAttribute('rx', bodyLength * 0.06);
+        mouth.setAttribute('ry', bodyHeight * 0.15);
+        mouth.setAttribute('fill', '#CC5500');
+        mouth.setAttribute('id', `mouth-${this.id}`);
+        g.appendChild(mouth);
+
+        // Scale patterns
+        for (let i = 0; i < 4; i++) {
+          const scale = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          const sx = bodyLength * (0.2 + i * 0.15);
+          const scalePath = `M ${sx} ${-bodyHeight * 0.3}
+                            Q ${sx + bodyLength * 0.05} ${-bodyHeight * 0.6} ${sx + bodyLength * 0.08} ${-bodyHeight * 0.3}
+                            Q ${sx + bodyLength * 0.05} ${bodyHeight * 0.05} ${sx} ${-bodyHeight * 0.3}`;
+          scale.setAttribute('d', scalePath);
+          scale.setAttribute('fill', 'none');
+          scale.setAttribute('stroke', '#FF8C00');
+          scale.setAttribute('stroke-width', '1');
+          scale.setAttribute('opacity', '0.5');
+          g.appendChild(scale);
+        }
+
+        fishGroup.appendChild(g);
+        this.updatePosition();
+        return g;
+      }
+
+      updatePosition() {
+        this.element.setAttribute('transform',
+          `translate(${this.x}, ${this.y}) ${this.facingRight ? '' : 'scale(1, -1)'}`);
+      }
+
+      update(foods) {
+        if (this.eating) return;
+
+        const now = Date.now();
+
+        // Find nearest food
+        let nearestFood = null;
+        let nearestDist = Infinity;
+
+        if (foods.length > 0) {
+          for (const food of foods) {
+            if (food.eaten) continue;
+            const dx = food.x - this.x;
+            const dy = food.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              nearestFood = food;
+            }
+          }
+
+          if (nearestFood && nearestDist < 200) {
+            // Move toward food
+            const dx = nearestFood.x - this.x;
+            const dy = nearestFood.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 20) {
+              // Eat the food
+              this.eat(nearestFood);
+              return;
+            }
+
+            this.vx += (dx / dist) * 0.3;
+            this.vy += (dy / dist) * 0.2;
+            this.facingRight = dx > 0;
+          }
+        }
+
+        // Random direction change
+        if (now > this.changingDirectionTime) {
+          this.vx = (Math.random() - 0.5) * 2 * this.size;
+          this.vy = (Math.random() - 0.5) * 1.5 * this.size;
+          this.changingDirectionTime = now + 2000 + Math.random() * 4000;
+        }
+
+        // Apply velocity with damping
+        this.vx *= 0.98;
+        this.vy *= 0.98;
+
+        // Clamp velocity
+        const maxSpeed = 3 * this.size;
+        this.vx = Math.max(-maxSpeed, Math.min(maxSpeed, this.vx));
+        this.vy = Math.max(-maxSpeed, Math.min(maxSpeed, this.vy));
+
+        // Update position
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Boundary check
+        const margin = 80;
+        const topMargin = 100;
+        if (this.x < margin) { this.x = margin; this.vx *= -0.5; }
+        if (this.x > 800 - margin) { this.x = 800 - margin; this.vx *= -0.5; }
+        if (this.y < topMargin) { this.y = topMargin; this.vy *= -0.5; }
+        if (this.y > TANK_BOTTOM - 30) { this.y = TANK_BOTTOM - 30; this.vy *= -0.5; }
+
+        // Update facing direction based on movement
+        if (Math.abs(this.vx) > 0.3) {
+          this.facingRight = this.vx > 0;
+        }
+
+        this.updatePosition();
+      }
+
+      eat(food) {
+        this.eating = true;
+        food.eaten = true;
+
+        const mouth = document.getElementById(`mouth-${this.id}`);
+        if (mouth) {
+          mouth.setAttribute('rx', 8 * this.size);
+          mouth.setAttribute('ry', 8 * this.size);
+          setTimeout(() => {
+            mouth.setAttribute('rx', 6 * this.size * 0.06);
+            mouth.setAttribute('ry', 25 * this.size * 0.15);
+          }, 200);
+        }
+
+        // Add eating animation to body
+        this.element.classList.add('eating');
+        setTimeout(() => {
+          this.element.classList.remove('eating');
+          this.eating = false;
+        }, 450);
+
+        // Remove food
+        food.element.remove();
+      }
+    }
+
+    class Food {
+      constructor(x, y, delay) {
+        this.x = x;
+        this.y = y;
+        this.vy = 0;
+        this.eaten = false;
+        this.element = this.createSVG();
+        this.delay = delay;
+        this.started = false;
+      }
+
+      createSVG() {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.classList.add('food-wobble');
+
+        const pellet = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        pellet.setAttribute('cx', 0);
+        pellet.setAttribute('cy', 0);
+        pellet.setAttribute('r', 5);
+        pellet.setAttribute('fill', '#CD853F');
+
+        const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        highlight.setAttribute('cx', -1.5);
+        highlight.setAttribute('cy', -1.5);
+        highlight.setAttribute('r', 1.5);
+        highlight.setAttribute('fill', 'white');
+        highlight.setAttribute('opacity', '0.5');
+
+        g.appendChild(pellet);
+        g.appendChild(highlight);
+        g.setAttribute('transform', `translate(${this.x}, ${this.y})`);
+        foodGroup.appendChild(g);
+
+        return g;
+      }
+
+      update(deltaTime) {
+        if (this.eaten) return;
+
+        if (this.delay > 0) {
+          this.delay -= deltaTime;
+          return;
+        }
+
+        if (!this.started) {
+          this.started = true;
+        }
+
+        // Gravity simulation - slow sinking
+        this.vy += 0.02;
+        this.vy = Math.min(this.vy, 1.5);
+        this.y += this.vy;
+
+        // Wobble
+        this.x += Math.sin(Date.now() * 0.01) * 0.3;
+
+        // Bottom collision
+        if (this.y > TANK_BOTTOM - 15) {
+          this.y = TANK_BOTTOM - 15;
+          this.vy *= -0.3;
+        }
+
+        this.element.setAttribute('transform', `translate(${this.x}, ${this.y})`);
+      }
+    }
+
+    // Initialize fish
+    const fish1 = new Fish('fish1', 1.4, 300, 250);
+    const fish2 = new Fish('fish2', 1, 500, 350);
+    const fishes = [fish1, fish2];
+    let foods = [];
+
+    // Click handler for feeding
+    svg.addEventListener('click', (e) => {
+      const rect = svg.getBoundingClientRect();
+      const scaleX = 800 / rect.width;
+      const scaleY = 600 / rect.height;
+
+      let clickX = (e.clientX - rect.left) * scaleX;
+      let clickY = (e.clientY - rect.top) * scaleY;
+
+      // Constrain to tank area
+      clickX = Math.max(TANK_PADDING, Math.min(800 - TANK_PADDING, clickX));
+      clickY = Math.max(TANK_TOP, Math.min(TANK_BOTTOM - 30, clickY));
+
+      // Limit food count
+      if (foods.filter(f => !f.eaten).length >= 10) {
+        // Remove oldest food
+        const oldFood = foods.find(f => !f.eaten);
+        if (oldFood) {
+          oldFood.eaten = true;
+          oldFood.element.remove();
+        }
+      }
+
+      // Spawn 3-5 pellets
+      const pelletCount = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < pelletCount; i++) {
+        const offsetX = (Math.random() - 0.5) * 20;
+        const offsetY = (Math.random() - 0.5) * 10;
+        const food = new Food(clickX + offsetX, clickY + offsetY, i * 80);
+        foods.push(food);
+      }
+    });
+
+    // Animation loop
+    let lastTime = performance.now();
+
+    function animate(currentTime) {
+      const deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
+      // Update foods
+      foods = foods.filter(f => !f.eaten);
+      for (const food of foods) {
+        food.update(deltaTime);
+      }
+
+      // Update fish
+      for (const fish of fishes) {
+        fish.update(foods);
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    animate(performance.now());
+  </script>
+</body>
+</html>

@@ -1,116 +1,109 @@
-# 黄金矿工 - Golden Miner Game Specification
+# 电子鱼缸游戏 - Specification
 
 ## Project Overview
-- **Project Name**: 黄金矿工 (Golden Miner)
-- **Type**: 2D Canvas Game
-- **Core Functionality**: A fishing-hook mining game where players timing-based mechanics to grab treasures underground
-- **Target Users**: Casual gamers, 1-2 players
+- **Project Name**: 电子鱼缸 (Electronic Fish Tank)
+- **Type**: Interactive SVG Game
+- **Core Functionality**: A virtual fish tank with two golden carp that swim around and can be fed by clicking
+- **Target Users**: All ages
 
-## Game Modes
-- **Single Player**: One player with hook on left side
-- **Two Player**: Two players - Player A (left side, 'S' key) and Player B (right side, Down Arrow key)
+## Visual Specification
 
-## Visual & Rendering Specification
+### Fish Tank
+- Large transparent container (80% viewport width, 70% viewport height)
+- Glass reflection effect using gradient overlays and subtle highlights
+- Light blue water fill with slight transparency
+- Rounded corners for realistic tank appearance
 
-### Scene Setup
-- **Canvas Size**: 800x600 pixels
-- **Background**:
-  - Top 100px: Sky (gradient blue)
-  - 100-150px: Ground surface (brown earth with grass)
-  - 150-600px: Underground (darker earth tones, layered soil)
+### Decorative Elements
+**Water Plants (6-8 pieces)**
+- Green color (#2E8B57, #3CB371)
+- Varying heights and leaf shapes
+- Slight swaying animation
 
-### Visual Elements
-- **Hook/Rope**:
-  - Rope: Brown/tan line from anchor point
-  - Hook: Metallic gray hook shape
-  - Swing arc: ±60 degrees from vertical
+**Stones (5-7 pieces)**
+- Brown/tan colors (#8B7355, #A0522D)
+- Various sizes (ellipses)
+- Clustered at bottom
 
-- **Color Palette**:
-  - Sky: #87CEEB to #E0F4FF gradient
-  - Ground: #8B4513 (surface), #654321 (underground)
-  - Gold: #FFD700 with #DAA520 highlight
-  - Diamond: #B9F2FF with sparkle effect
-  - Rock: #808080 to #696969
-  - Pig: #FFB6C1 with #FF69B4 accents
-  - Bomb: #2F2F2F with red fuse glow
+### Fish (Golden Carp)
+**Both fish have:**
+- Body: Golden/orange gradient (#FFD700, #FFA500, #FF8C00)
+- Eye: White with black pupil
+- Tail: Forked shape with wagging animation
+- Tail fin: Animated wagging motion
+- Pectoral fins: Subtle animation
 
-### UI Elements
-- **Score Display**: Top-left corner, large bold font
-- **Target Score**: "目标: 800" indicator
-- **Player Labels**: "玩家A" / "玩家B"
-- **Win Screen**: Celebratory animation with particles
+**Large Carp**
+- Body length: ~120px
+- Smooth horizontal swimming motion
 
-## Game Mechanics Specification
+**Small Carp**
+- Body length: ~80px
+- Slightly faster movement, more erratic
 
-### Hook Behavior
-- **Swing Speed**: ~1.5 radians/second oscillation
-- **Swing Range**: 120 degrees total (±60° from vertical)
-- **Hook Speed (going down)**: 5 pixels/frame base
-- **Pull Speed Formula**: `baseSpeed / weight`
-  - Light (diamond, pig): 8 pixels/frame
-  - Medium (small gold): 5 pixels/frame
-  - Heavy (large gold): 3 pixels/frame
-  - Very Heavy (rock): 2 pixels/frame
+### Fish Movement
+- Smooth bezier curve animations
+- Random direction changes every 3-6 seconds
+- Boundary detection (stay within tank)
+- Fish face direction of movement
 
-### Underground Items
+### Tail Fin Animation
+- Continuous wagging motion using CSS/SVG animation
+- Frequency: ~2-3 waggles per second
+- Amplitude: ±15 degrees rotation
 
-| Item | Weight | Value | Behavior |
-|------|--------|-------|----------|
-| Diamond (钻石) | 1 | 800 | Sparkle effect, at least 3 per level |
-| Pig (小猪) | 1 | 3 | Moves horizontally left/right slowly |
-| Large Gold | 5 | 500 | Static |
-| Medium Gold | 3 | 200 | Static |
-| Small Gold | 2 | 50 | Static |
-| Rock (石头) | 6 | 10 | Static |
-| Bomb (炸弹) | 1 | 2 | Explosion animation, quick pull |
+## Food/Feed Specification
 
-### Collision Detection
-- Circle-based collision for all items
-- Hook tip is the collision point
-- Items pulled at their center point
+### Food Pellets
+- Small circles (~6px diameter)
+- Brown/tan color (#CD853F)
+- Fall animation: gentle sinking (2-4 seconds to reach bottom)
+- Slight wobble during fall
+- Maximum 10 pellets at once
 
-### Win Condition
-- Player reaches **800 points** to win
-- Victory screen with particle effects and "胜利!" message
+### Feeding Behavior
+- Fish detect nearest food pellet
+- Swim toward food with acceleration
+- Eating animation (mouth opens/closes)
+- Food disappears when fish reaches it
+- Small "eating" particle effect
 
 ## Interaction Specification
 
-### Controls
-- **Player A (Single/Dual)**:
-  - 'S' key: Release hook
-  - Position: Left side of screen
+### Click to Feed
+- Click anywhere in tank
+- 3-5 food pellets spawn at click position
+- Staggered drop timing (50ms between each)
+- Food falls with gravity simulation
 
-- **Player B (Dual only)**:
-  - Down Arrow key: Release hook
-  - Position: Right side of screen
+### Fish AI
+- Idle: Random swimming
+- Hungry (food present): Swim toward nearest food
+- Eating: Brief pause and mouth animation
+- Full: Return to idle swimming
 
-### Game Flow
-1. Title screen with mode selection
-2. Game starts with hooks swinging
-3. Player presses key to release hook
-4. Hook travels in current angle until:
-   - Hits an item → pulls it up
-   - Goes off screen → returns empty
-   - Player presses key again (in single mode)
-5. Score updates when item reaches top
-6. Repeat until 800 points reached
+## Technical Implementation
 
-## Audio (Optional - Visual feedback primary)
-- Hook release: whoosh sound
-- Item grab: different tones based on value
-- Bomb: explosion sound
-- Win: celebration fanfare
+### Structure
+- Single HTML file with embedded SVG and JavaScript
+- SVG for all graphics (no canvas)
+- CSS animations for tail wagging
+- JavaScript for game logic, movement, collision
+
+### Animation System
+- requestAnimationFrame for smooth updates
+- SVG transform for fish positioning
+- CSS keyframes for tail animation
 
 ## Acceptance Criteria
 
-1. ✅ Title screen with Single/Dual player buttons
-2. ✅ Hooks swing smoothly in opposite directions
-3. ✅ 'S' key (Player A) and Down Arrow (Player B) release hooks
-4. ✅ At least 3 diamonds visible underground
-5. ✅ All items have correct values and weights
-6. ✅ Pigs move horizontally
-7. ✅ Bombs cause explosion effect
-8. ✅ Score updates correctly on item retrieval
-9. ✅ Victory screen at 800 points
-10. ✅ Heavier items pull up slower
-11. ✅ Hooks return if nothing is caught
+1. ✅ Fish tank displays with glass reflection effect
+2. ✅ Water plants and stones visible at bottom
+3. ✅ Two carp with visible body parts (eye, body, tail, fins)
+4. ✅ Tail fins wag continuously
+5. ✅ Fish swim in random patterns within boundaries
+6. ✅ Clicking spawns food pellets that fall
+7. ✅ Fish detect and swim toward food
+8. ✅ Food disappears when eaten by fish
+9. ✅ Smooth 60fps animation
+10. ✅ Responsive to different viewport sizes
