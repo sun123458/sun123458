@@ -1,112 +1,102 @@
-# 商品秒杀模块规格文档
+# 限时大促专题页规格文档
 
-## 1. Project Overview
+## 1. 项目概述
 
-- **Project Name**: Flash Sale Module
-- **Type**: Single-page interactive web component
-- **Core Functionality**: Real-time countdown flash sale with stock management, purchase limits, and simulated purchase states
-- **Target Users**: E-commerce shoppers
+- **项目名称**: 限时大促专题页（Flash Sale Landing Page）
+- **项目类型**: 促销/电商专题页
+- **核心功能**: 展示限时促销活动，引导用户快速下单
+- **目标用户**: 电商消费者
+- **终端适配**: 全终端（桌面/平板/手机）
 
-## 2. Visual & Rendering Specification
+## 2. 视觉与渲染规格
 
-### Layout Structure
-- Centered card container (max-width: 480px)
-- Product image banner at top
-- Countdown timer section
-- Stock progress bar
-- Purchase limit notice
-- Buy button with state changes
-- Toast notification system
+### 主题风格
+- **主色调**: 热烈红（#E63946）+ 尊贵金（#FFD700/#F4C430）
+- **辅助色**: 深红（#9B1C1C）、暗金（#B8860B）、白色（#FFFFFF）
+- **视觉风格**: 奢华热烈、节日庆典感、现代简洁
+- **特殊效果**:
+  - 金色渐变光泽
+  - 红色脉冲动画
+  - 金色粒子/光点漂浮
+  - 按钮悬停炽热效果
 
-### Color Palette
-- Primary: `#ff3b3b` (urgent red for flash sale)
-- Secondary: `#1a1a2e` (dark background)
-- Accent: `#ffd700` (gold for highlights)
-- Success: `#22c55e` (green)
-- Disabled: `#4a4a4a` (gray)
-- Background: `#0f0f1a` (deep dark)
-- Text: `#ffffff` / `#a0a0a0`
+### 字体
+- **标题字体**: "Noto Serif SC"（衬线体，庄重感）
+- **正文字体**: "Noto Sans SC"（无衬线，易读）
+- **数字字体**: "Orbitron"（科技感倒计时）
 
-### Typography
-- Font: "Noto Sans SC" (Chinese support)
-- Countdown numbers: Bold, large size (48px)
-- Labels: Small, uppercase
+### 布局结构
+1. **顶部横幅**: 活动标题 + 核心卖点
+2. **倒计时区**: 大字号倒计时，视觉焦点
+3. **优惠券领取区**: 金色卡片，抢购氛围
+4. **秒杀产品区**: 6-8款产品，网格布局
+5. **分区活动区**: 多模块活动展示
+6. **活动规则区**: 折叠/展开式
+7. **售后提示区**: 图标+文字说明
+8. **底部悬浮栏**: 固定底部，便捷操作
 
-### Visual Effects
-- Pulsing animation on countdown when < 1 hour
-- Progress bar with gradient fill
-- Button hover glow effect
-- Shake animation on purchase failure
-- Confetti burst on purchase success
+## 3. 功能规格
 
-## 3. Functional Specification
+### 倒计时功能
+- 目标时间: 2026年3月26日 23:59:59
+- 显示格式: DD天 HH:MM:SS
+- 每秒更新
+- 时间归零处理: 显示"已结束"
 
-### Core Features
+### 优惠券领取
+- 点击领取动画效果
+- 已领取状态切换
+- 领取成功提示
 
-#### 3.1 Countdown Timer
-- Display: DD : HH : MM : SS format
-- Updates every second
-- When reaches zero: triggers "flash sale started" state
-- Visual pulse animation when under 1 hour remaining
+### 产品展示
+- 原价/秒杀价对比
+- 库存进度条
+- 立即抢购按钮
+- 悬停放大效果
 
-#### 3.2 Stock Progress Bar
-- Shows current stock / total stock
-- Animated fill on load
-- Color changes based on percentage:
-  - > 50%: Green gradient
-  - 20-50%: Yellow gradient
-  - < 20%: Red gradient with pulse
+### 响应式断点
+- 桌面端: > 1024px（4列网格）
+- 平板端: 768px - 1024px（2-3列）
+- 移动端: < 768px（1-2列）
 
-#### 3.3 Purchase Limit System
-- Display "限购 X 件" notice
-- Track user's attempted purchases
-- Block purchases exceeding limit
-- Show warning toast when limit exceeded
+## 4. 交互规格
 
-#### 3.4 Buy Button States
-- **Before start**: Disabled (gray), shows "即将开始"
-- **During sale**: Active (red), shows "立即抢购"
-- **During purchase**: Loading spinner, shows "抢购中..."
-- **After limit reached**: Disabled, shows "已达上限"
+### 用户操作
+- 点击优惠券: 领取动画
+- 点击抢购: 跳转/提示（模拟）
+- 点击规则: 展开/折叠
+- 滚动: 顶部导航栏变化
 
-#### 3.5 Purchase Simulation
-- 70% success rate
-- Random stock decrement (1-3 units on success)
-- Success: Green toast "恭喜，抢购成功！"
-- Failure: Red toast "抱歉，已抢完！"
+### 动画效果
+- 页面加载: 元素渐入
+- 倒计时: 数字跳动
+- 按钮悬停: 放大+发光
+- 产品悬停: 上浮+阴影
 
-### Data Model
-```javascript
-{
-  productName: "iPhone 16 Pro Max",
-  originalPrice: 9999,
-  salePrice: 7999,
-  totalStock: 100,
-  currentStock: 100,
-  purchaseLimit: 2,
-  userPurchased: 0,
-  saleStartTime: Date, // Set to 30 seconds from now for demo
-  saleEndTime: Date
-}
-```
+## 5. 数据规格
 
-### User Interactions
-1. Page load → Show countdown to sale start
-2. Countdown ends → Enable buy button
-3. Click buy →
-   - If under limit → Simulate purchase → Show result
-   - If at limit → Show warning toast
-4. Stock depleted → Disable button, show "已售罄"
+### 秒杀产品（8款）
+1. 智能手表 Pro - ¥999（原价¥1999）
+2. 无线蓝牙耳机 - ¥199（原价¥599）
+3. 便携投影仪 - ¥1299（原价¥2999）
+4. 机械键盘 RGB - ¥299（原价¥699）
+5. 空气净化器 - ¥599（原价¥1299）
+6. 智能手环 - ¥99（原价¥299）
+7. 无线充电器 - ¥69（原价¥169）
+8. 游戏鼠标 - ¥159（原价¥399）
 
-## 4. Acceptance Criteria
+### 优惠券
+- ¥100满减券（满999可用）
+- ¥50满减券（满499可用）
+- ¥20满减券（满199可用）
 
-- [ ] Countdown timer accurately counts down in DD:HH:MM:SS format
-- [ ] Button is visually disabled before sale starts
-- [ ] Stock bar reflects current stock percentage
-- [ ] Purchase limit notice clearly visible
-- [ ] Clicking buy when under limit triggers success/failure simulation
-- [ ] Clicking buy when at limit shows warning toast
-- [ ] Success toast appears on successful purchase
-- [ ] Failure toast appears when stock depleted
-- [ ] All animations play smoothly at 60fps
-- [ ] Responsive layout works on mobile (375px+) and desktop
+## 6. 验收标准
+
+- [ ] 页面在桌面/平板/手机均正常显示
+- [ ] 倒计时功能正常，每秒更新
+- [ ] 红色+金色主调配色正确
+- [ ] 6-8款产品正常展示
+- [ ] 优惠券可点击领取
+- [ ] 活动规则可展开/折叠
+- [ ] 动画效果流畅
+- [ ] 引导快速下单的氛围强烈
