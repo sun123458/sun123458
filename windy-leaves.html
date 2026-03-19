@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>风吹树叶自然动效</title>
+  <style>
+    :root {
+      --wind-force: 1;
+      --sway-duration: 3s;
+      --branch-sway: 5deg;
+      --leaf-sway: 8deg;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(180deg, #87CEEB 0%, #E0F7FA 50%, #F1F8E9 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .scene {
+      position: relative;
+      width: 100%;
+      height: 70vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+    }
+
+    .tree {
+      position: relative;
+      width: 200px;
+      height: 400px;
+    }
+
+    /* 树干 */
+    .trunk {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30px;
+      height: 180px;
+      background: linear-gradient(90deg, #5D4037 0%, #8D6E63 50%, #5D4037 100%);
+      border-radius: 5px 5px 10px 10px;
+    }
+
+    .trunk::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 5px;
+      width: 3px;
+      height: 60px;
+      background: #4E342E;
+      border-radius: 2px;
+    }
+
+    /* 枝条基础样式 */
+    .branch {
+      position: absolute;
+      background: linear-gradient(90deg, #6D4C41 0%, #8D6E63 50%, #6D4C41 100%);
+      border-radius: 4px;
+      transform-origin: bottom center;
+    }
+
+    .branch-1 {
+      bottom: 140px;
+      left: calc(50% + 10px);
+      width: 80px;
+      height: 12px;
+      transform: rotate(-25deg);
+      animation: branchSway var(--sway-duration) ease-in-out infinite;
+      animation-delay: 0.2s;
+    }
+
+    .branch-2 {
+      bottom: 160px;
+      left: calc(50% - 50px);
+      width: 70px;
+      height: 10px;
+      transform: rotate(30deg);
+      animation: branchSway var(--sway-duration) ease-in-out infinite reverse;
+      animation-delay: 0.5s;
+    }
+
+    .branch-3 {
+      bottom: 190px;
+      left: calc(50% + 5px);
+      width: 60px;
+      height: 8px;
+      transform: rotate(-15deg);
+      animation: branchSway var(--sway-duration) ease-in-out infinite;
+      animation-delay: 0.8s;
+    }
+
+    .branch-4 {
+      bottom: 200px;
+      left: calc(50% - 30px);
+      width: 50px;
+      height: 7px;
+      transform: rotate(20deg);
+      animation: branchSway var(--sway-duration) ease-in-out infinite;
+      animation-delay: 0.3s;
+    }
+
+    .branch-5 {
+      bottom: 220px;
+      left: calc(50% + 15px);
+      width: 45px;
+      height: 6px;
+      transform: rotate(-10deg);
+      animation: branchSway var(--sway-duration) ease-in-out infinite reverse;
+      animation-delay: 0.6s;
+    }
+
+    /* 枝条上的小枝 */
+    .sub-branch {
+      position: absolute;
+      background: #7B5B4C;
+      border-radius: 3px;
+      transform-origin: left center;
+    }
+
+    .branch-1 .sub-branch-1 {
+      top: -15px;
+      left: 30px;
+      width: 25px;
+      height: 5px;
+      transform: rotate(45deg);
+      animation: leafSway 2.5s ease-in-out infinite;
+    }
+
+    .branch-1 .sub-branch-2 {
+      top: 5px;
+      left: 50px;
+      width: 20px;
+      height: 4px;
+      transform: rotate(-30deg);
+      animation: leafSway 2s ease-in-out infinite reverse;
+      animation-delay: 0.4s;
+    }
+
+    .branch-2 .sub-branch-1 {
+      top: -12px;
+      left: 20px;
+      width: 22px;
+      height: 5px;
+      transform: rotate(-40deg);
+      animation: leafSway 2.2s ease-in-out infinite;
+      animation-delay: 0.6s;
+    }
+
+    .branch-2 .sub-branch-2 {
+      top: 3px;
+      left: 35px;
+      width: 18px;
+      height: 4px;
+      transform: rotate(25deg);
+      animation: leafSway 1.8s ease-in-out infinite reverse;
+      animation-delay: 0.2s;
+    }
+
+    /* 树叶容器 */
+    .leaf {
+      position: absolute;
+      transform-origin: center bottom;
+    }
+
+    .leaf::before {
+      content: '';
+      position: absolute;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 18px solid var(--leaf-color, #66BB6A);
+      filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2));
+    }
+
+    .leaf::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      left: -4px;
+      width: 8px;
+      height: 1px;
+      background: rgba(0,0,0,0.3);
+    }
+
+    /* 树叶动画关键帧 */
+    @keyframes branchSway {
+      0%, 100% {
+        transform: rotate(calc(var(--branch-base-rotation, 0deg) - var(--branch-sway, 5deg)));
+      }
+      50% {
+        transform: rotate(calc(var(--branch-base-rotation, 0deg) + var(--branch-sway, 5deg)));
+      }
+    }
+
+    @keyframes leafSway {
+      0%, 100% {
+        transform: rotate(calc(var(--leaf-base-rotation, 0deg) - var(--leaf-sway, 8deg)));
+      }
+      50% {
+        transform: rotate(calc(var(--leaf-base-rotation, 0deg) + var(--leaf-sway, 8deg)));
+      }
+    }
+
+    @keyframes gentleBreeze {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(calc(var(--leaf-sway, 8deg) * 0.5)); }
+      75% { transform: rotate(calc(var(--leaf-sway, 8deg) * -0.3)); }
+    }
+
+    /* 各位置树叶 */
+    /* Branch 1 树叶 */
+    .leaf-1 { --leaf-color: #66BB6A; --leaf-base-rotation: 60deg; bottom: 185px; left: 95px; animation: leafSway 2.3s ease-in-out infinite; animation-delay: 0.1s; }
+    .leaf-2 { --leaf-color: #43A047; --leaf-base-rotation: -45deg; bottom: 180px; left: 105px; animation: leafSway 2.7s ease-in-out infinite reverse; animation-delay: 0.3s; }
+    .leaf-3 { --leaf-color: #2E7D32; --leaf-base-rotation: 30deg; bottom: 175px; left: 115px; animation: leafSway 2s ease-in-out infinite; animation-delay: 0.5s; }
+    .leaf-4 { --leaf-color: #66BB6A; --leaf-base-rotation: -60deg; bottom: 190px; left: 100px; animation: leafSway 2.5s ease-in-out infinite reverse; animation-delay: 0.7s; }
+
+    /* Branch 2 树叶 */
+    .leaf-5 { --leaf-color: #43A047; --leaf-base-rotation: 120deg; bottom: 195px; left: 70px; animation: leafSway 2.1s ease-in-out infinite; animation-delay: 0.2s; }
+    .leaf-6 { --leaf-color: #66BB6A; --leaf-base-rotation: -120deg; bottom: 200px; left: 60px; animation: leafSway 2.6s ease-in-out infinite reverse; animation-delay: 0.4s; }
+    .leaf-7 { --leaf-color: #2E7D32; --leaf-base-rotation: 135deg; bottom: 205px; left: 50px; animation: leafSway 2.2s ease-in-out infinite; animation-delay: 0.6s; }
+
+    /* Branch 3 树叶 */
+    .leaf-8 { --leaf-color: #66BB6A; --leaf-base-rotation: 75deg; bottom: 220px; left: 80px; animation: leafSway 1.9s ease-in-out infinite; animation-delay: 0.15s; }
+    .leaf-9 { --leaf-color: #43A047; --leaf-base-rotation: -50deg; bottom: 225px; left: 90px; animation: leafSway 2.4s ease-in-out infinite reverse; animation-delay: 0.35s; }
+    .leaf-10 { --leaf-color: #2E7D32; --leaf-base-rotation: 40deg; bottom: 230px; left: 100px; animation: leafSway 2s ease-in-out infinite; animation-delay: 0.55s; }
+
+    /* Branch 4 树叶 */
+    .leaf-11 { --leaf-color: #66BB6A; --leaf-base-rotation: 110deg; bottom: 215px; left: 65px; animation: leafSway 2.3s ease-in-out infinite; animation-delay: 0.25s; }
+    .leaf-12 { --leaf-color: #43A047; --leaf-base-rotation: -100deg; bottom: 220px; left: 55px; animation: leafSway 1.8s ease-in-out infinite reverse; animation-delay: 0.45s; }
+
+    /* Branch 5 树叶 */
+    .leaf-13 { --leaf-color: #66BB6A; --leaf-base-rotation: 85deg; bottom: 235px; left: 85px; animation: leafSway 2.1s ease-in-out infinite; animation-delay: 0.1s; }
+    .leaf-14 { --leaf-color: #43A047; --leaf-base-rotation: -70deg; bottom: 240px; left: 95px; animation: leafSway 2.5s ease-in-out infinite reverse; animation-delay: 0.3s; }
+    .leaf-15 { --leaf-color: #2E7D32; --leaf-base-rotation: 55deg; bottom: 245px; left: 105px; animation: leafSway 2.2s ease-in-out infinite; animation-delay: 0.5s; }
+
+    /* 顶部小枝树叶 */
+    .leaf-16 { --leaf-color: #66BB6A; --leaf-base-rotation: 0deg; bottom: 260px; left: 95px; animation: leafSway 1.7s ease-in-out infinite; animation-delay: 0.05s; }
+    .leaf-17 { --leaf-color: #43A047; --leaf-base-rotation: -15deg; bottom: 265px; left: 100px; animation: leafSway 2s ease-in-out infinite reverse; animation-delay: 0.25s; }
+    .leaf-18 { --leaf-color: #2E7D32; --leaf-base-rotation: 10deg; bottom: 270px; left: 105px; animation: leafSway 1.9s ease-in-out infinite; animation-delay: 0.45s; }
+    .leaf-19 { --leaf-color: #66BB6A; --leaf-base-rotation: -5deg; bottom: 275px; left: 100px; animation: leafSway 2.2s ease-in-out infinite reverse; animation-delay: 0.65s; }
+    .leaf-20 { --leaf-color: #43A047; --leaf-base-rotation: 20deg; bottom: 280px; left: 95px; animation: leafSway 1.8s ease-in-out infinite; animation-delay: 0.85s; }
+
+    /* 控制面板 */
+    .controls {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      padding: 20px 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .control-label {
+      font-size: 14px;
+      color: #37474F;
+      font-weight: 500;
+      min-width: 70px;
+    }
+
+    .wind-display {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wind-level {
+      font-size: 28px;
+      font-weight: bold;
+      color: #1976D2;
+      min-width: 30px;
+      text-align: center;
+    }
+
+    .wind-bar {
+      display: flex;
+      gap: 3px;
+      align-items: flex-end;
+      height: 24px;
+    }
+
+    .wind-bar span {
+      width: 6px;
+      background: #E0E0E0;
+      border-radius: 2px;
+      transition: background 0.3s, height 0.3s;
+    }
+
+    .wind-bar span:nth-child(1) { height: 6px; }
+    .wind-bar span:nth-child(2) { height: 10px; }
+    .wind-bar span:nth-child(3) { height: 14px; }
+    .wind-bar span:nth-child(4) { height: 18px; }
+    .wind-bar span:nth-child(5) { height: 22px; }
+
+    .wind-bar span.active {
+      background: linear-gradient(180deg, #42A5F5, #1976D2);
+    }
+
+    .slider-container {
+      position: relative;
+      width: 200px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 8px;
+      background: linear-gradient(90deg, #81C784, #42A5F5, #FF7043);
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border: 3px solid #1976D2;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-random {
+      background: #9575CD;
+      color: white;
+    }
+
+    .btn-random:hover {
+      background: #7E57C2;
+      transform: translateY(-1px);
+    }
+
+    .btn-random.active {
+      background: #512DA8;
+      box-shadow: 0 0 0 3px rgba(81, 45, 168, 0.3);
+    }
+
+    /* 风向指示器 */
+    .wind-direction {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.8;
+    }
+
+    .wind-arrow {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #1976D2;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .wind-arrow::after {
+      content: '';
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 14px solid #1976D2;
+      transform-origin: center;
+      transition: transform 0.5s ease-out;
+    }
+
+    .wind-label {
+      font-size: 12px;
+      color: #546E7A;
+    }
+
+    /* 草地 */
+    .grass {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: linear-gradient(180deg, #81C784 0%, #66BB6A 50%, #43A047 100%);
+      overflow: hidden;
+    }
+
+    .grass-blade {
+      position: absolute;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, #66BB6A, #43A047);
+      border-radius: 2px 2px 0 0;
+      transform-origin: bottom center;
+      animation: grassSway var(--sway-duration) ease-in-out infinite;
+    }
+
+    @keyframes grassSway {
+      0%, 100% { transform: rotate(calc(var(--grass-base, 0deg) - 8deg)); }
+      50% { transform: rotate(calc(var(--grass-base, 0deg) + 8deg)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="scene">
+    <div class="tree">
+      <!-- 树干 -->
+      <div class="trunk"></div>
+
+      <!-- 枝条 -->
+      <div class="branch branch-1">
+        <div class="sub-branch sub-branch-1"></div>
+        <div class="sub-branch sub-branch-2"></div>
+      </div>
+      <div class="branch branch-2">
+        <div class="sub-branch sub-branch-1"></div>
+        <div class="sub-branch sub-branch-2"></div>
+      </div>
+      <div class="branch branch-3"></div>
+      <div class="branch branch-4"></div>
+      <div class="branch branch-5"></div>
+
+      <!-- 树叶 -->
+      <div class="leaf leaf-1"></div>
+      <div class="leaf leaf-2"></div>
+      <div class="leaf leaf-3"></div>
+      <div class="leaf leaf-4"></div>
+      <div class="leaf leaf-5"></div>
+      <div class="leaf leaf-6"></div>
+      <div class="leaf leaf-7"></div>
+      <div class="leaf leaf-8"></div>
+      <div class="leaf leaf-9"></div>
+      <div class="leaf leaf-10"></div>
+      <div class="leaf leaf-11"></div>
+      <div class="leaf leaf-12"></div>
+      <div class="leaf leaf-13"></div>
+      <div class="leaf leaf-14"></div>
+      <div class="leaf leaf-15"></div>
+      <div class="leaf leaf-16"></div>
+      <div class="leaf leaf-17"></div>
+      <div class="leaf leaf-18"></div>
+      <div class="leaf leaf-19"></div>
+      <div class="leaf leaf-20"></div>
+    </div>
+  </div>
+
+  <!-- 草地 -->
+  <div class="grass" id="grass"></div>
+
+  <!-- 风向指示器 -->
+  <div class="wind-direction">
+    <div class="wind-arrow" id="windArrow"></div>
+    <span class="wind-label">风向</span>
+  </div>
+
+  <!-- 控制面板 -->
+  <div class="controls">
+    <div class="control-row">
+      <span class="control-label">风力等级</span>
+      <div class="wind-display">
+        <span class="wind-level" id="windLevelDisplay">1</span>
+        <div class="wind-bar" id="windBar">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+    <div class="control-row">
+      <span class="control-label">风力强度</span>
+      <div class="slider-container">
+        <input type="range" id="windSlider" min="0" max="5" step="0.1" value="1">
+      </div>
+    </div>
+    <div class="control-row">
+      <button class="btn btn-random" id="randomBtn">随机风力</button>
+    </div>
+  </div>
+
+  <script>
+    // 风力系统
+    class WindSystem {
+      constructor() {
+        this.currentLevel = 1;
+        this.targetLevel = 1;
+        this.isRandomMode = false;
+        this.randomInterval = null;
+        this.animationFrame = null;
+
+        this.initElements();
+        this.initGrass();
+        this.bindEvents();
+        this.startAnimation();
+      }
+
+      initElements() {
+        this.windSlider = document.getElementById('windSlider');
+        this.windLevelDisplay = document.getElementById('windLevelDisplay');
+        this.windBar = document.getElementById('windBar');
+        this.randomBtn = document.getElementById('randomBtn');
+        this.windArrow = document.getElementById('windArrow');
+        this.root = document.documentElement;
+      }
+
+      initGrass() {
+        const grass = document.getElementById('grass');
+        const grassCount = Math.floor(window.innerWidth / 15);
+
+        for (let i = 0; i < grassCount; i++) {
+          const blade = document.createElement('div');
+          blade.className = 'grass-blade';
+          blade.style.left = `${(i / grassCount) * 100}%`;
+          blade.style.setProperty('--grass-base', `${(Math.random() - 0.5) * 20}deg`);
+          blade.style.animationDelay = `${Math.random() * 2}s`;
+          blade.style.height = `${25 + Math.random() * 35}px`;
+          grass.appendChild(blade);
+        }
+      }
+
+      bindEvents() {
+        this.windSlider.addEventListener('input', (e) => {
+          this.targetLevel = parseFloat(e.target.value);
+          this.updateDisplay();
+        });
+
+        this.randomBtn.addEventListener('click', () => {
+          this.toggleRandomMode();
+        });
+      }
+
+      toggleRandomMode() {
+        this.isRandomMode = !this.isRandomMode;
+        this.randomBtn.classList.toggle('active', this.isRandomMode);
+
+        if (this.isRandomMode) {
+          this.startRandomWind();
+        } else {
+          this.stopRandomWind();
+        }
+      }
+
+      startRandomWind() {
+        this.randomInterval = setInterval(() => {
+          this.targetLevel = Math.random() * 5;
+          this.windSlider.value = this.targetLevel;
+          this.updateDisplay();
+        }, 2000 + Math.random() * 3000);
+      }
+
+      stopRandomWind() {
+        if (this.randomInterval) {
+          clearInterval(this.randomInterval);
+          this.randomInterval = null;
+        }
+      }
+
+      updateDisplay() {
+        const level = Math.round(this.currentLevel);
+        this.windLevelDisplay.textContent = level;
+
+        const bars = this.windBar.querySelectorAll('span');
+        bars.forEach((bar, index) => {
+          bar.classList.toggle('active', index < level);
+        });
+
+        // 更新风向箭头
+        const angle = -20 + (this.currentLevel / 5) * 40;
+        this.windArrow.style.setProperty('--wind-angle', `${angle}deg`);
+      }
+
+      updateWind() {
+        // 平滑过渡到目标风力
+        const diff = this.targetLevel - this.currentLevel;
+        this.currentLevel += diff * 0.05;
+
+        // 更新 CSS 变量
+        const level = Math.max(0.1, this.currentLevel);
+        const swayDuration = 4 - (level / 5) * 2.5; // 4s -> 1.5s
+        const branchSway = 3 + (level / 5) * 22; // 3deg -> 25deg
+        const leafSway = 4 + (level / 5) * 20; // 4deg -> 24deg
+
+        this.root.style.setProperty('--wind-force', level);
+        this.root.style.setProperty('--sway-duration', `${swayDuration}s`);
+        this.root.style.setProperty('--branch-sway', `${branchSway}deg`);
+        this.root.style.setProperty('--leaf-sway', `${leafSway}deg`);
+
+        // 更新枝条基础旋转
+        document.querySelectorAll('.branch').forEach((branch, i) => {
+          const baseRotation = branch.style.transform.match(/rotate\(([-\d.]+)deg\)/);
+          if (baseRotation) {
+            branch.style.setProperty('--branch-base-rotation', `${parseFloat(baseRotation[1])}deg`);
+          }
+        });
+      }
+
+      startAnimation() {
+        const animate = () => {
+          this.updateWind();
+          this.animationFrame = requestAnimationFrame(animate);
+        };
+        animate();
+      }
+
+      destroy() {
+        if (this.animationFrame) {
+          cancelAnimationFrame(this.animationFrame);
+        }
+        this.stopRandomWind();
+      }
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      new WindSystem();
+    });
+  </script>
+</body>
+</html>

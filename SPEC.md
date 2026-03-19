@@ -1,72 +1,94 @@
-# Particle Rain Background Effect
+# 风吹树叶自然动效 - 规格文档
 
-## Project Overview
-- **Type**: Single HTML file with canvas-based animation
-- **Core functionality**: A mesmerizing particle rain effect where colorful particles fall like rain, with scroll-controlled density
-- **Target users**: Web developers wanting an impressive background effect
+## 1. 项目概述
 
-## Visual & Rendering Specification
+- **项目名称**: Windy Leaves - 风力树叶动画
+- **项目类型**: 交互式 CSS/JS 动画
+- **核心功能**: 模拟自然风力效果，树叶摇摆、枝条轻微晃动，支持风力强度动态变化
+- **目标用户**: 前端开发者、动画爱好者
 
-### Scene Setup
-- Full-screen canvas covering entire viewport
-- Dark gradient background (deep navy to black) for contrast
-- No external dependencies - pure vanilla JS + Canvas API
+## 2. 视觉与渲染规格
 
-### Particle Properties
-- **Shape**: Small circles (radius 1-3px)
-- **Colors**: Randomly selected from a curated palette:
-  - Cyan: `#00f5ff`
-  - Magenta: `#ff00ff`
-  - Yellow: `#ffff00`
-  - Lime: `#00ff88`
-  - Hot pink: `#ff3366`
-  - Electric blue: `#3366ff`
-- **Opacity**: 0.4 - 0.9 (randomized per particle)
-- **Trail effect**: Slight motion blur via semi-transparent background clear
+### 场景设置
+- **背景**: 渐变天空 (浅蓝到白色)
+- **树干颜色**: 深棕色 `#5D4037`
+- **树叶颜色**:
+  - 浅绿 `#66BB6A`
+  - 中绿 `#43A047`
+  - 深绿 `#2E7D32`
+- **枝条**: 棕色 `#6D4C41`
 
-### Animation Parameters
-- **Base falling speed**: 1-5 px/frame (adjustable via slider)
-- **Wind effect**: Subtle horizontal drift (sine wave)
-- **Particle count**: 150-400 based on scroll position
+### 动画层次
+1. **树干**: 固定不动，作为参考
+2. **主枝条**: 轻微摆动，transform-origin 在树干连接处
+3. **次枝条**: 随主枝条摆动但有延迟
+4. **树叶组**: 每片叶子独立动画周期
 
-## Simulation Specification
+### 视觉效果
+- CSS box-shadow 实现树叶投影
+- 叶片形状使用 CSS clip-path 或 border 三角型
+- 透明度变化模拟光照
 
-### Physics
-- **Gravity**: Particles accelerate downward (gravity factor 0.02)
-- **Terminal velocity**: Capped at 8 px/frame
-- **Horizontal drift**: `sin(time * 0.5 + particle.x) * 0.3`
-- **Reset behavior**: Particle respawns at top when exiting bottom
+## 3. 动画规格
 
-### Scroll-based Density
-- **Scroll range**: 0% to 100% of max scrollable height
-- **Density mapping**:
-  - 0 scroll: 150 particles (light rain)
-  - 50% scroll: 275 particles
-  - 100% scroll: 400 particles (heavy rain)
+### 风力系统
+- **风力等级**: 0-5 级
+  - 0: 无风，叶子静止
+  - 1: 微风，轻微摇摆
+  - 2-3: 正常风，摇摆明显
+  - 4-5: 强风，剧烈摇摆
 
-## Interaction Specification
+### 缓动效果
+- **ease-in-out**: 用于风力变化过渡
+- **ease-out**: 用于树叶回弹
+- **自定义贝塞尔曲线**: 模拟自然风力随机性
 
-### Controls
-- **Speed slider**: Vertical slider on right side (1-10 range)
-- **Visual feedback**: Current speed value displayed
-- **Control panel**: Frosted glass style, semi-transparent
+### 动画参数
+- 枝条摆动周期: 2-4s
+- 树叶摇摆周期: 1.5-3s
+- 随机延迟: 0-2s
+- 摆动角度范围: 5deg - 25deg (根据风力等级)
 
-### Performance Optimizations
-- RequestAnimationFrame for smooth 60fps
-- Object pooling (no allocation during animation)
-- Canvas composite operations for glow effect
-- Delta time compensation for consistent speed
+### JS 控制
+- `windForce` 变量控制当前风力
+- `setWindLevel(level)` 设置风力等级 (0-5)
+- `updateWind()` 动态更新风力
+- 使用 `requestAnimationFrame` 实现平滑过渡
 
-## UI Design
-- **Control panel position**: Fixed, right side, vertically centered
-- **Control style**: Dark frosted glass panel with subtle border
-- **Font**: System UI stack for clean appearance
-- **Colors**: White text, accent color for active elements
+## 4. 交互规格
 
-## Acceptance Criteria
-1. Particles fall smoothly at 60fps without jank
-2. Colors randomly switch between palette options
-3. Speed slider visibly changes fall rate in real-time
-4. Scrolling down increases particle density noticeably
-5. No memory leaks (particle count stays stable)
-6. Works on resize (canvas fills new dimensions)
+### 控制界面
+- 风力等级滑块: 0-5 级
+- 风力变化速度控制
+- 随机风力模式开关
+
+### 视觉反馈
+- 实时显示当前风力等级
+- 风向指示器
+
+## 5. 验收标准
+
+1. ✅ 树叶能够持续摇摆动画
+2. ✅ 枝条跟随树叶有延迟地晃动
+3. ✅ 风力滑块能实时改变动画强度
+4. ✅ 动画切换平滑，无突兀跳变
+5. ✅ 视觉效果自然，有层次感
+6. ✅ 响应式布局，适应不同屏幕
+
+## 6. 技术实现
+
+### 结构
+- 单 HTML 文件
+- 内联 CSS 动画
+- 原生 JavaScript 控制
+
+### CSS 动画
+- `@keyframes` 定义摆动动画
+- `transform: rotate()` 实现摇摆
+- `transform-origin` 控制支点
+- CSS 变量控制动画参数
+
+### JavaScript
+- 风力状态管理
+- 动画参数动态更新
+- 随机性模拟自然效果
