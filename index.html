@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,865 +10,501 @@
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
+            background: #0f0f1a;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            font-family: 'Microsoft YaHei', sans-serif;
+            font-family: 'Courier New', monospace;
             color: #fff;
         }
-
         h1 {
-            margin-bottom: 10px;
+            margin-bottom: 16px;
             font-size: 24px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            color: #e0e0e0;
+            letter-spacing: 2px;
         }
-
-        #gameCanvas {
-            border: 3px solid #4a4a6a;
+        canvas {
+            border: 3px solid #333;
             border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 50%, #90EE90 50%, #228B22 100%);
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
-
         .controls {
-            margin-top: 15px;
-            padding: 15px 25px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
-        }
-
-        .controls h3 {
-            margin-bottom: 10px;
-            text-align: center;
-            color: #ffd700;
-        }
-
-        .key-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px 30px;
+            margin-top: 16px;
             font-size: 14px;
+            color: #888;
         }
-
-        .key-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .key {
-            display: inline-block;
-            padding: 3px 10px;
-            background: #4a4a6a;
+        .controls span {
+            margin: 0 12px;
+            padding: 4px 8px;
+            background: #222;
             border-radius: 4px;
-            border: 1px solid #6a6a8a;
-            font-family: monospace;
-            font-weight: bold;
-            min-width: 30px;
-            text-align: center;
-        }
-
-        .state-info {
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 5px;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        .state-badge {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 15px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .state-idle { background: #4CAF50; }
-        .state-walk { background: #2196F3; }
-        .state-run { background: #FF9800; }
-        .state-jump { background: #9C27B0; }
-        .state-hurt { background: #f44336; animation: pulse 0.2s infinite; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
         }
     </style>
 </head>
 <body>
     <h1>平台游戏状态机演示</h1>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-
+    <canvas id="game" width="800" height="500"></canvas>
     <div class="controls">
-        <h3>操作说明</h3>
-        <div class="key-list">
-            <div class="key-item"><span class="key">A</span> / <span class="key">←</span> 向左移动</div>
-            <div class="key-item"><span class="key">D</span> / <span class="key">→</span> 向右移动</div>
-            <div class="key-item"><span class="key">Shift</span> 按住奔跑</div>
-            <div class="key-item"><span class="key">Space</span> / <span class="key">W</span> / <span class="key">↑</span> 跳跃</div>
-            <div class="key-item"><span class="key">H</span> 受伤（红色闪烁+镜头震动）</div>
-            <div class="key-item"><span class="key">R</span> 重置位置</div>
-        </div>
-        <div class="state-info">
-            当前状态: <span id="stateBadge" class="state-badge state-idle">静止</span>
-        </div>
+        <span>← → 移动</span>
+        <span>Shift 跑步</span>
+        <span>空格 跳跃</span>
+        <span>H 受伤</span>
     </div>
 
     <script>
-        // ==================== 游戏配置 ====================
-        const CONFIG = {
-            GRAVITY: 0.6,
-            FRICTION: 0.85,
-            WALK_SPEED: 4,
-            RUN_SPEED: 8,
-            JUMP_FORCE: -14,
-            GROUND_Y: 500,
-            CANVAS_WIDTH: 800,
-            CANVAS_HEIGHT: 600,
-            HURT_DURATION: 500,
-            SHAKE_DURATION: 500,
-            SHAKE_INTENSITY: 10
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        // 状态常量
+        const State = {
+            IDLE: 0,
+            WALK: 1,
+            RUN: 2,
+            JUMP: 3,
+            HURT: 4
         };
 
-        // ==================== 输入管理器 ====================
-        class InputManager {
-            constructor() {
-                this.keys = {};
-                this.setupEventListeners();
-            }
+        const stateNames = ['空闲', '行走', '跑步', '跳跃', '受伤'];
 
-            setupEventListeners() {
-                window.addEventListener('keydown', (e) => {
-                    this.keys[e.key.toLowerCase()] = true;
-                    this.keys[e.code] = true;
-                });
+        // 状态颜色
+        const stateColors = {
+            [State.IDLE]: '#4CAF50',
+            [State.WALK]: '#2196F3',
+            [State.RUN]: '#FF9800',
+            [State.JUMP]: '#9C27B0',
+            [State.HURT]: '#F44336'
+        };
 
-                window.addEventListener('keyup', (e) => {
-                    this.keys[e.key.toLowerCase()] = false;
-                    this.keys[e.code] = false;
-                });
-            }
+        // 角色配置
+        const player = {
+            x: 400,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            width: 32,
+            height: 48,
+            speed: 5,
+            runSpeed: 10,
+            jumpForce: -15,
+            gravity: 0.6,
+            grounded: false,
+            state: State.IDLE,
+            prevState: State.IDLE,
+            animFrame: 0,
+            animTimer: 0,
+            facingRight: true
+        };
 
-            isPressed(key) {
-                return this.keys[key.toLowerCase()] || this.keys[key];
-            }
+        // 物理
+        const ground = 400;
+        const platforms = [
+            { x: 100, y: 320, w: 150, h: 20 },
+            { x: 350, y: 280, w: 150, h: 20 },
+            { x: 550, y: 240, w: 150, h: 20 }
+        ];
 
-            isShiftPressed() {
-                return this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.keys['shift'];
-            }
+        // 相机震动
+        let cameraShake = { active: false, timer: 0, duration: 500 };
+
+        // 受伤闪烁
+        let hurtFlash = { active: false, timer: 0, visible: true };
+
+        // 输入状态
+        const keys = {
+            left: false,
+            right: false,
+            shift: false,
+            space: false,
+            h: false
+        };
+
+        // 动画配置
+        const animConfig = {
+            [State.IDLE]: { fps: 2, interval: 500 },
+            [State.WALK]: { fps: 8, interval: 125 },
+            [State.RUN]: { fps: 15, interval: 67 },
+            [State.JUMP]: { fps: 4, interval: 250 },
+            [State.HURT]: { fps: 10, interval: 100 }
+        };
+
+        // 云朵
+        const clouds = [
+            { x: 100, y: 80, size: 1.2 },
+            { x: 300, y: 50, size: 0.8 },
+            { x: 550, y: 100, size: 1.0 },
+            { x: 700, y: 60, size: 0.6 }
+        ];
+
+        // 星星
+        const stars = [];
+        for (let i = 0; i < 50; i++) {
+            stars.push({
+                x: Math.random() * 800,
+                y: Math.random() * 200,
+                size: Math.random() * 2 + 1,
+                twinkle: Math.random() * Math.PI * 2
+            });
         }
 
-        // ==================== 动画精灵类 ====================
-        class SpriteAnimator {
-            constructor() {
-                this.frame = 0;
-                this.frameTimer = 0;
-                this.frameInterval = 100; // 毫秒
-            }
-
-            update(deltaTime, animationSpeed = 1) {
-                this.frameTimer += deltaTime;
-                if (this.frameTimer >= this.frameInterval / animationSpeed) {
-                    this.frame = (this.frame + 1) % 4; // 4帧循环
-                    this.frameTimer = 0;
-                }
-            }
-
-            reset() {
-                this.frame = 0;
-                this.frameTimer = 0;
-            }
-        }
-
-        // ==================== 粒子效果 ====================
-        class ParticleSystem {
-            constructor() {
-                this.particles = [];
-            }
-
-            spawn(x, y, color, count = 5) {
-                for (let i = 0; i < count; i++) {
-                    this.particles.push({
-                        x: x,
-                        y: y,
-                        vx: (Math.random() - 0.5) * 8,
-                        vy: (Math.random() - 0.5) * 8 - 2,
-                        life: 1.0,
-                        color: color,
-                        size: Math.random() * 6 + 2
-                    });
-                }
-            }
-
-            update() {
-                this.particles = this.particles.filter(p => {
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.vy += 0.3; // 重力
-                    p.life -= 0.02;
-                    return p.life > 0;
-                });
-            }
-
-            draw(ctx) {
-                this.particles.forEach(p => {
-                    ctx.globalAlpha = p.life;
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-                ctx.globalAlpha = 1;
-            }
-        }
-
-        // ==================== 角色类 ====================
-        class Player {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.width = 40;
-                this.height = 60;
-                this.vx = 0;
-                this.vy = 0;
-                this.facing = 1; // 1 = 右, -1 = 左
-                this.grounded = false;
-
-                // 状态机
-                this.stateMachine = new PlayerStateMachine(this);
-
-                // 动画
-                this.animator = new SpriteAnimator();
-
-                // 受伤效果
-                this.isHurt = false;
-                this.hurtTimer = 0;
-                this.hurtFlash = false;
-
-                // 粒子系统（跳跃/落地效果）
-                this.particles = new ParticleSystem();
-            }
-
-            update(deltaTime, input) {
-                // 更新状态机
-                this.stateMachine.update(deltaTime, input);
-
-                // 应用物理
-                this.vy += CONFIG.GRAVITY;
-                this.vx *= CONFIG.FRICTION;
-
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // 地面碰撞
-                if (this.y + this.height > CONFIG.GROUND_Y) {
-                    if (!this.grounded && this.vy > 0) {
-                        // 刚落地，生成粒子
-                        this.particles.spawn(this.x + this.width/2, CONFIG.GROUND_Y, '#8B4513', 8);
-                    }
-                    this.y = CONFIG.GROUND_Y - this.height;
-                    this.vy = 0;
-                    this.grounded = true;
-                } else {
-                    this.grounded = false;
-                }
-
-                // 边界限制
-                this.x = Math.max(0, Math.min(CONFIG.CANVAS_WIDTH - this.width, this.x));
-
-                // 更新动画
-                const speed = Math.abs(this.vx) > 5 ? 2 : 1;
-                this.animator.update(deltaTime, speed);
-
-                // 更新受伤效果
-                if (this.isHurt) {
-                    this.hurtTimer -= deltaTime;
-                    this.hurtFlash = Math.floor(this.hurtTimer / 50) % 2 === 0;
-                    if (this.hurtTimer <= 0) {
-                        this.isHurt = false;
-                    }
-                }
-
-                // 更新粒子
-                this.particles.update();
-            }
-
-            draw(ctx) {
-                ctx.save();
-
-                // 受伤闪烁效果
-                if (this.isHurt && this.hurtFlash) {
-                    ctx.fillStyle = '#ff0000';
-                    ctx.shadowColor = '#ff0000';
-                    ctx.shadowBlur = 20;
-                }
-
-                // 绘制角色（使用占位符图形，带有动画帧效果）
-                this.drawCharacter(ctx);
-
-                ctx.restore();
-
-                // 绘制粒子
-                this.particles.draw(ctx);
-            }
-
-            drawCharacter(ctx) {
-                const frame = this.animator.frame;
-                const bounce = Math.sin(frame * Math.PI / 2) * 3;
-
-                ctx.save();
-                ctx.translate(this.x + this.width/2, this.y + this.height);
-                ctx.scale(this.facing, 1);
-
-                // 身体颜色根据状态变化
-                let bodyColor = '#4CAF50'; // 默认绿色（静止）
-                let eyeColor = '#fff';
-
-                switch (this.stateMachine.currentState.name) {
-                    case 'Walk':
-                        bodyColor = '#2196F3'; // 蓝色（行走）
-                        break;
-                    case 'Run':
-                        bodyColor = '#FF9800'; // 橙色（奔跑）
-                        break;
-                    case 'Jump':
-                        bodyColor = '#9C27B0'; // 紫色（跳跃）
-                        break;
-                }
-
-                if (this.isHurt && this.hurtFlash) {
-                    bodyColor = '#ff0000';
-                    eyeColor = '#ffff00';
-                }
-
-                // 身体（带呼吸/跑步动画）
-                ctx.fillStyle = bodyColor;
-                const bodyYOffset = this.stateMachine.currentState.name === 'Run' ? -bounce : 0;
-                ctx.fillRect(-15, -50 + bodyYOffset, 30, 40);
-
-                // 条纹装饰（根据状态）
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                if (this.stateMachine.currentState.name === 'Run') {
-                    // 奔跑时显示速度线
-                    ctx.fillRect(-10, -45 + bodyYOffset, 20, 3);
-                    ctx.fillRect(-10, -35 + bodyYOffset, 20, 3);
-                    ctx.fillRect(-10, -25 + bodyYOffset, 20, 3);
-                } else if (this.stateMachine.currentState.name === 'Walk') {
-                    ctx.fillRect(-10, -35 + bodyYOffset, 20, 5);
-                }
-
-                // 头部
-                ctx.fillStyle = bodyColor;
-                ctx.beginPath();
-                ctx.arc(0, -55 + bodyYOffset, 18, 0, Math.PI * 2);
-                ctx.fill();
-
-                // 眼睛
-                ctx.fillStyle = eyeColor;
-                ctx.beginPath();
-                ctx.arc(6, -58 + bodyYOffset, 6, 0, Math.PI * 2);
-                ctx.fill();
-
-                // 瞳孔
-                ctx.fillStyle = '#000';
-                ctx.beginPath();
-                ctx.arc(8, -58 + bodyYOffset, 3, 0, Math.PI * 2);
-                ctx.fill();
-
-                // 腿部动画
-                ctx.fillStyle = bodyColor;
-                const legOffset1 = Math.sin(frame * Math.PI / 2) * 10;
-                const legOffset2 = Math.sin(frame * Math.PI / 2 + Math.PI) * 10;
-
-                if (Math.abs(this.vx) > 0.5 && this.grounded) {
-                    // 行走/跑步腿部动画
-                    ctx.fillRect(-12 + legOffset1, -10, 8, 15);
-                    ctx.fillRect(4 + legOffset2, -10, 8, 15);
-                } else {
-                    // 静止腿部
-                    ctx.fillRect(-12, -10, 8, 10);
-                    ctx.fillRect(4, -10, 8, 10);
-                }
-
-                // 手臂
-                const armOffset = this.stateMachine.currentState.name === 'Jump' ? -15 :
-                                 (this.stateMachine.currentState.name === 'Run' ? legOffset2 : 0);
-                ctx.fillRect(-22, -45 + bodyYOffset + armOffset * 0.3, 7, 20);
-                ctx.fillRect(15, -45 + bodyYOffset - armOffset * 0.3, 7, 20);
-
-                ctx.restore();
-            }
-
-            takeDamage() {
-                if (this.isHurt) return;
-
-                this.isHurt = true;
-                this.hurtTimer = CONFIG.HURT_DURATION;
-
-                // 受伤时弹起
-                this.vy = -8;
-                this.vx = -this.facing * 3;
-
-                // 生成受伤粒子
-                this.particles.spawn(this.x + this.width/2, this.y + this.height/2, '#ff0000', 15);
-
-                // 触发相机震动
-                return true; // 表示需要触发震动
-            }
-
-            reset(x, y) {
-                this.x = x;
-                this.y = y;
-                this.vx = 0;
-                this.vy = 0;
-                this.isHurt = false;
-                this.stateMachine.changeState('Idle');
-            }
-        }
-
-        // ==================== 有限状态机 ====================
-        class PlayerStateMachine {
-            constructor(player) {
-                this.player = player;
-                this.states = {
-                    'Idle': new IdleState(),
-                    'Walk': new WalkState(),
-                    'Run': new RunState(),
-                    'Jump': new JumpState()
-                };
-                this.currentState = this.states['Idle'];
-                this.currentState.enter(player);
-            }
-
-            changeState(stateName) {
-                if (this.currentState === this.states[stateName]) return;
-
-                this.currentState.exit(this.player);
-                this.currentState = this.states[stateName];
-                this.currentState.enter(this.player);
-
-                // 更新UI
-                this.updateUI(stateName);
-            }
-
-            update(deltaTime, input) {
-                this.currentState.update(this.player, deltaTime, input, this);
-            }
-
-            updateUI(stateName) {
-                const badge = document.getElementById('stateBadge');
-                const stateNames = {
-                    'Idle': '静止',
-                    'Walk': '行走',
-                    'Run': '奔跑',
-                    'Jump': '跳跃'
-                };
-
-                badge.textContent = stateNames[stateName];
-                badge.className = 'state-badge state-' + stateName.toLowerCase();
-            }
-        }
-
-        // ==================== 状态基类 ====================
-        class State {
-            constructor(name) {
-                this.name = name;
-            }
-
-            enter(player) {}
-            update(player, deltaTime, input, stateMachine) {}
-            exit(player) {}
-        }
-
-        // ==================== 静止状态 ====================
-        class IdleState extends State {
-            constructor() {
-                super('Idle');
-            }
-
-            enter(player) {
-                player.animator.reset();
-            }
-
-            update(player, deltaTime, input, stateMachine) {
-                // 检查跳跃
-                if ((input.isPressed(' ') || input.isPressed('w') || input.isPressed('ArrowUp')) && player.grounded) {
-                    stateMachine.changeState('Jump');
-                    return;
-                }
-
-                // 检查左右移动
-                const left = input.isPressed('a') || input.isPressed('ArrowLeft');
-                const right = input.isPressed('d') || input.isPressed('ArrowRight');
-
-                if (left || right) {
-                    if (input.isShiftPressed()) {
-                        stateMachine.changeState('Run');
-                    } else {
-                        stateMachine.changeState('Walk');
-                    }
-                }
-            }
-        }
-
-        // ==================== 行走状态 ====================
-        class WalkState extends State {
-            constructor() {
-                super('Walk');
-            }
-
-            enter(player) {
-                player.animator.reset();
-            }
-
-            update(player, deltaTime, input, stateMachine) {
-                // 检查跳跃
-                if ((input.isPressed(' ') || input.isPressed('w') || input.isPressed('ArrowUp')) && player.grounded) {
-                    stateMachine.changeState('Jump');
-                    return;
-                }
-
-                const left = input.isPressed('a') || input.isPressed('ArrowLeft');
-                const right = input.isPressed('d') || input.isPressed('ArrowRight');
-
-                if (!left && !right) {
-                    stateMachine.changeState('Idle');
-                    return;
-                }
-
-                if (input.isShiftPressed()) {
-                    stateMachine.changeState('Run');
-                    return;
-                }
-
-                // 应用行走速度
-                if (left) {
-                    player.vx = -CONFIG.WALK_SPEED;
-                    player.facing = -1;
-                }
-                if (right) {
-                    player.vx = CONFIG.WALK_SPEED;
-                    player.facing = 1;
-                }
-            }
-
-            exit(player) {
-                player.vx = 0;
-            }
-        }
-
-        // ==================== 奔跑状态 ====================
-        class RunState extends State {
-            constructor() {
-                super('Run');
-            }
-
-            enter(player) {
-                player.animator.reset();
-                // 奔跑时产生粒子
-                player.particles.spawn(player.x + player.width/2, CONFIG.GROUND_Y, '#8B4513', 3);
-            }
-
-            update(player, deltaTime, input, stateMachine) {
-                // 检查跳跃
-                if ((input.isPressed(' ') || input.isPressed('w') || input.isPressed('ArrowUp')) && player.grounded) {
-                    stateMachine.changeState('Jump');
-                    return;
-                }
-
-                const left = input.isPressed('a') || input.isPressed('ArrowLeft');
-                const right = input.isPressed('d') || input.isPressed('ArrowRight');
-
-                if (!left && !right) {
-                    stateMachine.changeState('Idle');
-                    return;
-                }
-
-                if (!input.isShiftPressed()) {
-                    stateMachine.changeState('Walk');
-                    return;
-                }
-
-                // 应用奔跑速度
-                if (left) {
-                    player.vx = -CONFIG.RUN_SPEED;
-                    player.facing = -1;
-                }
-                if (right) {
-                    player.vx = CONFIG.RUN_SPEED;
-                    player.facing = 1;
-                }
-
-                // 奔跑时偶尔产生粒子
-                if (Math.random() < 0.1) {
-                    player.particles.spawn(player.x + player.width/2, CONFIG.GROUND_Y, '#8B4513', 1);
-                }
-            }
-
-            exit(player) {
-                player.vx *= 0.5; // 退出奔跑时减速
-            }
-        }
-
-        // ==================== 跳跃状态 ====================
-        class JumpState extends State {
-            constructor() {
-                super('Jump');
-                this.hasJumped = false;
-            }
-
-            enter(player) {
-                player.animator.reset();
-                if (player.grounded && !this.hasJumped) {
-                    player.vy = CONFIG.JUMP_FORCE;
-                    player.grounded = false;
-                    this.hasJumped = true;
-
-                    // 跳跃粒子效果
-                    player.particles.spawn(player.x + player.width/2, CONFIG.GROUND_Y, '#90EE90', 10);
-                }
-            }
-
-            update(player, deltaTime, input, stateMachine) {
-                const left = input.isPressed('a') || input.isPressed('ArrowLeft');
-                const right = input.isPressed('d') || input.isPressed('ArrowRight');
-
-                // 空中控制
-                if (left) {
-                    player.vx = Math.max(player.vx - 0.5, -CONFIG.WALK_SPEED);
-                    player.facing = -1;
-                }
-                if (right) {
-                    player.vx = Math.min(player.vx + 0.5, CONFIG.WALK_SPEED);
-                    player.facing = 1;
-                }
-
-                // 落地检测
-                if (player.grounded) {
-                    this.hasJumped = false;
-                    // 根据速度判断回到什么状态
-                    if (Math.abs(player.vx) < 1) {
-                        stateMachine.changeState('Idle');
-                    } else if (input.isShiftPressed()) {
-                        stateMachine.changeState('Run');
-                    } else {
-                        stateMachine.changeState('Walk');
-                    }
-                }
-            }
-
-            exit(player) {
-                this.hasJumped = false;
-            }
-        }
-
-        // ==================== 相机类 ====================
-        class Camera {
-            constructor() {
-                this.shakeTimer = 0;
-                this.shakeIntensity = 0;
-                this.offsetX = 0;
-                this.offsetY = 0;
-            }
-
-            shake(duration = CONFIG.SHAKE_DURATION, intensity = CONFIG.SHAKE_INTENSITY) {
-                this.shakeTimer = duration;
-                this.shakeIntensity = intensity;
-            }
-
-            update(deltaTime) {
-                if (this.shakeTimer > 0) {
-                    this.shakeTimer -= deltaTime;
-                    this.offsetX = (Math.random() - 0.5) * this.shakeIntensity * 2;
-                    this.offsetY = (Math.random() - 0.5) * this.shakeIntensity * 2;
-
-                    // 震动强度随时间衰减
-                    this.shakeIntensity *= 0.95;
-                } else {
-                    this.offsetX = 0;
-                    this.offsetY = 0;
-                }
-            }
-
-            apply(ctx) {
-                ctx.translate(this.offsetX, this.offsetY);
-            }
-
-            reset(ctx) {
-                ctx.translate(-this.offsetX, -this.offsetY);
-            }
-        }
-
-        // ==================== 游戏主类 ====================
-        class Game {
-            constructor() {
-                this.canvas = document.getElementById('gameCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.input = new InputManager();
-                this.player = new Player(400, 300);
-                this.camera = new Camera();
-
-                this.lastTime = 0;
-                this.accumulatedTime = 0;
-                this.fixedDeltaTime = 1000 / 60; // 60 FPS
-
-                this.keysPressed = {};
-                this.setupInputHandling();
-
-                // 开始游戏循环
-                requestAnimationFrame((t) => this.gameLoop(t));
-            }
-
-            setupInputHandling() {
-                window.addEventListener('keydown', (e) => {
-                    const key = e.key.toLowerCase();
-
-                    // 受伤键（只在按下时触发一次）
-                    if (key === 'h' && !this.keysPressed[key]) {
-                        this.keysPressed[key] = true;
-                        const shouldShake = this.player.takeDamage();
-                        if (shouldShake) {
-                            this.camera.shake();
+        // 输入处理
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'ArrowLeft': keys.left = true; break;
+                case 'ArrowRight': keys.right = true; break;
+                case 'ShiftLeft': case 'ShiftRight': keys.shift = true; break;
+                case 'Space':
+                    if (!keys.space) {
+                        keys.space = true;
+                        if (player.grounded && player.state !== State.HURT) {
+                            player.vy = player.jumpForce;
+                            player.grounded = false;
+                            player.state = State.JUMP;
                         }
                     }
-
-                    // 重置键
-                    if (key === 'r' && !this.keysPressed[key]) {
-                        this.keysPressed[key] = true;
-                        this.player.reset(400, 300);
+                    e.preventDefault();
+                    break;
+                case 'KeyH':
+                    if (!keys.h && player.state !== State.HURT) {
+                        keys.h = true;
+                        triggerHurt();
                     }
-                });
+                    break;
+            }
+        });
 
-                window.addEventListener('keyup', (e) => {
-                    this.keysPressed[e.key.toLowerCase()] = false;
-                });
+        document.addEventListener('keyup', (e) => {
+            switch(e.code) {
+                case 'ArrowLeft': keys.left = false; break;
+                case 'ArrowRight': keys.right = false; break;
+                case 'ShiftLeft': case 'ShiftRight': keys.shift = false; break;
+                case 'Space': keys.space = false; break;
+                case 'KeyH': keys.h = false; break;
+            }
+        });
+
+        function triggerHurt() {
+            player.prevState = player.state;
+            player.state = State.HURT;
+            hurtFlash.active = true;
+            hurtFlash.timer = 500;
+            hurtFlash.visible = true;
+            cameraShake.active = true;
+            cameraShake.timer = 500;
+        }
+
+        function updateStateMachine(dt) {
+            if (player.state === State.HURT) return;
+
+            let targetState = player.state;
+
+            if (!player.grounded) {
+                targetState = State.JUMP;
+            } else if (keys.shift && (keys.left || keys.right)) {
+                targetState = State.RUN;
+            } else if (keys.left || keys.right) {
+                targetState = State.WALK;
+            } else {
+                targetState = State.IDLE;
             }
 
-            gameLoop(timestamp) {
-                const deltaTime = timestamp - this.lastTime;
-                this.lastTime = timestamp;
-
-                this.update(deltaTime);
-                this.draw();
-
-                requestAnimationFrame((t) => this.gameLoop(t));
+            if (targetState !== player.state) {
+                player.state = targetState;
+                player.animFrame = 0;
+                player.animTimer = 0;
             }
+        }
 
-            update(deltaTime) {
-                // 限制最大deltaTime防止卡顿
-                const dt = Math.min(deltaTime, 50);
-
-                this.player.update(dt, this.input);
-                this.camera.update(dt);
-            }
-
-            draw() {
-                // 清空画布
-                this.ctx.clearRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
-
-                // 应用相机震动
-                this.ctx.save();
-                this.camera.apply(this.ctx);
-
-                // 绘制背景
-                this.drawBackground();
-
-                // 绘制地面
-                this.drawGround();
-
-                // 绘制玩家
-                this.player.draw(this.ctx);
-
-                // 恢复相机变换
-                this.camera.reset(this.ctx);
-                this.ctx.restore();
-
-                // 绘制UI（不受相机震动影响）
-                this.drawUI();
-            }
-
-            drawBackground() {
-                // 天空渐变
-                const gradient = this.ctx.createLinearGradient(0, 0, 0, CONFIG.GROUND_Y);
-                gradient.addColorStop(0, '#87CEEB');
-                gradient.addColorStop(1, '#E0F6FF');
-                this.ctx.fillStyle = gradient;
-                this.ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.GROUND_Y);
-
-                // 绘制云朵
-                this.drawCloud(100, 80, 60);
-                this.drawCloud(300, 120, 80);
-                this.drawCloud(550, 60, 70);
-                this.drawCloud(700, 100, 50);
-            }
-
-            drawCloud(x, y, size) {
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                this.ctx.beginPath();
-                this.ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
-                this.ctx.arc(x + size * 0.3, y, size * 0.4, 0, Math.PI * 2);
-                this.ctx.arc(x - size * 0.3, y, size * 0.4, 0, Math.PI * 2);
-                this.ctx.arc(x, y - size * 0.3, size * 0.35, 0, Math.PI * 2);
-                this.ctx.fill();
-            }
-
-            drawGround() {
-                // 草地
-                const gradient = this.ctx.createLinearGradient(0, CONFIG.GROUND_Y, 0, CONFIG.CANVAS_HEIGHT);
-                gradient.addColorStop(0, '#90EE90');
-                gradient.addColorStop(1, '#228B22');
-                this.ctx.fillStyle = gradient;
-                this.ctx.fillRect(0, CONFIG.GROUND_Y, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT - CONFIG.GROUND_Y);
-
-                // 草地边缘装饰
-                this.ctx.fillStyle = '#228B22';
-                for (let i = 0; i < CONFIG.CANVAS_WIDTH; i += 20) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(i, CONFIG.GROUND_Y);
-                    this.ctx.lineTo(i + 10, CONFIG.GROUND_Y - 8);
-                    this.ctx.lineTo(i + 20, CONFIG.GROUND_Y);
-                    this.ctx.fill();
-                }
-
-                // 地面纹理
-                this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                for (let i = 0; i < CONFIG.CANVAS_WIDTH; i += 100) {
-                    this.ctx.fillRect(i, CONFIG.GROUND_Y + 20, 80, 10);
+        function updatePlayer(dt) {
+            // 水平移动
+            if (player.state !== State.HURT) {
+                if (keys.left) {
+                    player.vx = player.state === State.RUN ? -player.runSpeed : -player.speed;
+                    player.facingRight = false;
+                } else if (keys.right) {
+                    player.vx = player.state === State.RUN ? player.runSpeed : player.speed;
+                    player.facingRight = true;
+                } else {
+                    player.vx *= 0.8;
+                    if (Math.abs(player.vx) < 0.1) player.vx = 0;
                 }
             }
 
-            drawUI() {
-                // 绘制速度指示器
-                this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                this.ctx.fillRect(10, 10, 150, 60);
-                this.ctx.fillStyle = '#fff';
-                this.ctx.font = '14px monospace';
-                this.ctx.fillText(`速度: ${this.player.vx.toFixed(2)}`, 20, 30);
-                this.ctx.fillText(`Y速度: ${this.player.vy.toFixed(2)}`, 20, 50);
-                this.ctx.fillText(`地面: ${this.player.grounded ? '是' : '否'}`, 20, 70);
+            // 重力
+            if (!player.grounded) {
+                player.vy += player.gravity;
+            }
 
-                // 绘制震动状态
-                if (this.camera.shakeTimer > 0) {
-                    this.ctx.fillStyle = 'rgba(255,0,0,0.7)';
-                    this.ctx.fillRect(CONFIG.CANVAS_WIDTH - 120, 10, 110, 30);
-                    this.ctx.fillStyle = '#fff';
-                    this.ctx.fillText('镜头震动中!', CONFIG.CANVAS_WIDTH - 110, 30);
+            // 应用速度
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // 地面碰撞
+            player.grounded = false;
+            if (player.y + player.height >= ground) {
+                player.y = ground - player.height;
+                player.vy = 0;
+                player.grounded = true;
+            }
+
+            // 平台碰撞
+            for (const plat of platforms) {
+                if (player.vy >= 0 &&
+                    player.x + player.width > plat.x &&
+                    player.x < plat.x + plat.w &&
+                    player.y + player.height >= plat.y &&
+                    player.y + player.height <= plat.y + plat.h + player.vy) {
+                    player.y = plat.y - player.height;
+                    player.vy = 0;
+                    player.grounded = true;
+                }
+            }
+
+            // 边界
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            // 更新动画帧
+            const cfg = animConfig[player.state];
+            player.animTimer += dt;
+            if (player.animTimer >= cfg.interval) {
+                player.animTimer = 0;
+                player.animFrame = (player.animFrame + 1) % 4;
+            }
+        }
+
+        function updateEffects(dt) {
+            // 受伤闪烁
+            if (hurtFlash.active) {
+                hurtFlash.timer -= dt;
+                if (hurtFlash.timer <= 0) {
+                    hurtFlash.active = false;
+                    if (player.state === State.HURT) {
+                        player.state = player.prevState;
+                    }
+                } else {
+                    hurtFlash.visible = Math.floor(hurtFlash.timer / 100) % 2 === 0;
+                }
+            }
+
+            // 相机震动
+            if (cameraShake.active) {
+                cameraShake.timer -= dt;
+                if (cameraShake.timer <= 0) {
+                    cameraShake.active = false;
                 }
             }
         }
 
-        // 启动游戏
-        window.onload = () => {
-            new Game();
-        };
+        function drawBackground() {
+            // 天空渐变
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a1a2e');
+            gradient.addColorStop(1, '#16213e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 星星
+            const time = Date.now() / 1000;
+            for (const star of stars) {
+                const alpha = 0.5 + 0.5 * Math.sin(time * 2 + star.twinkle);
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 云朵
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            for (const cloud of clouds) {
+                const cx = (cloud.x + time * 10) % (canvas.width + 100) - 50;
+                drawCloud(cx, cloud.y, cloud.size);
+            }
+        }
+
+        function drawCloud(x, y, scale) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            ctx.beginPath();
+            ctx.arc(0, 0, 25, 0, Math.PI * 2);
+            ctx.arc(25, -5, 20, 0, Math.PI * 2);
+            ctx.arc(50, 0, 25, 0, Math.PI * 2);
+            ctx.arc(25, 10, 22, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawGround() {
+            // 主地面
+            ctx.fillStyle = '#5D4037';
+            ctx.fillRect(0, ground, canvas.width, canvas.height - ground);
+
+            // 草地
+            ctx.fillStyle = '#388E3C';
+            ctx.fillRect(0, ground, canvas.width, 8);
+
+            // 地面纹理
+            ctx.fillStyle = '#4E342E';
+            for (let i = 0; i < 20; i++) {
+                const gx = (i * 47 + 10) % canvas.width;
+                ctx.fillRect(gx, ground + 15, 30, 4);
+                ctx.fillRect(gx + 10, ground + 30, 20, 3);
+            }
+        }
+
+        function drawPlatforms() {
+            for (const plat of platforms) {
+                // 平台主体
+                ctx.fillStyle = '#6D4C41';
+                ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+                // 平台顶部草地
+                ctx.fillStyle = '#43A047';
+                ctx.fillRect(plat.x, plat.y, plat.w, 5);
+
+                // 平台阴影
+                ctx.fillStyle = '#4E342E';
+                ctx.fillRect(plat.x, plat.y + plat.h - 3, plat.w, 3);
+            }
+        }
+
+        function drawPlayer() {
+            ctx.save();
+
+            const px = player.x + player.width / 2;
+            const py = player.y + player.height / 2;
+
+            // 翻转方向
+            if (!player.facingRight) {
+                ctx.translate(px, py);
+                ctx.scale(-1, 1);
+                ctx.translate(-px, -py);
+            }
+
+            // 状态颜色
+            let bodyColor = stateColors[player.state];
+            if (hurtFlash.active && !hurtFlash.visible) {
+                bodyColor = '#F44336';
+            }
+
+            // 跑步速度线
+            if (player.state === State.RUN) {
+                ctx.strokeStyle = 'rgba(255, 152, 0, 0.6)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    const ly = player.y + 10 + i * 15;
+                    ctx.beginPath();
+                    ctx.moveTo(player.x - 15 - i * 5, ly);
+                    ctx.lineTo(player.x - 25 - i * 8, ly);
+                    ctx.stroke();
+                }
+            }
+
+            // 身体动画偏移
+            let bodyOffsetY = 0;
+            let legOffset = 0;
+
+            switch(player.state) {
+                case State.IDLE:
+                    bodyOffsetY = Math.sin(Date.now() / 500) * 2;
+                    break;
+                case State.WALK:
+                    legOffset = Math.sin(Date.now() / 100) * 6;
+                    bodyOffsetY = Math.abs(Math.sin(Date.now() / 100)) * 2;
+                    break;
+                case State.RUN:
+                    legOffset = Math.sin(Date.now() / 50) * 8;
+                    bodyOffsetY = Math.abs(Math.sin(Date.now() / 50)) * 3;
+                    break;
+                case State.JUMP:
+                    bodyOffsetY = player.vy < 0 ? -3 : 2;
+                    break;
+            }
+
+            // 腿部
+            ctx.fillStyle = '#5D4037';
+            ctx.fillRect(player.x + 6, player.y + 32 + bodyOffsetY + legOffset, 8, 16);
+            ctx.fillRect(player.x + 18, player.y + 32 + bodyOffsetY - legOffset, 8, 16);
+
+            // 身体
+            ctx.fillStyle = bodyColor;
+            ctx.fillRect(player.x + 4, player.y + 12 + bodyOffsetY, 24, 22);
+
+            // 头部
+            ctx.fillStyle = '#FFCC80';
+            ctx.beginPath();
+            ctx.arc(player.x + 16, player.y + 10 + bodyOffsetY, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 眼睛
+            ctx.fillStyle = '#333';
+            ctx.fillRect(player.x + 18, player.y + 8 + bodyOffsetY, 4, 4);
+
+            // 受伤遮罩
+            if (hurtFlash.active && hurtFlash.visible) {
+                ctx.fillStyle = 'rgba(244, 67, 54, 0.5)';
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+            }
+
+            ctx.restore();
+        }
+
+        function drawUI() {
+            // 状态显示
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(10, 10, 120, 100);
+
+            ctx.font = '14px Courier New';
+            ctx.fillStyle = '#fff';
+            ctx.fillText('状态:', 20, 32);
+
+            for (let i = 0; i < stateNames.length; i++) {
+                const isActive = player.state === i;
+                ctx.fillStyle = isActive ? stateColors[i] : '#666';
+                ctx.fillText((isActive ? '> ' : '  ') + stateNames[i], 20, 52 + i * 18);
+            }
+
+            // 速度指示
+            ctx.fillStyle = '#888';
+            ctx.font = '12px Courier New';
+            ctx.fillText(`速度: ${Math.abs(player.vx).toFixed(1)}`, 20, 95);
+        }
+
+        function gameLoop(timestamp) {
+            const dt = Math.min(32, timestamp - lastTime);
+            lastTime = timestamp;
+
+            // 更新
+            updateStateMachine(dt);
+            updatePlayer(dt);
+            updateEffects(dt);
+
+            // 应用相机震动
+            ctx.save();
+            if (cameraShake.active) {
+                const shakeX = (Math.random() - 0.5) * 16;
+                const shakeY = (Math.random() - 0.5) * 16;
+                ctx.translate(shakeX, shakeY);
+            }
+
+            // 绘制
+            drawBackground();
+            drawGround();
+            drawPlatforms();
+            drawPlayer();
+
+            ctx.restore();
+
+            drawUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        let lastTime = 0;
+        requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
