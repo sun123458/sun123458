@@ -1,55 +1,72 @@
-# 磁力连线粒子背景 - 规格文档
+# Particle Rain Background Effect
 
-## 项目概述
-- **项目名称**: Magnetic Connection Particle Background
-- **类型**: 交互式粒子动画
-- **核心功能**: 粒子间自动生成连线，靠近时线条更粗更亮，鼠标产生排斥力
-- **目标用户**: 网页背景/装饰场景
+## Project Overview
+- **Type**: Single HTML file with canvas-based animation
+- **Core functionality**: A mesmerizing particle rain effect where colorful particles fall like rain, with scroll-controlled density
+- **Target users**: Web developers wanting an impressive background effect
 
-## 视觉与渲染规格
+## Visual & Rendering Specification
 
-### 场景设置
-- **画布**: 全屏 Canvas，响应式适配 window resize
-- **背景色**: 深色 (#0a0a0f) 配合微弱渐变
-- **帧率**: 60 FPS
+### Scene Setup
+- Full-screen canvas covering entire viewport
+- Dark gradient background (deep navy to black) for contrast
+- No external dependencies - pure vanilla JS + Canvas API
 
-### 粒子视觉
-- **数量**: 150-200 个粒子
-- **大小**: 2-4px 半径，随机分布
-- **颜色**: 青蓝色系 (#00d4ff, #0099cc, #66ffff)
-- **发光效果**: 粒子带柔和光晕 (shadowBlur)
+### Particle Properties
+- **Shape**: Small circles (radius 1-3px)
+- **Colors**: Randomly selected from a curated palette:
+  - Cyan: `#00f5ff`
+  - Magenta: `#ff00ff`
+  - Yellow: `#ffff00`
+  - Lime: `#00ff88`
+  - Hot pink: `#ff3366`
+  - Electric blue: `#3366ff`
+- **Opacity**: 0.4 - 0.9 (randomized per particle)
+- **Trail effect**: Slight motion blur via semi-transparent background clear
 
-### 连线视觉
-- **触发条件**: 粒子间距 < 连接阈值 (150px)
-- **线条粗细**: 距离越近越粗 (0.5px - 3px)
-- **线条亮度**: 距离越近越亮 (alpha 0.1 - 0.8)
-- **颜色**: 与粒子同色系渐变
+### Animation Parameters
+- **Base falling speed**: 1-5 px/frame (adjustable via slider)
+- **Wind effect**: Subtle horizontal drift (sine wave)
+- **Particle count**: 150-400 based on scroll position
 
-## 模拟规格
+## Simulation Specification
 
-### 粒子运动
-- **初始速度**: 随机方向，速度 0.2-1.0
-- **边界处理**: 屏幕边缘软反弹 (速度反转)
-- **阻尼系数**: 0.99 (轻微减速)
+### Physics
+- **Gravity**: Particles accelerate downward (gravity factor 0.02)
+- **Terminal velocity**: Capped at 8 px/frame
+- **Horizontal drift**: `sin(time * 0.5 + particle.x) * 0.3`
+- **Reset behavior**: Particle respawns at top when exiting bottom
 
-### 鼠标排斥力
-- **作用半径**: 150px
-- **排斥力强度**: 反比于距离的平方
-- **最大排斥力**: 5.0
-- **平滑过渡**: 排斥力衰减自然
+### Scroll-based Density
+- **Scroll range**: 0% to 100% of max scrollable height
+- **Density mapping**:
+  - 0 scroll: 150 particles (light rain)
+  - 50% scroll: 275 particles
+  - 100% scroll: 400 particles (heavy rain)
 
-### 粒子间交互
-- **无直接碰撞**: 粒子可重叠穿过
-- **连接规则**: 仅基于距离判断是否连线
+## Interaction Specification
 
-## 交互规格
-- **鼠标移动**: 实时追踪位置，产生排斥场
-- **触摸支持**: 支持移动端触摸事件
+### Controls
+- **Speed slider**: Vertical slider on right side (1-10 range)
+- **Visual feedback**: Current speed value displayed
+- **Control panel**: Frosted glass style, semi-transparent
 
-## 验收标准
-1. 粒子平滑移动，无卡顿
-2. 靠近的粒子自动生成连线
-3. 连线粗细/亮度随距离变化明显
-4. 鼠标靠近时粒子明显被推开
-5. 窗口 resize 时画布自适应
-6. 性能：200 粒子时保持 60 FPS
+### Performance Optimizations
+- RequestAnimationFrame for smooth 60fps
+- Object pooling (no allocation during animation)
+- Canvas composite operations for glow effect
+- Delta time compensation for consistent speed
+
+## UI Design
+- **Control panel position**: Fixed, right side, vertically centered
+- **Control style**: Dark frosted glass panel with subtle border
+- **Font**: System UI stack for clean appearance
+- **Colors**: White text, accent color for active elements
+
+## Acceptance Criteria
+1. Particles fall smoothly at 60fps without jank
+2. Colors randomly switch between palette options
+3. Speed slider visibly changes fall rate in real-time
+4. Scrolling down increases particle density noticeably
+5. No memory leaks (particle count stays stable)
+6. Works on resize (canvas fills new dimensions)
