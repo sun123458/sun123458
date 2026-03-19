@@ -1,119 +1,123 @@
-# 平台游戏状态机演示 - 规格说明书
+# Pixel Art Bug Catching Game - Specification
 
-## 1. 项目概述
+## Project Overview
+- **Project Name**: Bug Catcher (捕虫)
+- **Type**: 2D top-down pixel art game
+- **Core Functionality**: Player explores a world, interacts with NPCs via dialogue, and catches bugs with a net
+- **Target Users**: Casual gamers, retro game enthusiasts
 
-- **项目名称**: Platformer FSM Demo
-- **类型**: 2D 平台游戏角色控制器演示
-- **核心功能**: 使用有限状态机(FSM)管理角色状态，演示不同状态间的转换
-- **目标用户**: 游戏开发学习者
+## Visual & Rendering Specification
 
-## 2. 技术栈
+### Canvas Setup
+- **Resolution**: 640x480 pixels
+- **Pixel Scale**: 2x (each game pixel = 2x2 screen pixels)
+- **Target FPS**: 60
 
-- 纯 HTML5 + Canvas API + JavaScript
-- 无外部依赖
+### Color Palette (Limited Retro)
+- Background grass: #3d5a3d (dark green)
+- Grass highlights: #5a7a5a
+- Player: #e8c170 (warm tan)
+- NPCs: #707070, #909090, #606060 (grays)
+- Bugs: #ff6b6b (coral red)
+- Net: #8b4513 (brown handle), #c0c0c0 (silver mesh)
+- Obstacles (rocks): #5a5a6a, #4a4a5a
+- Trees: #2d4a2d (dark green foliage), #5a3a2a (brown trunk)
+- UI Background: #1a1a2e (dark blue)
+- UI Text: #ffffff
 
-## 3. 视觉与渲染规格
+### Scene Elements
+- **World Size**: 1280x960 pixels (2x2 screens)
+- **Tile Size**: 32x32 pixels (16x16 game pixels)
+- **Camera**: Follows player, clamped to world bounds
 
-### 场景设置
-- 画布尺寸: 800x500 像素
-- 背景色: 深蓝色渐变天空 (#1a1a2e → #16213e)
-- 地面: 棕色平台，带纹理 (#8B4513, #A0522D)
+### Player Character
+- Size: 16x16 game pixels (32x32 on screen)
+- 4-directional movement (Up, Down, Left, Right)
+- Walking animation: 4 frames per direction
+- Appearance: Simple humanoid shape with head, body, legs
 
-### 角色设计
-- 角色尺寸: 32x48 像素
-- 颜色编码:
-  - 静止: 绿色身体 (#4CAF50)
-  - 行走: 蓝色身体 (#2196F3)
-  - 跑步: 橙色身体 (#FF9800)
-  - 跳跃: 紫色身体 (#9C27B0)
-- 简单几何图形表示（矩形+圆形头部）
+### NPCs (3 minimum)
+- Size: 16x16 game pixels
+- Stationary positions
+- Simple appearance distinguishing each
+- Interaction indicator when player is near
 
-### 精灵动画
-使用占位符图形绘制，每种状态4帧动画:
-- 空闲: 轻微上下浮动
-- 行走: 左右摆动腿部
-- 跑步: 快速摆动+速度线
-- 跳跃: 伸展姿势
+### Obstacles
+- Rocks: 32x32 pixels, irregular shapes
+- Trees: 48x48 pixels with trunk and canopy
+- Fence posts: 16x32 pixels
+- Ponds: 64x64 pixels (dark blue, impassable)
 
-### 环境
-- 3个悬浮平台
-- 云朵装饰
-- 简单背景星星
+### Bugs
+- Size: 8x8 game pixels
+- Random movement patterns
+- Spawn every 3-5 seconds
+- Max 10 bugs on screen
+- Disappear after 10 seconds if not caught
 
-## 4. 状态机规格
+###捕虫网 (Bug Net)
+- Appears when Space is pressed
+- Swinging animation
+- Catches bug if within range
 
-### 状态定义
+## Interaction Specification
+
+### Controls
+- **Arrow Keys / WASD**: Move player (4 directions)
+- **E Key**: Interact with NPC (when in range)
+- **Space**: Swing bug net
+
+### NPC Interaction
+- Interaction range: 48 pixels
+- Visual indicator (floating "E" icon) when in range
+- Dialogue box appears centered on screen
+- Press E or Space to dismiss dialogue
+
+### Bug Catching
+- Net swing range: 32 pixels
+- Net swing duration: 300ms
+- Successful catch: bug disappears, counter increments, particle effect
+- Miss: net swings with whoosh sound
+
+## UI Specification
+
+### HUD Elements
+- **Bug Counter**: Top-left corner
+  - Format: "🐛 x [count]"
+  - Font: Pixel style, 16px
+- **Mini-map**: Top-right corner
+  - Size: 120x90 pixels
+  - Shows player position, NPCs, bugs
+
+### Dialogue Box
+- Centered, 400x120 pixels
+- Dark semi-transparent background
+- NPC name at top
+- Dialogue text below
+- "Press E to close" hint
+
+## Audio (Optional - Placeholder)
+- Step sounds (simple beeps)
+- Net swing sound
+- Catch success sound
+
+## Game World Layout
 ```
-IDLE (0) - 静止状态
-WALK (1) - 行走状态
-RUN (2) - 跑步状态
-JUMP (3) - 跳跃状态
-HURT (4) - 受伤状态（临时）
+[Trees and rocks scattered across the map]
+[3 NPCs placed at different locations]
+[Pond in the center-right area]
+[Fence border around edges]
+[Spawn points for bugs - random grass areas]
 ```
 
-### 状态转换
-| 当前状态 | 条件 | 下一状态 |
-|---------|------|---------|
-| IDLE | 按下方向键 | WALK |
-| IDLE | 按住Shift+方向键 | RUN |
-| IDLE | 按下空格 | JUMP |
-| WALK | 松开方向键 | IDLE |
-| WALK | 按住Shift | RUN |
-| WALK | 按下空格 | JUMP |
-| RUN | 松开Shift | WALK |
-| RUN | 松开方向键 | IDLE |
-| RUN | 按下空格 | JUMP |
-| JUMP | 落地 | IDLE/WALK/RUN |
-| ANY | 按下H键 | HURT (500ms后返回) |
-
-### 动画帧率
-- 空闲: 2 FPS (500ms/帧)
-- 行走: 8 FPS (125ms/帧)
-- 跑步: 15 FPS (67ms/帧)
-- 跳跃: 4 FPS (250ms/帧)
-
-## 5. 交互规格
-
-### 键盘控制
-- **方向键左/右 (ArrowLeft/ArrowRight)**: 移动
-- **Shift**: 按住启用跑步
-- **空格 (Space)**: 跳跃
-- **H**: 触发受伤效果
-
-### 受伤效果
-1. 角色精灵闪烁红色 (每100ms切换)
-2. 持续时间: 500ms
-3. 相机震动:
-   - 振幅: ±8像素
-   - 频率: 60Hz (每帧随机)
-   - 持续: 500ms
-
-## 6. UI 规格
-
-### 状态显示
-- 左上角显示当前状态名称
-- 当前状态高亮显示
-
-### 控制说明
-- 底部显示键盘控制说明
-
-### 字体
-- 主字体: 'Courier New', monospace
-- 状态文字: 16px 白色
-
-## 7. 验收标准
-
-1. ✅ 角色可以左右移动
-2. ✅ 行走和跑步有明显的速度差异
-3. ✅ 跳跃有重力效果
-4. ✅ 每个状态有独特的视觉表现
-5. ✅ 按H键触发闪烁+震动效果
-6. ✅ 状态转换流畅无卡顿
-7. ✅ 60FPS运行
-
-## 8. 文件结构
-
-```
-/Users/a123/Documents/minimax/平台游戏/
-├── index.html (单文件，包含所有代码)
-```
+## Acceptance Criteria
+1. Player moves smoothly in 4 directions with visible walking animation
+2. Player cannot walk through obstacles
+3. All 3 NPCs can be interacted with via E key
+4. Dialogue displays correctly and can be dismissed
+5. Bugs spawn randomly and move
+6. Space key swings net
+7. Catching a bug increments counter
+8. Bug counter persists in UI at all times
+9. Game runs at stable 60 FPS
+10. Camera follows player within world bounds

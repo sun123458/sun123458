@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>捕虫 - Bug Catcher</title>
+    <style>
+        @font-face {
+            font-family: 'PixelFont';
+            src: local('Courier New');
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #gameCanvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border: 4px solid #3d5a3d;
+            box-shadow: 0 0 40px rgba(61, 90, 61, 0.5);
+        }
+
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #ffffff;
+            font-size: 18px;
+            text-shadow: 2px 2px 0 #000;
+            pointer-events: none;
+        }
+
+        #bugCount {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #bugIcon {
+            width: 24px;
+            height: 24px;
+            background: #ff6b6b;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            position: relative;
+        }
+
+        #bugIcon::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 4px;
+            background: #333;
+            border-radius: 50%;
+        }
+
+        #minimap {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 120px;
+            height: 90px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #5a5a6a;
+            pointer-events: none;
+        }
+
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        #dialogue {
+            position: absolute;
+            display: none;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            background: rgba(20, 20, 40, 0.95);
+            border: 3px solid #e8c170;
+            padding: 15px;
+            color: #fff;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        #dialogueName {
+            color: #e8c170;
+            font-size: 16px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        #dialogueText {
+            margin-bottom: 10px;
+        }
+
+        #dialogueHint {
+            font-size: 11px;
+            color: #888;
+            text-align: right;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        #catchEffect {
+            position: absolute;
+            pointer-events: none;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="640" height="480"></canvas>
+        <div id="ui">
+            <div id="bugCount">
+                <div id="bugIcon"></div>
+                <span>x <span id="bugCounter">0</span></span>
+            </div>
+        </div>
+        <div id="minimap">
+            <canvas id="minimapCanvas" width="120" height="90"></canvas>
+        </div>
+        <div id="dialogue">
+            <div id="dialogueName">NPC</div>
+            <div id="dialogueText"></div>
+            <div id="dialogueHint">按 E 键关闭</div>
+        </div>
+        <div id="catchEffect"></div>
+        <div id="instructions">方向键移动 | E 互动 | 空格捕虫</div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const dialogueBox = document.getElementById('dialogue');
+        const dialogueName = document.getElementById('dialogueName');
+        const dialogueText = document.getElementById('dialogueText');
+        const bugCounterEl = document.getElementById('bugCounter');
+
+        // Constants
+        const TILE_SIZE = 32;
+        const WORLD_WIDTH = 1280;
+        const WORLD_HEIGHT = 960;
+        const PIXEL_SCALE = 2;
+        const PLAYER_SIZE = 16;
+        const BUG_SIZE = 8;
+
+        // Colors
+        const COLORS = {
+            grass: '#3d5a3d',
+            grassLight: '#5a7a5a',
+            grassDark: '#2d4a2d',
+            player: '#e8c170',
+            playerDark: '#c8a160',
+            playerLight: '#f8d890',
+            npc1: '#707070',
+            npc2: '#909090',
+            npc3: '#606060',
+            bug: '#ff6b6b',
+            bugWing: '#ff9999',
+            netHandle: '#8b4513',
+            netMesh: '#c0c0c0',
+            rock: '#5a5a6a',
+            rockDark: '#4a4a5a',
+            tree: '#2d4a2d',
+            treeTrunk: '#5a3a2a',
+            water: '#4a6a8a',
+            waterLight: '#6a8aaa',
+            fence: '#6a5a4a'
+        };
+
+        // Game state
+        let bugCount = 0;
+        let currentDialogue = null;
+        let lastTime = 0;
+
+        // Input state
+        const keys = {};
+
+        // Camera
+        const camera = { x: 0, y: 0 };
+
+        // Player
+        const player = {
+            x: 200,
+            y: 200,
+            width: PLAYER_SIZE,
+            height: PLAYER_SIZE,
+            speed: 120,
+            direction: 'down',
+            animFrame: 0,
+            animTimer: 0,
+            isMoving: false,
+            netSwinging: false,
+            netTimer: 0,
+            netAngle: 0
+        };
+
+        // NPCs
+        const npcs = [
+            {
+                x: 400, y: 300,
+                name: '老张',
+                color: COLORS.npc1,
+                dialogue: '听说后山有稀有的蓝色甲虫！',
+                facing: 'down'
+            },
+            {
+                x: 800, y: 500,
+                name: '小李',
+                color: COLORS.npc2,
+                dialogue: '我在这里观察虫子十年了...',
+                facing: 'left'
+            },
+            {
+                x: 600, y: 700,
+                name: '阿华',
+                color: COLORS.npc3,
+                dialogue: '捕虫技巧？最重要的是耐心！',
+                facing: 'up'
+            }
+        ];
+
+        // Obstacles
+        const obstacles = [
+            // Trees
+            { x: 100, y: 100, type: 'tree' },
+            { x: 300, y: 150, type: 'tree' },
+            { x: 500, y: 100, type: 'tree' },
+            { x: 900, y: 200, type: 'tree' },
+            { x: 1100, y: 100, type: 'tree' },
+            { x: 150, y: 400, type: 'tree' },
+            { x: 1000, y: 600, type: 'tree' },
+            { x: 1150, y: 750, type: 'tree' },
+            // Rocks
+            { x: 250, y: 250, type: 'rock' },
+            { x: 450, y: 350, type: 'rock' },
+            { x: 700, y: 250, type: 'rock' },
+            { x: 350, y: 600, type: 'rock' },
+            { x: 850, y: 450, type: 'rock' },
+            { x: 950, y: 350, type: 'rock' },
+            // Pond
+            { x: 700, y: 500, type: 'pond' },
+            // Fence posts (border)
+            ...generateFence()
+        ];
+
+        function generateFence() {
+            const fence = [];
+            for (let x = 0; x < WORLD_WIDTH; x += 48) {
+                fence.push({ x, y: 0, type: 'fence' });
+                fence.push({ x, y: WORLD_HEIGHT - 32, type: 'fence' });
+            }
+            for (let y = 48; y < WORLD_HEIGHT - 32; y += 48) {
+                fence.push({ x: 0, y, type: 'fence' });
+                fence.push({ x: WORLD_WIDTH - 32, y, type: 'fence' });
+            }
+            return fence;
+        }
+
+        // Bugs
+        const bugs = [];
+        let bugSpawnTimer = 0;
+        const BUG_SPAWN_INTERVAL = 3000;
+        const MAX_BUGS = 10;
+
+        // Particles
+        const particles = [];
+
+        // Drawing functions
+        function drawPixelRect(x, y, w, h, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
+        }
+
+        function drawGrass() {
+            // Base grass
+            ctx.fillStyle = COLORS.grass;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Grass pattern
+            for (let x = -camera.x % 32; x < canvas.width; x += 32) {
+                for (let y = -camera.y % 32; y < canvas.height; y += 32) {
+                    const worldX = x + camera.x;
+                    const worldY = y + camera.y;
+                    const noise = (Math.sin(worldX * 0.1) + Math.cos(worldY * 0.1)) * 0.5;
+
+                    if (noise > 0.3) {
+                        drawPixelRect(x + 8, y + 8, 4, 4, COLORS.grassLight);
+                    }
+                    if (noise < -0.3) {
+                        drawPixelRect(x + 16, y + 16, 4, 4, COLORS.grassDark);
+                    }
+                }
+            }
+        }
+
+        function drawTree(x, y) {
+            const sx = x - camera.x;
+            const sy = y - camera.y;
+
+            // Trunk
+            drawPixelRect(sx + 18, sy + 32, 12, 16, COLORS.treeTrunk);
+
+            // Canopy layers
+            drawPixelRect(sx + 8, sy + 8, 32, 24, COLORS.tree);
+            drawPixelRect(sx + 4, sy + 16, 40, 16, COLORS.tree);
+            drawPixelRect(sx + 12, sy + 0, 24, 12, COLORS.tree);
+            drawPixelRect(sx + 16, sy + 28, 16, 8, COLORS.grassDark);
+        }
+
+        function drawRock(x, y) {
+            const sx = x - camera.x;
+            const sy = y - camera.y;
+
+            drawPixelRect(sx + 4, sy + 8, 24, 20, COLORS.rock);
+            drawPixelRect(sx + 8, sy + 4, 16, 8, COLORS.rock);
+            drawPixelRect(sx + 2, sy + 12, 8, 12, COLORS.rockDark);
+            drawPixelRect(sx + 20, sy + 6, 6, 6, COLORS.rockDark);
+        }
+
+        function drawPond(x, y) {
+            const sx = x - camera.x;
+            const sy = y - camera.y;
+
+            // Water base
+            drawPixelRect(sx, sy, 64, 64, COLORS.water);
+
+            // Water highlights
+            for (let i = 0; i < 4; i++) {
+                drawPixelRect(sx + 8 + i * 16, sy + 8, 8, 4, COLORS.waterLight);
+                drawPixelRect(sx + 16 + i * 8, sy + 32, 8, 4, COLORS.waterLight);
+            }
+
+            // Border
+            drawPixelRect(sx, sy, 64, 4, COLORS.grassDark);
+            drawPixelRect(sx, sy + 60, 64, 4, COLORS.grassDark);
+            drawPixelRect(sx, sy, 4, 64, COLORS.grassDark);
+            drawPixelRect(sx + 60, sy, 4, 64, COLORS.grassDark);
+        }
+
+        function drawFence(x, y) {
+            const sx = x - camera.x;
+            const sy = y - camera.y;
+
+            drawPixelRect(sx + 4, sy + 8, 8, 24, COLORS.fence);
+            drawPixelRect(sx + 2, sy + 4, 12, 8, COLORS.fence);
+        }
+
+        function drawObstacles() {
+            // Sort by y for proper layering
+            const sorted = [...obstacles].sort((a, b) => a.y - b.y);
+
+            for (const obs of sorted) {
+                switch (obs.type) {
+                    case 'tree': drawTree(obs.x, obs.y); break;
+                    case 'rock': drawRock(obs.x, obs.y); break;
+                    case 'pond': drawPond(obs.x, obs.y); break;
+                    case 'fence': drawFence(obs.x, obs.y); break;
+                }
+            }
+        }
+
+        function drawPlayer() {
+            const sx = player.x - camera.x;
+            const sy = player.y - camera.y;
+
+            const bounce = player.isMoving ? Math.sin(player.animFrame * 0.5) * 2 : 0;
+            const legOffset = player.isMoving ? Math.sin(player.animFrame * 0.8) * 3 : 0;
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(sx + 4, sy + 28, 24, 6);
+
+            // Legs
+            drawPixelRect(sx + 6 + legOffset, sy + 20 + bounce, 6, 10, COLORS.playerDark);
+            drawPixelRect(sx + 20 - legOffset, sy + 20 + bounce, 6, 10, COLORS.playerDark);
+
+            // Body
+            drawPixelRect(sx + 4, sy + 10 + bounce, 24, 14, COLORS.player);
+
+            // Head
+            drawPixelRect(sx + 6, sy + 2 + bounce, 20, 12, COLORS.playerLight);
+
+            // Eyes based on direction
+            ctx.fillStyle = '#333';
+            if (player.direction === 'down') {
+                drawPixelRect(sx + 10, sy + 6 + bounce, 3, 3, '#333');
+                drawPixelRect(sx + 19, sy + 6 + bounce, 3, 3, '#333');
+            } else if (player.direction === 'up') {
+                // No eyes visible from behind
+            } else if (player.direction === 'left') {
+                drawPixelRect(sx + 8, sy + 6 + bounce, 3, 3, '#333');
+            } else if (player.direction === 'right') {
+                drawPixelRect(sx + 21, sy + 6 + bounce, 3, 3, '#333');
+            }
+
+            // Draw net if swinging
+            if (player.netSwinging) {
+                drawNet(sx, sy + bounce);
+            }
+        }
+
+        function drawNet(px, py) {
+            const netX = px + 16 + Math.cos(player.netAngle) * 24;
+            const netY = py + 8 + Math.sin(player.netAngle) * 24;
+
+            // Handle
+            ctx.strokeStyle = COLORS.netHandle;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(px + 28, py + 20);
+            ctx.lineTo(netX, netY);
+            ctx.stroke();
+
+            // Net mesh (circle)
+            ctx.strokeStyle = COLORS.netMesh;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(netX, netY, 12, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Mesh lines
+            ctx.beginPath();
+            ctx.moveTo(netX - 10, netY);
+            ctx.lineTo(netX + 10, netY);
+            ctx.moveTo(netX, netY - 10);
+            ctx.lineTo(netX, netY + 10);
+            ctx.stroke();
+        }
+
+        function drawNPC(npc) {
+            const sx = npc.x - camera.x;
+            const sy = npc.y - camera.y;
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(sx + 4, sy + 28, 24, 6);
+
+            // Body
+            drawPixelRect(sx + 4, sy + 10, 24, 18, npc.color);
+
+            // Head
+            drawPixelRect(sx + 6, sy + 2, 20, 12, COLORS.npc2);
+
+            // Eyes
+            ctx.fillStyle = '#333';
+            if (npc.facing === 'down') {
+                drawPixelRect(sx + 10, sy + 6, 3, 3, '#333');
+                drawPixelRect(sx + 19, sy + 6, 3, 3, '#333');
+            } else if (npc.facing === 'left') {
+                drawPixelRect(sx + 8, sy + 6, 3, 3, '#333');
+            } else if (npc.facing === 'right') {
+                drawPixelRect(sx + 21, sy + 6, 3, 3, '#333');
+            }
+
+            // Interaction indicator
+            const dist = Math.hypot(player.x - npc.x, player.y - npc.y);
+            if (dist < 48 && !currentDialogue) {
+                ctx.fillStyle = '#ffff00';
+                ctx.font = 'bold 16px monospace';
+                ctx.fillText('E', sx + 14, sy - 10);
+            }
+        }
+
+        function drawBug(bug) {
+            const sx = bug.x - camera.x;
+            const sy = bug.y - camera.y;
+
+            // Body
+            ctx.fillStyle = COLORS.bug;
+            ctx.fillRect(sx, sy, BUG_SIZE, BUG_SIZE);
+
+            // Wings (animated)
+            const wingOffset = Math.sin(Date.now() * 0.02 + bug.x) * 2;
+            ctx.fillStyle = COLORS.bugWing;
+            ctx.fillRect(sx - 2 + wingOffset, sy + 1, 3, 4);
+            ctx.fillRect(sx + BUG_SIZE - 1 - wingOffset, sy + 1, 3, 4);
+
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.fillRect(sx + 2, sy + 2, 2, 2);
+            ctx.fillRect(sx + BUG_SIZE - 4, sy + 2, 2, 2);
+        }
+
+        function drawParticles() {
+            for (const p of particles) {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - camera.x, p.y - camera.y, p.size, p.size);
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function drawMinimap() {
+            minimapCtx.fillStyle = '#1a1a2e';
+            minimapCtx.fillRect(0, 0, 120, 90);
+
+            const scaleX = 120 / WORLD_WIDTH;
+            const scaleY = 90 / WORLD_HEIGHT;
+
+            // Obstacles
+            minimapCtx.fillStyle = '#3d5a3d';
+            for (const obs of obstacles) {
+                if (obs.type === 'tree' || obs.type === 'rock') {
+                    minimapCtx.fillRect(obs.x * scaleX, obs.y * scaleY, 4, 4);
+                } else if (obs.type === 'pond') {
+                    minimapCtx.fillStyle = '#4a6a8a';
+                    minimapCtx.fillRect(obs.x * scaleX, obs.y * scaleY, 8, 8);
+                    minimapCtx.fillStyle = '#3d5a3d';
+                }
+            }
+
+            // NPCs
+            minimapCtx.fillStyle = '#e8c170';
+            for (const npc of npcs) {
+                minimapCtx.fillRect(npc.x * scaleX - 2, npc.y * scaleY - 2, 4, 4);
+            }
+
+            // Bugs
+            minimapCtx.fillStyle = '#ff6b6b';
+            for (const bug of bugs) {
+                minimapCtx.fillRect(bug.x * scaleX, bug.y * scaleY, 2, 2);
+            }
+
+            // Player
+            minimapCtx.fillStyle = '#fff';
+            minimapCtx.fillRect(player.x * scaleX - 3, player.y * scaleY - 3, 6, 6);
+
+            // Viewport
+            minimapCtx.strokeStyle = '#fff';
+            minimapCtx.lineWidth = 1;
+            minimapCtx.strokeRect(
+                camera.x * scaleX,
+                camera.y * scaleY,
+                canvas.width * scaleX,
+                canvas.height * scaleY
+            );
+        }
+
+        // Collision detection
+        function checkCollision(x, y, width, height) {
+            for (const obs of obstacles) {
+                let obsWidth, obsHeight;
+
+                switch (obs.type) {
+                    case 'tree':
+                        obsWidth = 48;
+                        obsHeight = 48;
+                        break;
+                    case 'rock':
+                        obsWidth = 32;
+                        obsHeight = 28;
+                        break;
+                    case 'pond':
+                        obsWidth = 64;
+                        obsHeight = 64;
+                        break;
+                    case 'fence':
+                        obsWidth = 16;
+                        obsHeight = 32;
+                        break;
+                    default:
+                        obsWidth = 32;
+                        obsHeight = 32;
+                }
+
+                // Slightly smaller collision box for smoother movement
+                const padding = 4;
+
+                if (x + padding < obs.x + obsWidth - padding &&
+                    x + width - padding > obs.x + padding &&
+                    y + padding < obs.y + obsHeight - padding &&
+                    y + height - padding > obs.y + padding) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Update functions
+        function updatePlayer(dt) {
+            if (currentDialogue) return;
+
+            let dx = 0, dy = 0;
+
+            if (keys['ArrowUp'] || keys['KeyW']) dy -= 1;
+            if (keys['ArrowDown'] || keys['KeyS']) dy += 1;
+            if (keys['ArrowLeft'] || keys['KeyA']) dx -= 1;
+            if (keys['ArrowRight'] || keys['KeyD']) dx += 1;
+
+            // Normalize diagonal movement
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.707;
+                dy *= 0.707;
+            }
+
+            player.isMoving = dx !== 0 || dy !== 0;
+
+            if (player.isMoving) {
+                // Set direction
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    player.direction = dx > 0 ? 'right' : 'left';
+                } else {
+                    player.direction = dy > 0 ? 'down' : 'up';
+                }
+
+                // Animation
+                player.animTimer += dt;
+                if (player.animTimer > 0.1) {
+                    player.animFrame++;
+                    player.animTimer = 0;
+                }
+
+                // Movement with collision
+                const newX = player.x + dx * player.speed * dt;
+                const newY = player.y + dy * player.speed * dt;
+
+                // Try X movement
+                if (!checkCollision(newX, player.y, player.width, player.height)) {
+                    player.x = newX;
+                }
+
+                // Try Y movement
+                if (!checkCollision(player.x, newY, player.width, player.height)) {
+                    player.y = newY;
+                }
+
+                // Clamp to world bounds
+                player.x = Math.max(32, Math.min(WORLD_WIDTH - 32 - player.width, player.x));
+                player.y = Math.max(32, Math.min(WORLD_HEIGHT - 32 - player.height, player.y));
+            }
+
+            // Net swing update
+            if (player.netSwinging) {
+                player.netTimer += dt;
+                player.netAngle += dt * 15;
+
+                if (player.netTimer > 0.3) {
+                    player.netSwinging = false;
+                    player.netTimer = 0;
+                }
+            }
+        }
+
+        function updateCamera() {
+            // Target camera position (centered on player)
+            const targetX = player.x - canvas.width / 2 + player.width / 2;
+            const targetY = player.y - canvas.height / 2 + player.height / 2;
+
+            // Smooth camera follow
+            camera.x += (targetX - camera.x) * 0.1;
+            camera.y += (targetY - camera.y) * 0.1;
+
+            // Clamp camera to world bounds
+            camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, camera.x));
+            camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, camera.y));
+        }
+
+        function updateBugs(dt) {
+            // Spawn timer
+            bugSpawnTimer += dt * 1000;
+            if (bugSpawnTimer >= BUG_SPAWN_INTERVAL && bugs.length < MAX_BUGS) {
+                spawnBug();
+                bugSpawnTimer = 0;
+            }
+
+            // Update bug positions
+            for (const bug of bugs) {
+                bug.lifetime -= dt;
+
+                // Random movement
+                bug.moveTimer += dt;
+                if (bug.moveTimer > 0.5) {
+                    bug.vx = (Math.random() - 0.5) * 40;
+                    bug.vy = (Math.random() - 0.5) * 40;
+                    bug.moveTimer = 0;
+                }
+
+                bug.x += bug.vx * dt;
+                bug.y += bug.vy * dt;
+
+                // Keep in bounds
+                bug.x = Math.max(48, Math.min(WORLD_WIDTH - 48, bug.x));
+                bug.y = Math.max(48, Math.min(WORLD_HEIGHT - 48, bug.y));
+
+                // Avoid obstacles (simple avoidance)
+                for (const obs of obstacles) {
+                    if (obs.type === 'pond' || obs.type === 'tree' || obs.type === 'rock') {
+                        const dist = Math.hypot(bug.x - obs.x, bug.y - obs.y);
+                        if (dist < 40) {
+                            bug.vx *= -1;
+                            bug.vy *= -1;
+                        }
+                    }
+                }
+            }
+
+            // Remove expired bugs
+            for (let i = bugs.length - 1; i >= 0; i--) {
+                if (bugs[i].lifetime <= 0) {
+                    bugs.splice(i, 1);
+                }
+            }
+        }
+
+        function spawnBug() {
+            let x, y;
+            let valid = false;
+            let attempts = 0;
+
+            while (!valid && attempts < 20) {
+                x = 64 + Math.random() * (WORLD_WIDTH - 128);
+                y = 64 + Math.random() * (WORLD_HEIGHT - 128);
+                valid = true;
+
+                // Check distance from player
+                if (Math.hypot(x - player.x, y - player.y) < 100) {
+                    valid = false;
+                }
+
+                // Check obstacles
+                for (const obs of obstacles) {
+                    if (obs.type === 'pond') {
+                        if (Math.hypot(x - obs.x - 32, y - obs.y - 32) < 80) {
+                            valid = false;
+                        }
+                    }
+                }
+
+                attempts++;
+            }
+
+            if (valid) {
+                bugs.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 40,
+                    vy: (Math.random() - 0.5) * 40,
+                    lifetime: 10,
+                    moveTimer: 0
+                });
+            }
+        }
+
+        function checkBugCatch() {
+            if (!player.netSwinging) return;
+
+            const netX = player.x + 16 + Math.cos(player.netAngle) * 24;
+            const netY = player.y + 8 + Math.sin(player.netAngle) * 24;
+
+            for (let i = bugs.length - 1; i >= 0; i--) {
+                const bug = bugs[i];
+                const dist = Math.hypot(bug.x + BUG_SIZE/2 - netX, bug.y + BUG_SIZE/2 - netY);
+
+                if (dist < 20) {
+                    // Caught!
+                    bugs.splice(i, 1);
+                    bugCount++;
+                    bugCounterEl.textContent = bugCount;
+
+                    // Spawn particles
+                    for (let j = 0; j < 8; j++) {
+                        particles.push({
+                            x: bug.x + BUG_SIZE/2,
+                            y: bug.y + BUG_SIZE/2,
+                            vx: (Math.random() - 0.5) * 100,
+                            vy: (Math.random() - 0.5) * 100,
+                            life: 1,
+                            color: COLORS.bug,
+                            size: 4
+                        });
+                    }
+                }
+            }
+        }
+
+        function updateParticles(dt) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt * 2;
+
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function checkInteraction() {
+            if (currentDialogue) return;
+
+            for (const npc of npcs) {
+                const dist = Math.hypot(player.x - npc.x, player.y - npc.y);
+                if (dist < 48) {
+                    showDialogue(npc);
+                    return;
+                }
+            }
+        }
+
+        function showDialogue(npc) {
+            currentDialogue = npc;
+            dialogueName.textContent = npc.name;
+            dialogueText.textContent = npc.dialogue;
+            dialogueBox.style.display = 'block';
+        }
+
+        function closeDialogue() {
+            currentDialogue = null;
+            dialogueBox.style.display = 'none';
+        }
+
+        // Main game loop
+        function gameLoop(timestamp) {
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+            lastTime = timestamp;
+
+            // Update
+            updatePlayer(dt);
+            updateCamera();
+            updateBugs(dt);
+            updateParticles(dt);
+            checkBugCatch();
+
+            // Draw
+            drawGrass();
+            drawObstacles();
+
+            // Sort entities by Y for proper layering
+            const entities = [
+                ...npcs.map(n => ({ type: 'npc', data: n, y: n.y })),
+                { type: 'player', data: player, y: player.y },
+                ...bugs.map(b => ({ type: 'bug', data: b, y: b.y }))
+            ].sort((a, b) => a.y - b.y);
+
+            for (const entity of entities) {
+                switch (entity.type) {
+                    case 'npc': drawNPC(entity.data); break;
+                    case 'player': drawPlayer(); break;
+                    case 'bug': drawBug(entity.data); break;
+                }
+            }
+
+            drawParticles();
+            drawMinimap();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Input handlers
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+
+            if (e.code === 'KeyE') {
+                if (currentDialogue) {
+                    closeDialogue();
+                } else {
+                    checkInteraction();
+                }
+            }
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!player.netSwinging && !currentDialogue) {
+                    player.netSwinging = true;
+                    player.netTimer = 0;
+                    player.netAngle = -Math.PI / 2;
+                } else if (currentDialogue) {
+                    closeDialogue();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Start game
+        requestAnimationFrame(gameLoop);
+    })();
+    </script>
+</body>
+</html>
