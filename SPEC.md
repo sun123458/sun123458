@@ -1,109 +1,55 @@
-# 电子鱼缸游戏 - Specification
+# 磁力连线粒子背景 - 规格文档
 
-## Project Overview
-- **Project Name**: 电子鱼缸 (Electronic Fish Tank)
-- **Type**: Interactive SVG Game
-- **Core Functionality**: A virtual fish tank with two golden carp that swim around and can be fed by clicking
-- **Target Users**: All ages
+## 项目概述
+- **项目名称**: Magnetic Connection Particle Background
+- **类型**: 交互式粒子动画
+- **核心功能**: 粒子间自动生成连线，靠近时线条更粗更亮，鼠标产生排斥力
+- **目标用户**: 网页背景/装饰场景
 
-## Visual Specification
+## 视觉与渲染规格
 
-### Fish Tank
-- Large transparent container (80% viewport width, 70% viewport height)
-- Glass reflection effect using gradient overlays and subtle highlights
-- Light blue water fill with slight transparency
-- Rounded corners for realistic tank appearance
+### 场景设置
+- **画布**: 全屏 Canvas，响应式适配 window resize
+- **背景色**: 深色 (#0a0a0f) 配合微弱渐变
+- **帧率**: 60 FPS
 
-### Decorative Elements
-**Water Plants (6-8 pieces)**
-- Green color (#2E8B57, #3CB371)
-- Varying heights and leaf shapes
-- Slight swaying animation
+### 粒子视觉
+- **数量**: 150-200 个粒子
+- **大小**: 2-4px 半径，随机分布
+- **颜色**: 青蓝色系 (#00d4ff, #0099cc, #66ffff)
+- **发光效果**: 粒子带柔和光晕 (shadowBlur)
 
-**Stones (5-7 pieces)**
-- Brown/tan colors (#8B7355, #A0522D)
-- Various sizes (ellipses)
-- Clustered at bottom
+### 连线视觉
+- **触发条件**: 粒子间距 < 连接阈值 (150px)
+- **线条粗细**: 距离越近越粗 (0.5px - 3px)
+- **线条亮度**: 距离越近越亮 (alpha 0.1 - 0.8)
+- **颜色**: 与粒子同色系渐变
 
-### Fish (Golden Carp)
-**Both fish have:**
-- Body: Golden/orange gradient (#FFD700, #FFA500, #FF8C00)
-- Eye: White with black pupil
-- Tail: Forked shape with wagging animation
-- Tail fin: Animated wagging motion
-- Pectoral fins: Subtle animation
+## 模拟规格
 
-**Large Carp**
-- Body length: ~120px
-- Smooth horizontal swimming motion
+### 粒子运动
+- **初始速度**: 随机方向，速度 0.2-1.0
+- **边界处理**: 屏幕边缘软反弹 (速度反转)
+- **阻尼系数**: 0.99 (轻微减速)
 
-**Small Carp**
-- Body length: ~80px
-- Slightly faster movement, more erratic
+### 鼠标排斥力
+- **作用半径**: 150px
+- **排斥力强度**: 反比于距离的平方
+- **最大排斥力**: 5.0
+- **平滑过渡**: 排斥力衰减自然
 
-### Fish Movement
-- Smooth bezier curve animations
-- Random direction changes every 3-6 seconds
-- Boundary detection (stay within tank)
-- Fish face direction of movement
+### 粒子间交互
+- **无直接碰撞**: 粒子可重叠穿过
+- **连接规则**: 仅基于距离判断是否连线
 
-### Tail Fin Animation
-- Continuous wagging motion using CSS/SVG animation
-- Frequency: ~2-3 waggles per second
-- Amplitude: ±15 degrees rotation
+## 交互规格
+- **鼠标移动**: 实时追踪位置，产生排斥场
+- **触摸支持**: 支持移动端触摸事件
 
-## Food/Feed Specification
-
-### Food Pellets
-- Small circles (~6px diameter)
-- Brown/tan color (#CD853F)
-- Fall animation: gentle sinking (2-4 seconds to reach bottom)
-- Slight wobble during fall
-- Maximum 10 pellets at once
-
-### Feeding Behavior
-- Fish detect nearest food pellet
-- Swim toward food with acceleration
-- Eating animation (mouth opens/closes)
-- Food disappears when fish reaches it
-- Small "eating" particle effect
-
-## Interaction Specification
-
-### Click to Feed
-- Click anywhere in tank
-- 3-5 food pellets spawn at click position
-- Staggered drop timing (50ms between each)
-- Food falls with gravity simulation
-
-### Fish AI
-- Idle: Random swimming
-- Hungry (food present): Swim toward nearest food
-- Eating: Brief pause and mouth animation
-- Full: Return to idle swimming
-
-## Technical Implementation
-
-### Structure
-- Single HTML file with embedded SVG and JavaScript
-- SVG for all graphics (no canvas)
-- CSS animations for tail wagging
-- JavaScript for game logic, movement, collision
-
-### Animation System
-- requestAnimationFrame for smooth updates
-- SVG transform for fish positioning
-- CSS keyframes for tail animation
-
-## Acceptance Criteria
-
-1. ✅ Fish tank displays with glass reflection effect
-2. ✅ Water plants and stones visible at bottom
-3. ✅ Two carp with visible body parts (eye, body, tail, fins)
-4. ✅ Tail fins wag continuously
-5. ✅ Fish swim in random patterns within boundaries
-6. ✅ Clicking spawns food pellets that fall
-7. ✅ Fish detect and swim toward food
-8. ✅ Food disappears when eaten by fish
-9. ✅ Smooth 60fps animation
-10. ✅ Responsive to different viewport sizes
+## 验收标准
+1. 粒子平滑移动，无卡顿
+2. 靠近的粒子自动生成连线
+3. 连线粗细/亮度随距离变化明显
+4. 鼠标靠近时粒子明显被推开
+5. 窗口 resize 时画布自适应
+6. 性能：200 粒子时保持 60 FPS
