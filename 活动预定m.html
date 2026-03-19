@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>活动预订系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #8b5cf6;
+      --accent: #f59e0b;
+      --bg: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text: #f8fafc;
+      --text-secondary: #94a3b8;
+      --success: #10b981;
+      --error: #ef4444;
+      --seat-available: #6366f1;
+      --seat-selected: #22c55e;
+      --seat-occupied: #ef4444;
+      --glass: rgba(30, 41, 59, 0.8);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "SF Pro Display", "PingFang SC", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* Header */
+    .header {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 1rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .nav {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-secondary);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .nav-btn:hover, .nav-btn.active {
+      background: var(--primary);
+      color: var(--text);
+      border-color: var(--primary);
+    }
+
+    .timezone-select {
+      background: var(--bg-secondary);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 0.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* Main Layout */
+    .main-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      height: fit-content;
+      position: sticky;
+      top: 100px;
+    }
+
+    .sidebar h3 {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .filter-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-group label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .clear-filters {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--error);
+      color: var(--error);
+      padding: 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .clear-filters:hover {
+      background: var(--error);
+      color: var(--text);
+    }
+
+    /* Views */
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    /* Calendar */
+    .calendar {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .calendar-header h2 {
+      font-size: 1.25rem;
+    }
+
+    .calendar-nav {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .calendar-nav button {
+      background: var(--bg-secondary);
+      border: none;
+      color: var(--text);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .calendar-nav button:hover {
+      background: var(--primary);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .calendar-day-header {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      padding: 0.5rem;
+      font-weight: 600;
+    }
+
+    .calendar-day {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+      position: relative;
+    }
+
+    .calendar-day:hover {
+      background: var(--bg-secondary);
+    }
+
+    .calendar-day.other-month {
+      color: var(--text-secondary);
+      opacity: 0.5;
+    }
+
+    .calendar-day.today {
+      background: var(--primary);
+      color: var(--text);
+    }
+
+    .calendar-day.selected {
+      background: var(--secondary);
+      color: var(--text);
+    }
+
+    .calendar-day.has-events::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      position: absolute;
+      bottom: 4px;
+    }
+
+    /* Events List */
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .event-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .event-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+
+    .event-category {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: var(--primary);
+      color: var(--text);
+      border-radius: 20px;
+      font-size: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .event-card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .event-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .event-info span {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .event-seats {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .seats-available {
+      color: var(--success);
+    }
+
+    .seats-limited {
+      color: var(--accent);
+    }
+
+    .seats-sold-out {
+      color: var(--error);
+    }
+
+    /* Event Detail View */
+    .event-detail {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 2rem;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .event-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 1rem;
+    }
+
+    .back-btn:hover {
+      background: var(--bg-secondary);
+    }
+
+    .seat-map-container {
+      margin-top: 2rem;
+    }
+
+    .seat-map {
+      background: var(--bg);
+      border-radius: 16px;
+      padding: 2rem;
+      margin: 1rem 0;
+    }
+
+    .stage {
+      background: linear-gradient(180deg, var(--primary), var(--secondary));
+      color: var(--text);
+      text-align: center;
+      padding: 0.75rem;
+      border-radius: 8px 8px 0 0;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .section-label {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .section-price {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .seats-row {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+
+    .seat {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 600;
+    }
+
+    .seat.available {
+      background: var(--seat-available);
+      color: var(--text);
+    }
+
+    .seat.available:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5);
+    }
+
+    .seat.selected {
+      background: var(--seat-selected);
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.5);
+    }
+
+    .seat.occupied {
+      background: var(--seat-occupied);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .seat-legend {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+    }
+
+    /* Booking Form */
+    .booking-section {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .selected-seats-display {
+      background: var(--bg);
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+
+    .selected-seats-display h4 {
+      margin-bottom: 1rem;
+      color: var(--success);
+    }
+
+    .selected-seat-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .total-price {
+      display: flex;
+      justify-content: space-between;
+      padding: 1rem 0;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      margin-top: 1rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .booking-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .form-group input {
+      background: var(--bg);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .book-btn {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border: none;
+      color: var(--text);
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 1rem;
+    }
+
+    .book-btn:hover {
+      transform: scale(1.02);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+    }
+
+    .book-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Ticket Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .ticket {
+      background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+      border-radius: 20px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .ticket::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+    }
+
+    .ticket-header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      padding-top: 1rem;
+    }
+
+    .ticket-header h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .ticket-ref {
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: var(--accent);
+      background: rgba(245, 158, 11, 0.1);
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .ticket-details {
+      margin-bottom: 1.5rem;
+    }
+
+    .ticket-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px dashed rgba(255,255,255,0.1);
+    }
+
+    .ticket-row:last-child {
+      border-bottom: none;
+    }
+
+    .ticket-label {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .ticket-value {
+      font-weight: 500;
+    }
+
+    .ticket-qr {
+      background: white;
+      padding: 1rem;
+      border-radius: 12px;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .ticket-qr canvas {
+      max-width: 100%;
+    }
+
+    .ticket-actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .ticket-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .ticket-btn.primary {
+      background: var(--primary);
+      border: none;
+      color: var(--text);
+    }
+
+    .ticket-btn.secondary {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--text);
+    }
+
+    .ticket-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    .close-modal:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+    }
+
+    /* My Bookings */
+    .bookings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .booking-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 1.5rem;
+      align-items: center;
+    }
+
+    @media (max-width: 768px) {
+      .booking-card {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .booking-qr {
+      background: white;
+      padding: 0.75rem;
+      border-radius: 8px;
+    }
+
+    .booking-qr canvas {
+      display: block;
+      width: 100px;
+      height: 100px;
+    }
+
+    .booking-info h3 {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .booking-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .booking-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .booking-btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      text-align: center;
+    }
+
+    .booking-btn.email {
+      background: var(--primary);
+      border: none;
+      color: var(--text);
+    }
+
+    .booking-btn.cancel {
+      background: transparent;
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+
+    .booking-btn:hover {
+      transform: scale(1.02);
+    }
+
+    /* Admin Dashboard */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-change {
+      font-size: 0.8rem;
+      color: var(--success);
+      margin-top: 0.25rem;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (max-width: 640px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .chart-card h3 {
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .bar-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .bar-label {
+      width: 100px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 24px;
+      background: var(--bg);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 12px;
+      transition: width 0.5s ease;
+    }
+
+    .bar-value {
+      width: 50px;
+      text-align: right;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .recent-bookings {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .recent-bookings h3 {
+      margin-bottom: 1rem;
+    }
+
+    .bookings-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .bookings-table th,
+    .bookings-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem;
+    }
+
+    .bookings-table th {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .bookings-table tbody tr:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    /* Seat Tooltip */
+    .seat-tooltip {
+      position: fixed;
+      background: var(--bg-tertiary);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      z-index: 1000;
+      display: none;
+    }
+
+    .seat-tooltip.visible {
+      display: block;
+    }
+
+    .tooltip-section {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .tooltip-seat {
+      color: var(--text-secondary);
+    }
+
+    .tooltip-price {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state h3 {
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .header {
+        padding: 1rem;
+      }
+
+      .header-content {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .nav {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .main-container {
+        padding: 1rem;
+      }
+
+      .calendar-grid {
+        gap: 2px;
+      }
+
+      .calendar-day {
+        font-size: 0.75rem;
+      }
+
+      .seat {
+        width: 24px;
+        height: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">活动预订系统</div>
+      <nav class="nav">
+        <button class="nav-btn active" data-view="events">活动</button>
+        <button class="nav-btn" data-view="bookings">我的预订</button>
+        <button class="nav-btn" data-view="admin">管理后台</button>
+      </nav>
+      <select class="timezone-select" id="timezoneSelect">
+        <option value="Asia/Shanghai">北京时间 (UTC+8)</option>
+        <option value="Asia/Tokyo">东京时间 (UTC+9)</option>
+        <option value="America/New_York">纽约时间 (UTC-5)</option>
+        <option value="Europe/London">伦敦时间 (UTC+0)</option>
+      </select>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <aside class="sidebar" id="filtersSidebar">
+      <h3>筛选活动</h3>
+      <div class="filter-group">
+        <label>开始日期</label>
+        <input type="date" id="filterDateStart">
+      </div>
+      <div class="filter-group">
+        <label>结束日期</label>
+        <input type="date" id="filterDateEnd">
+      </div>
+      <div class="filter-group">
+        <label>场地</label>
+        <select id="filterVenue">
+          <option value="">全部场地</option>
+          <option value="国家大剧院">国家大剧院</option>
+          <option value="工人体育场">工人体育场</option>
+          <option value="梅赛德斯奔驰中心">梅赛德斯奔驰中心</option>
+          <option value="上海体育馆">上海体育馆</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>类别</label>
+        <select id="filterCategory">
+          <option value="">全部类别</option>
+          <option value="音乐会">音乐会</option>
+          <option value="戏剧">戏剧</option>
+          <option value="体育">体育</option>
+          <option value="展览">展览</option>
+          <option value="喜剧">喜剧</option>
+        </select>
+      </div>
+      <button class="clear-filters" id="clearFilters">清除筛选</button>
+    </aside>
+
+    <div class="content">
+      <!-- Events View -->
+      <div class="view active" id="eventsView">
+        <div class="calendar">
+          <div class="calendar-header">
+            <h2 id="calendarTitle">2026年3月</h2>
+            <div class="calendar-nav">
+              <button id="prevMonth">&lt;</button>
+              <button id="nextMonth">&gt;</button>
+            </div>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+        <div class="events-grid" id="eventsGrid"></div>
+      </div>
+
+      <!-- Event Detail View -->
+      <div class="view" id="eventDetailView">
+        <div class="event-detail">
+          <button class="back-btn" id="backToEvents">&larr; 返回活动列表</button>
+          <div id="eventDetailContent"></div>
+        </div>
+      </div>
+
+      <!-- My Bookings View -->
+      <div class="view" id="bookingsView">
+        <h2 style="margin-bottom: 1.5rem;">我的预订</h2>
+        <div class="bookings-list" id="bookingsList"></div>
+      </div>
+
+      <!-- Admin View -->
+      <div class="view" id="adminView">
+        <h2 style="margin-bottom: 1.5rem;">管理后台</h2>
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3>按类别统计预订</h3>
+            <div class="bar-chart" id="categoryChart"></div>
+          </div>
+          <div class="chart-card">
+            <h3>按场地统计收入</h3>
+            <div class="bar-chart" id="venueChart"></div>
+          </div>
+        </div>
+        <div class="recent-bookings">
+          <h3>最近预订</h3>
+          <table class="bookings-table">
+            <thead>
+              <tr>
+                <th>预订编号</th>
+                <th>活动</th>
+                <th>客户</th>
+                <th>座位</th>
+                <th>金额</th>
+              </tr>
+            </thead>
+            <tbody id="recentBookingsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Ticket Modal -->
+  <div class="modal-overlay" id="ticketModal">
+    <div class="ticket">
+      <button class="close-modal" id="closeTicketModal">&times;</button>
+      <div class="ticket-header">
+        <h2>电子门票</h2>
+        <div class="ticket-ref" id="ticketRef">REF-20260319-XXXX</div>
+      </div>
+      <div class="ticket-details" id="ticketDetails"></div>
+      <div class="ticket-qr" id="ticketQR"></div>
+      <div class="ticket-actions">
+        <a class="ticket-btn primary" id="sendReminder">发送邮件提醒</a>
+        <button class="ticket-btn secondary" id="closeTicket">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seat Tooltip -->
+  <div class="seat-tooltip" id="seatTooltip">
+    <div class="tooltip-section" id="tooltipSection">VIP区</div>
+    <div class="tooltip-seat" id="tooltipSeat">A排 1号</div>
+    <div class="tooltip-price" id="tooltipPrice">¥680</div>
+  </div>
+
+  <script>
+    // ==================== DATA ====================
+    const VENUES = {
+      '国家大剧院': { capacity: 2000, address: '北京市西城区西长安街2号' },
+      '工人体育场': { capacity: 50000, address: '北京市朝阳区工体南路' },
+      '梅赛德斯奔驰中心': { capacity: 18000, address: '上海市浦东新区世博大道1200号' },
+      '上海体育馆': { capacity: 12000, address: '上海市徐汇区漕溪北路1111号' }
+    };
+
+    const CATEGORIES = ['音乐会', '戏剧', '体育', '展览', '喜剧'];
+
+    const SECTION_PRICES = {
+      'VIP': 680,
+      'A': 480,
+      'B': 380,
+      'C': 280
+    };
+
+    // Generate sample events
+    const events = [
+      {
+        id: 1,
+        title: '周杰伦2026世界巡回演唱会',
+        description: '华语乐坛天王周杰伦最新世界巡回演唱会',
+        date: '2026-03-21',
+        time: '19:30',
+        duration: 180,
+        venue: '工人体育场',
+        category: '音乐会',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 2,
+        title: '天鹅湖芭蕾舞剧',
+        description: '经典芭蕾舞剧《天鹅湖》全新演绎',
+        date: '2026-03-22',
+        time: '19:00',
+        duration: 150,
+        venue: '国家大剧院',
+        category: '戏剧',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 3,
+        title: 'CBA全明星赛',
+        description: '2026赛季CBA全明星周末',
+        date: '2026-03-23',
+        time: '15:00',
+        duration: 180,
+        venue: '上海体育馆',
+        category: '体育',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 4,
+        title: '草间弥生艺术展',
+        description: '日本艺术家草间弥生大型回顾展',
+        date: '2026-03-25',
+        time: '10:00',
+        duration: 240,
+        venue: '梅赛德斯奔驰中心',
+        category: '展览',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 5,
+        title: '郭德纲相声专场',
+        description: '德云社郭德纲经典相声段子',
+        date: '2026-03-26',
+        time: '20:00',
+        duration: 180,
+        venue: '国家大剧院',
+        category: '喜剧',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 6,
+        title: '莫扎特交响乐',
+        description: '维也纳交响乐团演绎莫扎特经典',
+        date: '2026-03-28',
+        time: '19:30',
+        duration: 120,
+        venue: '国家大剧院',
+        category: '音乐会',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 7,
+        title: '周杰伦2026世界巡回演唱会',
+        description: '华语乐坛天王周杰伦最新世界巡回演唱会',
+        date: '2026-03-28',
+        time: '19:30',
+        duration: 180,
+        venue: '工人体育场',
+        category: '音乐会',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 8,
+        title: '茶花女歌剧',
+        description: '经典歌剧《茶花女》唯美呈现',
+        date: '2026-03-29',
+        time: '19:00',
+        duration: 180,
+        venue: '国家大剧院',
+        category: '戏剧',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 9,
+        title: 'NBA中国赛',
+        description: '金州勇士 vs 洛杉矶湖人',
+        date: '2026-03-29',
+        time: '14:00',
+        duration: 180,
+        venue: '梅赛德斯奔驰中心',
+        category: '体育',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 10,
+        title: '李诞脱口秀专场',
+        description: '《吐槽大会》主创李诞全新专场',
+        date: '2026-03-30',
+        time: '20:00',
+        duration: 120,
+        venue: '上海体育馆',
+        category: '喜剧',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 11,
+        title: '周杰伦2026世界巡回演唱会',
+        description: '华语乐坛天王周杰伦最新世界巡回演唱会',
+        date: '2026-04-01',
+        time: '19:30',
+        duration: 180,
+        venue: '梅赛德斯奔驰中心',
+        category: '音乐会',
+        timezone: 'Asia/Shanghai'
+      },
+      {
+        id: 12,
+        title: '罗密欧与朱丽叶',
+        description: '莎士比亚经典话剧全新制作',
+        date: '2026-04-02',
+        time: '19:30',
+        duration: 150,
+        venue: '国家大剧院',
+        category: '戏剧',
+        timezone: 'Asia/Shanghai'
+      }
+    ];
+
+    // Generate seat maps for events
+    function generateSeatMap() {
+      const seatMap = {};
+      const sections = ['VIP', 'A', 'B', 'C'];
+      const seatsPerRow = { 'VIP': 10, 'A': 15, 'B': 20, 'C': 25 };
+      const rowsPerSection = { 'VIP': 3, 'A': 5, 'B': 8, 'C': 10 };
+
+      sections.forEach(section => {
+        seatMap[section] = [];
+        for (let row = 0; row < rowsPerSection[section]; row++) {
+          const rowSeats = [];
+          for (let seat = 0; seat < seatsPerRow[section]; seat++) {
+            const seatId = `${section}-${row}-${seat}`;
+            // Randomly mark some seats as occupied
+            const status = Math.random() < 0.3 ? 'occupied' : 'available';
+            rowSeats.push({
+              id: seatId,
+              row: row + 1,
+              number: seat + 1,
+              status
+            });
+          }
+          seatMap[section].push(rowSeats);
+        }
+      });
+
+      return seatMap;
+    }
+
+    // Initialize seat maps for each event
+    events.forEach(event => {
+      event.seatMap = generateSeatMap();
+    });
+
+    // State
+    let currentView = 'events';
+    let selectedDate = new Date();
+    let currentMonth = new Date();
+    let selectedEvent = null;
+    let selectedSeats = [];
+    let userTimezone = 'Asia/Shanghai';
+    let bookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+
+    // Filters
+    let filters = {
+      dateStart: '',
+      dateEnd: '',
+      venue: '',
+      category: ''
+    };
+
+    // ==================== UTILITIES ====================
+    function formatDate(dateStr, timezone) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: timezone
+      });
+    }
+
+    function formatTime(timeStr, timezone) {
+      return timeStr;
+    }
+
+    function formatDateTime(event) {
+      const tz = event.timezone || 'Asia/Shanghai';
+      return `${formatDate(event.date, tz)} ${event.time} ${getTimezoneAbbr(tz)}`;
+    }
+
+    function getTimezoneAbbr(tz) {
+      const abbrs = {
+        'Asia/Shanghai': 'CST',
+        'Asia/Tokyo': 'JST',
+        'America/New_York': 'EST',
+        'Europe/London': 'GMT'
+      };
+      return abbrs[tz] || '';
+    }
+
+    function convertTimezone(dateStr, timeStr, fromTz, toTz) {
+      // Simple timezone conversion
+      const offsets = {
+        'Asia/Shanghai': 8,
+        'Asia/Tokyo': 9,
+        'America/New_York': -5,
+        'Europe/London': 0
+      };
+      const fromOffset = offsets[fromTz] || 8;
+      const toOffset = offsets[toTz] || 8;
+      const diff = toOffset - fromOffset;
+
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const newHours = (hours + diff + 24) % 24;
+
+      return `${String(newHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+
+    function generateBookingRef() {
+      const date = new Date();
+      const datePart = date.toISOString().slice(0, 10).replace(/-/g, '');
+      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+      return `REF-${datePart}-${random}`;
+    }
+
+    function getAvailableSeats(event) {
+      let count = 0;
+      Object.values(event.seatMap).forEach(sections => {
+        sections.forEach(row => {
+          row.forEach(seat => {
+            if (seat.status === 'available') count++;
+          });
+        });
+      });
+      return count;
+    }
+
+    function getTotalCapacity(event) {
+      let count = 0;
+      Object.values(event.seatMap).forEach(sections => {
+        sections.forEach(row => {
+          count += row.length;
+        });
+      });
+      return count;
+    }
+
+    function saveBookings() {
+      localStorage.setItem('bookings', JSON.stringify(bookings));
+    }
+
+    // ==================== CALENDAR ====================
+    function renderCalendar() {
+      const grid = document.getElementById('calendarGrid');
+      const title = document.getElementById('calendarTitle');
+
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+
+      title.textContent = `${year}年${month + 1}月`;
+
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const startPadding = firstDay.getDay();
+      const totalDays = lastDay.getDate();
+
+      const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+      let html = dayHeaders.map(d => `<div class="calendar-day-header">${d}</div>`).join('');
+
+      // Previous month padding
+      const prevMonth = new Date(year, month, 0);
+      for (let i = startPadding - 1; i >= 0; i--) {
+        const day = prevMonth.getDate() - i;
+        html += `<div class="calendar-day other-month">${day}</div>`;
+      }
+
+      // Current month
+      const today = new Date();
+      for (let day = 1; day <= totalDays; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const hasEvents = events.some(e => e.date === dateStr);
+        const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
+        const isSelected = selectedDate.toISOString().slice(0, 10) === dateStr;
+
+        let classes = 'calendar-day';
+        if (isToday) classes += ' today';
+        if (isSelected) classes += ' selected';
+        if (hasEvents) classes += ' has-events';
+
+        html += `<div class="${classes}" data-date="${dateStr}">${day}</div>`;
+      }
+
+      // Next month padding
+      const remainingDays = 42 - (startPadding + totalDays);
+      for (let i = 1; i <= remainingDays; i++) {
+        html += `<div class="calendar-day other-month">${i}</div>`;
+      }
+
+      grid.innerHTML = html;
+
+      // Add click handlers
+      grid.querySelectorAll('.calendar-day:not(.other-month)').forEach(el => {
+        el.addEventListener('click', () => {
+          selectedDate = new Date(el.dataset.date);
+          renderCalendar();
+          renderEvents();
+        });
+      });
+    }
+
+    // ==================== EVENTS ====================
+    function renderEvents() {
+      const grid = document.getElementById('eventsGrid');
+      const dateStr = selectedDate.toISOString().slice(0, 10);
+
+      let filteredEvents = events.filter(e => e.date === dateStr);
+
+      // Apply filters
+      if (filters.venue) {
+        filteredEvents = filteredEvents.filter(e => e.venue === filters.venue);
+      }
+      if (filters.category) {
+        filteredEvents = filteredEvents.filter(e => e.category === filters.category);
+      }
+
+      if (filteredEvents.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <h3>暂无活动</h3>
+            <p>请选择其他日期或调整筛选条件</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filteredEvents.map(event => {
+        const available = getAvailableSeats(event);
+        const total = getTotalCapacity(event);
+        const percentage = available / total;
+
+        let seatsClass = 'seats-available';
+        let seatsText = `${available} 座位可选`;
+        if (percentage < 0.1) {
+          seatsClass = 'seats-sold-out';
+          seatsText = '即将售罄';
+        } else if (percentage < 0.3) {
+          seatsClass = 'seats-limited';
+          seatsText = `仅剩 ${available} 座位`;
+        }
+
+        return `
+          <div class="event-card" data-event-id="${event.id}">
+            <span class="event-category">${event.category}</span>
+            <h3>${event.title}</h3>
+            <div class="event-info">
+              <span>📅 ${formatDate(event.date, event.timezone)}</span>
+              <span>🕐 ${event.time} ${getTimezoneAbbr(event.timezone)}</span>
+              <span>📍 ${event.venue}</span>
+              <span>⏱️ ${event.duration} 分钟</span>
+            </div>
+            <div class="event-seats">
+              <span class="${seatsClass}">${seatsText}</span>
+              <span style="color: var(--accent)">查看座位 &rarr;</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Add click handlers
+      grid.querySelectorAll('.event-card').forEach(el => {
+        el.addEventListener('click', () => {
+          const eventId = parseInt(el.dataset.eventId);
+          showEventDetail(eventId);
+        });
+      });
+    }
+
+    // ==================== EVENT DETAIL ====================
+    function showEventDetail(eventId) {
+      selectedEvent = events.find(e => e.id === eventId);
+      if (!selectedEvent) return;
+
+      // Reset selected seats for this event
+      selectedSeats = [];
+
+      const content = document.getElementById('eventDetailContent');
+      const event = selectedEvent;
+
+      content.innerHTML = `
+        <div class="event-detail-header">
+          <div>
+            <span class="event-category">${event.category}</span>
+            <h2 style="margin: 0.75rem 0;">${event.title}</h2>
+            <div class="event-info">
+              <span>📅 ${formatDateTime(event)}</span>
+              <span>📍 ${event.venue} - ${VENUES[event.venue].address}</span>
+            </div>
+          </div>
+        </div>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">${event.description}</p>
+
+        <div class="seat-map-container">
+          <h3 style="margin-bottom: 1rem;">选择座位</h3>
+          <div class="seat-map" id="seatMap">
+            <div class="stage">舞台</div>
+            <div class="sections" id="seatSections"></div>
+            <div class="seat-legend">
+              <div class="legend-item">
+                <div class="legend-color" style="background: var(--seat-available);"></div>
+                <span>可选</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color" style="background: var(--seat-selected);"></div>
+                <span>已选</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color" style="background: var(--seat-occupied);"></div>
+                <span>已售</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="booking-section">
+          <div class="selected-seats-display" id="selectedSeatsDisplay">
+            <h4>已选座位</h4>
+            <div id="selectedSeatsList">
+              <p style="color: var(--text-secondary);">请在地图上选择座位</p>
+            </div>
+            <div class="total-price" id="totalPrice" style="display: none;">
+              <span>总价</span>
+              <span id="totalPriceValue">¥0</span>
+            </div>
+          </div>
+
+          <form class="booking-form" id="bookingForm">
+            <div class="form-group">
+              <label>姓名</label>
+              <input type="text" id="customerName" required placeholder="请输入您的姓名">
+            </div>
+            <div class="form-group">
+              <label>邮箱</label>
+              <input type="email" id="customerEmail" required placeholder="请输入您的邮箱">
+            </div>
+            <div class="form-group">
+              <label>电话</label>
+              <input type="tel" id="customerPhone" required placeholder="请输入您的电话">
+            </div>
+          </form>
+
+          <button class="book-btn" id="bookBtn" disabled>请先选择座位</button>
+        </div>
+      `;
+
+      renderSeatMap();
+
+      // Set up event listeners for dynamically created elements
+      const bookBtn = document.getElementById('bookBtn');
+      const bookingForm = document.getElementById('bookingForm');
+
+      bookBtn.addEventListener('click', () => {
+        if (bookingForm.checkValidity()) {
+          handleBooking();
+        } else {
+          bookingForm.reportValidity();
+        }
+      });
+
+      bookingForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleBooking();
+      });
+
+      switchView('eventDetail');
+    }
+
+    function renderSeatMap() {
+      const sectionsEl = document.getElementById('seatSections');
+      const sections = ['VIP', 'A', 'B', 'C'];
+
+      sectionsEl.innerHTML = sections.map(sectionName => {
+        const sectionData = selectedEvent.seatMap[sectionName];
+        return `
+          <div class="section">
+            <div class="section-label">
+              <span>${sectionName}区</span>
+              <span class="section-price">¥${SECTION_PRICES[sectionName]}</span>
+            </div>
+            <div class="seats-row">
+              ${sectionData.map((row, rowIdx) => `
+                <div class="seats-row" data-section="${sectionName}" data-row="${rowIdx}" style="margin-bottom: 4px;">
+                  ${row.map(seat => `
+                    <div class="seat ${seat.status}"
+                         data-seat-id="${seat.id}"
+                         data-section="${sectionName}"
+                         data-row="${rowIdx + 1}"
+                         data-number="${seat.number}"
+                         data-price="${SECTION_PRICES[sectionName]}">
+                      ${seat.number}
+                    </div>
+                  `).join('')}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Add seat click handlers
+      sectionsEl.querySelectorAll('.seat:not(.occupied)').forEach(seatEl => {
+        seatEl.addEventListener('click', () => toggleSeat(seatEl));
+        seatEl.addEventListener('mouseenter', (e) => showSeatTooltip(e, seatEl));
+        seatEl.addEventListener('mouseleave', hideSeatTooltip);
+        seatEl.addEventListener('mousemove', moveSeatTooltip);
+      });
+    }
+
+    function toggleSeat(seatEl) {
+      const seatId = seatEl.dataset.seatId;
+
+      if (seatEl.classList.contains('selected')) {
+        // Deselect
+        seatEl.classList.remove('selected');
+        seatEl.classList.add('available');
+        selectedSeats = selectedSeats.filter(s => s.id !== seatId);
+      } else {
+        // Select
+        seatEl.classList.remove('available');
+        seatEl.classList.add('selected');
+        selectedSeats.push({
+          id: seatId,
+          section: seatEl.dataset.section,
+          row: parseInt(seatEl.dataset.row),
+          number: parseInt(seatEl.dataset.number),
+          price: parseInt(seatEl.dataset.price)
+        });
+      }
+
+      updateSelectedSeatsDisplay();
+    }
+
+    function updateSelectedSeatsDisplay() {
+      const listEl = document.getElementById('selectedSeatsList');
+      const totalEl = document.getElementById('totalPrice');
+      const totalValueEl = document.getElementById('totalPriceValue');
+      const bookBtn = document.getElementById('bookBtn');
+
+      if (selectedSeats.length === 0) {
+        listEl.innerHTML = '<p style="color: var(--text-secondary);">请在地图上选择座位</p>';
+        totalEl.style.display = 'none';
+        bookBtn.disabled = true;
+        bookBtn.textContent = '请先选择座位';
+      } else {
+        listEl.innerHTML = selectedSeats.map(seat => `
+          <div class="selected-seat-item">
+            <span>${seat.section}区 ${seat.row}排 ${seat.number}号</span>
+            <span style="color: var(--accent);">¥${seat.price}</span>
+          </div>
+        `).join('');
+
+        const total = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+        totalValueEl.textContent = `¥${total}`;
+        totalEl.style.display = 'flex';
+
+        bookBtn.disabled = false;
+        bookBtn.textContent = `预订 ${selectedSeats.length} 张门票 (¥${total})`;
+      }
+    }
+
+    // ==================== SEAT TOOLTIP ====================
+    function showSeatTooltip(e, seatEl) {
+      const tooltip = document.getElementById('seatTooltip');
+      document.getElementById('tooltipSection').textContent = `${seatEl.dataset.section}区`;
+      document.getElementById('tooltipSeat').textContent = `${seatEl.dataset.row}排 ${seatEl.dataset.number}号`;
+      document.getElementById('tooltipPrice').textContent = `¥${seatEl.dataset.price}`;
+      tooltip.classList.add('visible');
+      moveSeatTooltip(e);
+    }
+
+    function hideSeatTooltip() {
+      document.getElementById('seatTooltip').classList.remove('visible');
+    }
+
+    function moveSeatTooltip(e) {
+      const tooltip = document.getElementById('seatTooltip');
+      tooltip.style.left = `${e.clientX + 15}px`;
+      tooltip.style.top = `${e.clientY + 15}px`;
+    }
+
+    // ==================== BOOKING ====================
+    function handleBooking() {
+      const name = document.getElementById('customerName').value.trim();
+      const email = document.getElementById('customerEmail').value.trim();
+      const phone = document.getElementById('customerPhone').value.trim();
+
+      if (!name || !email || !phone) {
+        alert('请填写完整的预订信息');
+        return;
+      }
+
+      if (!email.includes('@')) {
+        alert('请输入有效的邮箱地址');
+        return;
+      }
+
+      const bookingRef = generateBookingRef();
+      const total = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+
+      const booking = {
+        id: Date.now(),
+        ref: bookingRef,
+        eventId: selectedEvent.id,
+        event: { ...selectedEvent },
+        seats: [...selectedSeats],
+        customer: { name, email, phone },
+        total,
+        createdAt: new Date().toISOString(),
+        status: 'confirmed'
+      };
+
+      // Mark seats as occupied
+      selectedSeats.forEach(seat => {
+        const seatEl = document.querySelector(`[data-seat-id="${seat.id}"]`);
+        if (seatEl) {
+          seatEl.classList.remove('selected');
+          seatEl.classList.add('occupied');
+          seatEl.classList.remove('available');
+        }
+      });
+
+      bookings.push(booking);
+      saveBookings();
+
+      showTicket(booking);
+    }
+
+    // ==================== TICKET ====================
+    function showTicket(booking) {
+      const modal = document.getElementById('ticketModal');
+      const refEl = document.getElementById('ticketRef');
+      const detailsEl = document.getElementById('ticketDetails');
+      const qrEl = document.getElementById('ticketQR');
+      const reminderBtn = document.getElementById('sendReminder');
+
+      refEl.textContent = booking.ref;
+
+      const seatsStr = booking.seats.map(s => `${s.section}区${s.row}排${s.number}号`).join(', ');
+
+      detailsEl.innerHTML = `
+        <div class="ticket-row">
+          <span class="ticket-label">活动</span>
+          <span class="ticket-value">${booking.event.title}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">日期</span>
+          <span class="ticket-value">${formatDate(booking.event.date, booking.event.timezone)}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">时间</span>
+          <span class="ticket-value">${booking.event.time} ${getTimezoneAbbr(booking.event.timezone)}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">场地</span>
+          <span class="ticket-value">${booking.event.venue}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">座位</span>
+          <span class="ticket-value">${seatsStr}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">金额</span>
+          <span class="ticket-value" style="color: var(--accent);">¥${booking.total}</span>
+        </div>
+      `;
+
+      // Generate QR Code
+      qrEl.innerHTML = '';
+      const qrData = JSON.stringify({
+        ref: booking.ref,
+        event: booking.event.title,
+        date: booking.event.date,
+        time: booking.event.time,
+        venue: booking.event.venue,
+        seats: seatsStr,
+        customer: booking.customer.name
+      });
+
+      new QRCode(qrEl, {
+        text: qrData,
+        width: 180,
+        height: 180,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff'
+      });
+
+      // Email reminder
+      const subject = encodeURIComponent(`【活动提醒】${booking.event.title} - ${formatDate(booking.event.date, booking.event.timezone)}`);
+      const body = encodeURIComponent(`
+您好 ${booking.customer.name}，
+
+您的预订已确认！
+
+预订编号：${booking.ref}
+活动：${booking.event.title}
+日期：${formatDate(booking.event.date, booking.event.timezone)}
+时间：${booking.event.time} ${getTimezoneAbbr(booking.event.timezone)}
+场地：${booking.event.venue}
+座位：${seatsStr}
+
+请提前30分钟到场出示此门票。
+
+祝您观演愉快！
+      `.trim());
+
+      reminderBtn.href = `mailto:${booking.customer.email}?subject=${subject}&body=${body}`;
+
+      modal.classList.add('active');
+    }
+
+    // ==================== MY BOOKINGS ====================
+    function renderBookings() {
+      const list = document.getElementById('bookingsList');
+
+      if (bookings.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <h3>暂无预订</h3>
+            <p>快去预订您感兴趣的活动吧！</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = bookings.map(booking => {
+        const seatsStr = booking.seats.map(s => `${s.section}区${s.row}排${s.number}号`).join(', ');
+
+        const subject = encodeURIComponent(`【活动提醒】${booking.event.title}`);
+        const body = encodeURIComponent(`
+您好 ${booking.customer.name}，
+
+您的预订详情：
+
+预订编号：${booking.ref}
+活动：${booking.event.title}
+日期：${formatDate(booking.event.date, booking.event.timezone)}
+时间：${booking.event.time} ${getTimezoneAbbr(booking.event.timezone)}
+场地：${booking.event.venue}
+座位：${seatsStr}
+
+请提前30分钟到场出示此门票。
+
+祝您观演愉快！
+        `.trim());
+
+        return `
+          <div class="booking-card">
+            <div class="booking-qr" id="bookingQR-${booking.id}"></div>
+            <div class="booking-info">
+              <h3>${booking.event.title}</h3>
+              <div class="booking-meta">
+                <span>📅 ${formatDate(booking.event.date, booking.event.timezone)}</span>
+                <span>🕐 ${booking.event.time} | 📍 ${booking.event.venue}</span>
+                <span>🎫 ${seatsStr}</span>
+                <span style="color: var(--accent);">¥${booking.total}</span>
+              </div>
+            </div>
+            <div class="booking-actions">
+              <a class="booking-btn email" href="mailto:${booking.customer.email}?subject=${subject}&body=${body}">发送提醒</a>
+              <button class="booking-btn cancel" onclick="cancelBooking(${booking.id})">取消预订</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Generate QR codes for each booking
+      bookings.forEach(booking => {
+        const seatsStr = booking.seats.map(s => `${s.section}区${s.row}排${s.number}号`).join(', ');
+        const qrData = JSON.stringify({
+          ref: booking.ref,
+          event: booking.event.title,
+          date: booking.event.date,
+          time: booking.event.time,
+          venue: booking.event.venue,
+          seats: seatsStr
+        });
+
+        const qrContainer = document.getElementById(`bookingQR-${booking.id}`);
+        if (qrContainer) {
+          new QRCode(qrContainer, {
+            text: qrData,
+            width: 100,
+            height: 100,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff'
+          });
+        }
+      });
+    }
+
+    function cancelBooking(bookingId) {
+      if (!confirm('确定要取消这个预订吗？')) return;
+
+      const bookingIdx = bookings.findIndex(b => b.id === bookingId);
+      if (bookingIdx === -1) return;
+
+      const booking = bookings[bookingIdx];
+
+      // Mark seats as available again
+      booking.seats.forEach(seat => {
+        const seatEl = document.querySelector(`[data-seat-id="${seat.id}"]`);
+        if (seatEl) {
+          seatEl.classList.remove('occupied');
+          seatEl.classList.add('available');
+        }
+      });
+
+      bookings.splice(bookingIdx, 1);
+      saveBookings();
+      renderBookings();
+      alert('预订已取消');
+    }
+
+    // ==================== ADMIN ====================
+    function renderAdmin() {
+      renderStats();
+      renderCategoryChart();
+      renderVenueChart();
+      renderRecentBookings();
+    }
+
+    function renderStats() {
+      const grid = document.getElementById('statsGrid');
+
+      const totalBookings = bookings.length;
+      const totalRevenue = bookings.reduce((sum, b) => sum + b.total, 0);
+
+      const eventBookingCounts = {};
+      bookings.forEach(b => {
+        eventBookingCounts[b.event.title] = (eventBookingCounts[b.event.title] || 0) + 1;
+      });
+      const popularEvent = Object.entries(eventBookingCounts).sort((a, b) => b[1] - a[1])[0];
+
+      const totalSeats = bookings.reduce((sum, b) => sum + b.seats.length, 0);
+      const avgOccupancy = bookings.length > 0 ? Math.round(totalSeats / bookings.length) : 0;
+
+      grid.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">总预订数</div>
+          <div class="stat-value">${totalBookings}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">总收入</div>
+          <div class="stat-value">¥${totalRevenue.toLocaleString()}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">热门活动</div>
+          <div class="stat-value" style="font-size: 1rem;">${popularEvent ? popularEvent[0] : '暂无'}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">平均预订</div>
+          <div class="stat-value">${avgOccupancy}</div>
+          <div class="stat-change">座位/订单</div>
+        </div>
+      `;
+    }
+
+    function renderCategoryChart() {
+      const chart = document.getElementById('categoryChart');
+
+      const categoryData = {};
+      bookings.forEach(b => {
+        categoryData[b.event.category] = (categoryData[b.event.category] || 0) + 1;
+      });
+
+      const maxCount = Math.max(...Object.values(categoryData), 1);
+      const colors = {
+        '音乐会': '#6366f1',
+        '戏剧': '#8b5cf6',
+        '体育': '#10b981',
+        '展览': '#f59e0b',
+        '喜剧': '#ef4444'
+      };
+
+      if (Object.keys(categoryData).length === 0) {
+        chart.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">暂无数据</p>';
+        return;
+      }
+
+      chart.innerHTML = Object.entries(categoryData)
+        .sort((a, b) => b[1] - a[1])
+        .map(([category, count]) => `
+          <div class="bar-item">
+            <div class="bar-label">${category}</div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: ${(count / maxCount) * 100}%; background: ${colors[category] || '#6366f1'};"></div>
+            </div>
+            <div class="bar-value">${count}</div>
+          </div>
+        `).join('');
+    }
+
+    function renderVenueChart() {
+      const chart = document.getElementById('venueChart');
+
+      const venueData = {};
+      bookings.forEach(b => {
+        venueData[b.event.venue] = (venueData[b.event.venue] || 0) + b.total;
+      });
+
+      const maxRevenue = Math.max(...Object.values(venueData), 1);
+
+      if (Object.keys(venueData).length === 0) {
+        chart.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">暂无数据</p>';
+        return;
+      }
+
+      chart.innerHTML = Object.entries(venueData)
+        .sort((a, b) => b[1] - a[1])
+        .map(([venue, revenue]) => `
+          <div class="bar-item">
+            <div class="bar-label">${venue.slice(0, 6)}</div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: ${(revenue / maxRevenue) * 100}%; background: linear-gradient(90deg, var(--primary), var(--secondary));"></div>
+            </div>
+            <div class="bar-value">¥${revenue.toLocaleString()}</div>
+          </div>
+        `).join('');
+    }
+
+    function renderRecentBookings() {
+      const table = document.getElementById('recentBookingsTable');
+
+      const recentBookings = [...bookings]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10);
+
+      if (recentBookings.length === 0) {
+        table.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">暂无预订记录</td></tr>';
+        return;
+      }
+
+      table.innerHTML = recentBookings.map(b => {
+        const seatsStr = b.seats.map(s => `${s.section}${s.row}排`).join(', ');
+        return `
+          <tr>
+            <td style="font-family: monospace; color: var(--accent);">${b.ref}</td>
+            <td>${b.event.title}</td>
+            <td>${b.customer.name}</td>
+            <td>${seatsStr}</td>
+            <td style="color: var(--success);">¥${b.total}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ==================== NAVIGATION ====================
+    function switchView(view) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+      if (view === 'eventDetail') {
+        document.getElementById('eventDetailView').classList.add('active');
+        document.getElementById('filtersSidebar').style.display = 'none';
+      } else {
+        document.getElementById(`${view}View`).classList.add('active');
+        document.querySelector(`[data-view="${view}"]`).classList.add('active');
+        document.getElementById('filtersSidebar').style.display = '';
+
+        if (view === 'events') renderEvents();
+        if (view === 'bookings') renderBookings();
+        if (view === 'admin') renderAdmin();
+      }
+
+      currentView = view;
+    }
+
+    // ==================== FILTERS ====================
+    function applyFilters() {
+      filters.dateStart = document.getElementById('filterDateStart').value;
+      filters.dateEnd = document.getElementById('filterDateEnd').value;
+      filters.venue = document.getElementById('filterVenue').value;
+      filters.category = document.getElementById('filterCategory').value;
+      renderEvents();
+    }
+
+    function clearFilters() {
+      document.getElementById('filterDateStart').value = '';
+      document.getElementById('filterDateEnd').value = '';
+      document.getElementById('filterVenue').value = '';
+      document.getElementById('filterCategory').value = '';
+      filters = { dateStart: '', dateEnd: '', venue: '', category: '' };
+      renderEvents();
+    }
+
+    // ==================== INITIALIZATION ====================
+    function init() {
+      // Render calendar
+      renderCalendar();
+      renderEvents();
+
+      // Navigation
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const view = btn.dataset.view;
+          if (view !== 'eventDetail') {
+            switchView(view);
+          }
+        });
+      });
+
+      // Calendar navigation
+      document.getElementById('prevMonth').addEventListener('click', () => {
+        currentMonth.setMonth(currentMonth.getMonth() - 1);
+        renderCalendar();
+        renderEvents();
+      });
+
+      document.getElementById('nextMonth').addEventListener('click', () => {
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+        renderCalendar();
+        renderEvents();
+      });
+
+      // Back button
+      document.getElementById('backToEvents').addEventListener('click', () => {
+        switchView('events');
+      });
+
+      // Filters
+      document.getElementById('filterDateStart').addEventListener('change', applyFilters);
+      document.getElementById('filterDateEnd').addEventListener('change', applyFilters);
+      document.getElementById('filterVenue').addEventListener('change', applyFilters);
+      document.getElementById('filterCategory').addEventListener('change', applyFilters);
+      document.getElementById('clearFilters').addEventListener('click', clearFilters);
+
+      // Modal
+      document.getElementById('closeTicketModal').addEventListener('click', () => {
+        document.getElementById('ticketModal').classList.remove('active');
+        // Reset form and go back to events
+        document.getElementById('bookingForm').reset();
+        selectedSeats = [];
+        switchView('events');
+      });
+
+      document.getElementById('closeTicket').addEventListener('click', () => {
+        document.getElementById('ticketModal').classList.remove('active');
+        document.getElementById('bookingForm').reset();
+        selectedSeats = [];
+        switchView('events');
+      });
+
+      document.getElementById('ticketModal').addEventListener('click', (e) => {
+        if (e.target.id === 'ticketModal') {
+          document.getElementById('ticketModal').classList.remove('active');
+        }
+      });
+
+      // Timezone
+      document.getElementById('timezoneSelect').addEventListener('change', (e) => {
+        userTimezone = e.target.value;
+        renderCalendar();
+        renderEvents();
+      });
+    }
+
+    // Start
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
