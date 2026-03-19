@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交互式通知系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 40px;
+        }
+
+        .demo-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .demo-btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .demo-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .demo-btn.success {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: #fff;
+        }
+
+        .demo-btn.error {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: #fff;
+        }
+
+        .demo-btn.warning {
+            background: linear-gradient(135deg, #fdcb6e, #f39c12);
+            color: #2d3436;
+        }
+
+        .demo-btn.info {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: #fff;
+        }
+
+        /* Notification Container */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 12px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        /* Individual Notification */
+        .notification {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px 20px;
+            min-width: 320px;
+            max-width: 400px;
+            background: rgba(30, 30, 50, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4),
+                        0 0 0 1px rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            pointer-events: auto;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity 0.4s ease,
+                        box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .notification::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+        }
+
+        .notification.success::before { background: linear-gradient(180deg, #00b894, #00cec9); }
+        .notification.error::before { background: linear-gradient(180deg, #ff6b6b, #ee5a24); }
+        .notification.warning::before { background: linear-gradient(180deg, #fdcb6e, #f39c12); }
+        .notification.info::before { background: linear-gradient(180deg, #74b9ff, #0984e3); }
+
+        .notification:hover {
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5),
+                        0 0 0 1px rgba(255, 255, 255, 0.15);
+        }
+
+        .notification.entering {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .notification.exiting {
+            transform: translateX(120%);
+            opacity: 0;
+        }
+
+        .notification-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .notification.success .notification-icon { background: rgba(0, 184, 148, 0.2); }
+        .notification.error .notification-icon { background: rgba(255, 107, 107, 0.2); }
+        .notification.warning .notification-icon { background: rgba(253, 203, 110, 0.2); }
+        .notification.info .notification-icon { background: rgba(116, 185, 255, 0.2); }
+
+        .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notification-title {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .notification-message {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .notification-close {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 20px;
+            font-weight: 300;
+            transition: color 0.2s ease;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .notification:hover .notification-close {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Progress bar */
+        .notification-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            width: 100%;
+            transform-origin: left;
+        }
+
+        .notification.success .notification-progress { background: #00b894; }
+        .notification.error .notification-progress { background: #ff6b6b; }
+        .notification.warning .notification-progress { background: #f39c12; }
+        .notification.info .notification-progress { background: #74b9ff; }
+
+        /* Priority badge */
+        .notification-priority {
+            position: absolute;
+            top: 10px;
+            right: 40px;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .notification.high .notification-priority {
+            background: rgba(255, 107, 107, 0.3);
+            color: #ff6b6b;
+        }
+
+        .notification.medium .notification-priority {
+            background: rgba(253, 203, 110, 0.3);
+            color: #fdcb6e;
+        }
+
+        .notification.low .notification-priority {
+            background: rgba(116, 185, 255, 0.3);
+            color: #74b9ff;
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+
+        @keyframes progressShrink {
+            from { transform: scaleX(1); }
+            to { transform: scaleX(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .notification.high .notification-icon {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>通知系统演示</h1>
+        <div class="button-grid">
+            <button class="demo-btn success" onclick="showNotification('success', '操作成功', '您的文件已成功保存到云端', 'medium')">
+                成功通知
+            </button>
+            <button class="demo-btn error" onclick="showNotification('error', '连接失败', '无法连接到服务器，请检查网络设置', 'high')">
+                错误通知
+            </button>
+            <button class="demo-btn warning" onclick="showNotification('warning', '存储空间不足', '磁盘剩余空间不足 500MB，建议清理', 'medium')">
+                警告通知
+            </button>
+            <button class="demo-btn info" onclick="showNotification('info', '系统更新', '新版本 v2.1.0 现已可用', 'low')">
+                信息通知
+            </button>
+        </div>
+    </div>
+
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <script>
+        class NotificationSystem {
+            constructor() {
+                this.container = document.getElementById('notificationContainer');
+                this.notifications = [];
+                this.maxVisible = 5;
+
+                // Duration based on priority (milliseconds)
+                this.durations = {
+                    high: 8000,
+                    medium: 5000,
+                    low: 3000
+                };
+
+                this.icons = {
+                    success: '✓',
+                    error: '✕',
+                    warning: '⚠',
+                    info: 'ℹ'
+                };
+            }
+
+            show(type, title, message, priority = 'medium') {
+                const notification = this.createNotification(type, title, message, priority);
+                this.notifications.push(notification);
+                this.container.appendChild(notification.element);
+                this.updatePositions();
+
+                // Trigger enter animation
+                requestAnimationFrame(() => {
+                    notification.element.classList.add('entering');
+                });
+
+                // Start progress bar
+                this.startProgress(notification);
+
+                // Auto remove after duration
+                notification.timeout = setTimeout(() => {
+                    this.remove(notification);
+                }, this.durations[priority]);
+            }
+
+            createNotification(type, title, message, priority) {
+                const element = document.createElement('div');
+                element.className = `notification ${type} ${priority}`;
+                element.innerHTML = `
+                    <div class="notification-icon">${this.icons[type]}</div>
+                    <div class="notification-content">
+                        <div class="notification-title">${title}</div>
+                        <div class="notification-message">${message}</div>
+                    </div>
+                    <span class="notification-close">×</span>
+                    <span class="notification-priority">${priority}</span>
+                    <div class="notification-progress"></div>
+                `;
+
+                const notification = {
+                    element,
+                    type,
+                    title,
+                    message,
+                    priority,
+                    timeout: null,
+                    progressTimeout: null,
+                    startTime: null
+                };
+
+                // Click to close
+                element.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('notification-close')) {
+                        this.remove(notification);
+                    }
+                });
+
+                // Close button
+                element.querySelector('.notification-close').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.remove(notification);
+                });
+
+                return notification;
+            }
+
+            startProgress(notification) {
+                const progress = notification.element.querySelector('.notification-progress');
+                const duration = this.durations[notification.priority];
+
+                requestAnimationFrame(() => {
+                    progress.style.animation = `progressShrink ${duration}ms linear forwards`;
+                });
+            }
+
+            remove(notification) {
+                if (notification.timeout) {
+                    clearTimeout(notification.timeout);
+                }
+
+                notification.element.classList.remove('entering');
+                notification.element.classList.add('exiting');
+
+                setTimeout(() => {
+                    if (notification.element.parentNode) {
+                        notification.element.parentNode.removeChild(notification.element);
+                    }
+                    this.notifications = this.notifications.filter(n => n !== notification);
+                    this.updatePositions();
+                }, 500);
+            }
+
+            updatePositions() {
+                this.notifications.forEach((notification, index) => {
+                    const offset = index * 72;
+                    notification.element.style.transform = `translateY(-${offset}px)`;
+                });
+            }
+        }
+
+        // Initialize notification system
+        const notificationSystem = new NotificationSystem();
+
+        // Global function for demo
+        function showNotification(type, title, message, priority = 'medium') {
+            notificationSystem.show(type, title, message, priority);
+        }
+
+        // Demo: Show initial notifications after page load
+        setTimeout(() => {
+            showNotification('info', '欢迎回来', '通知系统已准备就绪，点击任意通知可关闭', 'low');
+        }, 500);
+
+        setTimeout(() => {
+            showNotification('success', '同步完成', '所有数据已成功同步到云端服务器', 'medium');
+        }, 1500);
+    </script>
+</body>
+</html>
