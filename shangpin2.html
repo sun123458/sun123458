@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>商品详情页</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: #f5f5f5;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* 整体布局 */
+.detail-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+  display: flex;
+  gap: 40px;
+}
+
+/* ====== 左侧：图片轮播 ====== */
+.gallery {
+  width: 480px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
+  align-self: flex-start;
+}
+
+.main-image {
+  width: 480px;
+  height: 480px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+
+.main-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity .3s;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,.85);
+  color: #333;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  transition: background .2s, transform .2s;
+  z-index: 2;
+}
+.carousel-btn:hover { background: #fff; transform: translateY(-50%) scale(1.08); }
+.carousel-btn.prev { left: 12px; }
+.carousel-btn.next { right: 12px; }
+
+.indicators {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 0;
+}
+.indicators span {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #ddd;
+  cursor: pointer;
+  transition: all .25s;
+}
+.indicators span.active {
+  background: #e4393c;
+  width: 22px;
+  border-radius: 4px;
+}
+
+.thumbnails {
+  display: flex;
+  gap: 8px;
+}
+.thumbnails .thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color .2s;
+  flex-shrink: 0;
+}
+.thumbnails .thumb.active { border-color: #e4393c; }
+.thumbnails .thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+/* ====== 右侧：商品信息 ====== */
+.product-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 价格区域 */
+.price-section {
+  background: linear-gradient(135deg, #e4393c, #ff6034);
+  border-radius: 12px 12px 0 0;
+  padding: 20px 24px;
+  color: #fff;
+}
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.price-symbol { font-size: 18px; }
+.price-value { font-size: 36px; font-weight: 700; }
+.price-decimal { font-size: 20px; }
+.price-original {
+  font-size: 14px;
+  text-decoration: line-through;
+  opacity: .7;
+  margin-left: 4px;
+}
+.price-tag {
+  display: inline-block;
+  background: rgba(255,255,255,.25);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+/* 标题 */
+.product-title {
+  background: #fff;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.product-title h1 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #222;
+}
+.product-title .sub-info {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #999;
+}
+
+/* 信息行 */
+.info-block {
+  background: #fff;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.info-block .label {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 10px;
+}
+
+/* ====== 规格选择 ====== */
+.spec-group { margin-bottom: 16px; }
+.spec-group:last-child { margin-bottom: 0; }
+.spec-group-label { font-size: 13px; color: #999; margin-bottom: 8px; }
+.spec-group-label .selected-val { color: #e4393c; }
+.spec-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.spec-option {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s;
+  background: #fafafa;
+  user-select: none;
+  position: relative;
+}
+.spec-option:hover { border-color: #e4393c; color: #e4393c; }
+.spec-option.active {
+  border-color: #e4393c;
+  color: #e4393c;
+  background: #fff5f5;
+  font-weight: 500;
+}
+.spec-option.disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  background: #f9f9f9;
+  border-color: #f0f0f0;
+}
+.spec-option.disabled:hover { border-color: #f0f0f0; color: #ccc; }
+
+/* 规格颜色特殊样式 - 带色块 */
+.spec-color-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-right: 6px;
+  border: 1px solid rgba(0,0,0,.1);
+  vertical-align: middle;
+}
+
+/* ====== 数量选择器 ====== */
+.quantity-section {
+  background: #fff;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.quantity-section .label {
+  font-size: 13px;
+  color: #999;
+  flex-shrink: 0;
+}
+.quantity-ctrl {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.quantity-ctrl button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f7f7f7;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  transition: background .15s;
+}
+.quantity-ctrl button:hover:not(:disabled) { background: #eee; }
+.quantity-ctrl button:disabled { color: #ccc; cursor: not-allowed; }
+.quantity-ctrl input {
+  width: 48px;
+  height: 32px;
+  border: none;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  text-align: center;
+  font-size: 14px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.quantity-ctrl input::-webkit-outer-spin-button,
+.quantity-ctrl input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+.stock-info {
+  font-size: 12px;
+  color: #999;
+}
+
+/* ====== 服务保障 ====== */
+.service-section {
+  background: #fff;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.service-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.service-item {
+  font-size: 12px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.service-item .icon { color: #e4393c; font-size: 14px; }
+
+/* ====== 底部操作栏 ====== */
+.actions {
+  background: #fff;
+  padding: 20px 24px;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: -1px;
+}
+.btn-cart, .btn-buy, .btn-fav {
+  height: 48px;
+  border: none;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+}
+.btn-cart {
+  background: #ff9f0a;
+  color: #fff;
+}
+.btn-cart:hover { background: #e8910a; }
+.btn-buy {
+  background: #e4393c;
+  color: #fff;
+}
+.btn-buy:hover { background: #d42d30; }
+.btn-fav {
+  background: none;
+  border: 2px solid #ddd !important;
+  color: #666;
+  width: 48px;
+  flex: none;
+  font-size: 20px;
+}
+.btn-fav:hover { border-color: #e4393c; color: #e4393c; }
+.btn-fav.liked { color: #e4393c; border-color: #e4393c; }
+
+/* 加入购物车成功提示 */
+.toast {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(0,0,0,.75);
+  color: #fff;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 100;
+  opacity: 0;
+  transition: all .35s;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 响应式 */
+@media (max-width: 960px) {
+  .detail-page {
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    gap: 20px;
+  }
+  .gallery {
+    width: 100%;
+    max-width: 480px;
+    position: static;
+  }
+  .main-image { width: 100%; height: auto; aspect-ratio: 1; }
+  .product-info { width: 100%; max-width: 600px; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
+
+/* ============ 商品数据 ============ */
+const PRODUCT = {
+  title: "Apple iPhone 16 Pro Max 256GB 原色钛金属 5G全网通手机",
+  comment: "10万+条评价  好评率98%",
+  images: [
+    "https://picsum.photos/seed/phone1/600/600",
+    "https://picsum.photos/seed/phone2/600/600",
+    "https://picsum.photos/seed/phone3/600/600",
+    "https://picsum.photos/seed/phone4/600/600",
+    "https://picsum.photos/seed/phone5/600/600",
+  ],
+  specs: [
+    {
+      name: "颜色",
+      options: [
+        { label: "原色钛金属", color: "#b8a99a" },
+        { label: "黑色钛金属", color: "#3a3a3a" },
+        { label: "白色钛金属", color: "#f0ece6" },
+        { label: "沙漠色钛金属", color: "#c4a882" },
+      ],
+    },
+    {
+      name: "存储",
+      options: [
+        { label: "128GB", priceAddon: 0 },
+        { label: "256GB", priceAddon: 1000 },
+        { label: "512GB", priceAddon: 3000 },
+        { label: "1TB",   priceAddon: 6000 },
+      ],
+    },
+  ],
+  basePrice: 7999,
+  originalPrice: 8999,
+  stock: 856,
+};
+
+/* 工具：根据规格组合获取价格增额 */
+function getPriceAddon(specs, selections) {
+  let addon = 0;
+  if (!selections) return addon;
+  specs.forEach((group, gi) => {
+    const selIdx = selections[gi];
+    if (selIdx == null) return;
+    const opt = group.options[selIdx];
+    if (opt && opt.priceAddon) addon += opt.priceAddon;
+  });
+  return addon;
+}
+
+/* ============ 图片轮播组件 ============ */
+function ImageCarousel({ images }) {
+  const [current, setCurrent] = useState(0);
+  const timerRef = useRef(null);
+
+  const len = images.length;
+  const goTo = useCallback((idx) => {
+    setCurrent((idx + len) % len);
+  }, [len]);
+
+  // 自动轮播
+  useEffect(() => {
+    timerRef.current = setInterval(() => setCurrent((c) => (c + 1) % len), 3500);
+    return () => clearInterval(timerRef.current);
+  }, [len]);
+
+  // 鼠标进入暂停
+  const pause = () => clearInterval(timerRef.current);
+  const resume = () => {
+    timerRef.current = setInterval(() => setCurrent((c) => (c + 1) % len), 3500);
+  };
+
+  return (
+    <div className="gallery">
+      <div className="main-image"
+        onMouseEnter={pause}
+        onMouseLeave={resume}>
+        <img src={images[current]} alt={`商品图 ${current + 1}`} />
+        <button className="carousel-btn prev" onClick={() => goTo(current - 1)}>&#8249;</button>
+        <button className="carousel-btn next" onClick={() => goTo(current + 1)}>&#8250;</button>
+      </div>
+      <div className="indicators">
+        {images.map((_, i) => (
+          <span key={i} className={i === current ? "active" : ""} onClick={() => goTo(i)} />
+        ))}
+      </div>
+      <div className="thumbnails">
+        {images.map((src, i) => (
+          <div key={i} className={"thumb" + (i === current ? " active" : "")} onClick={() => goTo(i)}>
+            <img src={src} alt={`缩略图 ${i + 1}`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============ 规格选择组件 ============ */
+function SpecSelector({ specs, selections, onSelect }) {
+  return specs.map((group, gi) => {
+    const selectedIdx = selections[gi];
+    const selectedLabel = selectedIdx != null ? group.options[selectedIdx].label : "";
+    return (
+      <div key={gi} className="spec-group">
+        <div className="spec-group-label">
+          {group.name}
+          {selectedLabel && (
+            <span className="selected-val">：已选 {selectedLabel}</span>
+          )}
+        </div>
+        <div className="spec-options">
+          {group.options.map((opt, oi) => (
+            <div
+              key={oi}
+              className={
+                "spec-option" +
+                (selectedIdx === oi ? " active" : "") +
+                (opt.disabled ? " disabled" : "")
+              }
+              onClick={() => !opt.disabled && onSelect(gi, oi)}
+            >
+              {opt.color && <span className="spec-color-dot" style={{ background: opt.color }} />}
+              {opt.label}
+              {opt.priceAddon != null && opt.priceAddon > 0 && (
+                <span style={{ marginLeft: 4, fontSize: 12, color: "#e4393c" }}>
+                  +{opt.priceAddon}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  });
+}
+
+/* ============ 数量选择器 ============ */
+function QuantitySelector({ quantity, min, max, onChange }) {
+  const [inputVal, setInputVal] = useState(quantity);
+
+  useEffect(() => { setInputVal(quantity); }, [quantity]);
+
+  const handleInput = (e) => {
+    const v = e.target.value.replace(/\D/g, "");
+    setInputVal(v);
+  };
+
+  const commit = () => {
+    let n = parseInt(inputVal, 10) || 1;
+    n = Math.max(min, Math.min(max, n));
+    setInputVal(n);
+    onChange(n);
+  };
+
+  const dec = () => onChange(Math.max(min, quantity - 1));
+  const inc = () => onChange(Math.min(max, quantity + 1));
+
+  return (
+    <div className="quantity-ctrl">
+      <button onClick={dec} disabled={quantity <= min}>-</button>
+      <input value={inputVal} onChange={handleInput} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && commit()} />
+      <button onClick={inc} disabled={quantity >= max}>+</button>
+    </div>
+  );
+}
+
+/* ============ Toast 提示 ============ */
+function Toast({ message, visible }) {
+  return <div className={"toast" + (visible ? " show" : "")}>{message}</div>;
+}
+
+/* ============ 主页面 ============ */
+function ProductDetail() {
+  const [selections, setSelections] = useState({});
+  const [quantity, setQuantity] = useState(1);
+  const [liked, setLiked] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 2000);
+  };
+
+  const handleSelectSpec = (groupIdx, optIdx) => {
+    setSelections((prev) => ({ ...prev, [groupIdx]: optIdx }));
+  };
+
+  // 实时计算价格
+  const priceAddon = useMemo(() => getPriceAddon(PRODUCT.specs, selections), [selections]);
+  const unitPrice = PRODUCT.basePrice + priceAddon;
+  const totalPrice = (unitPrice * quantity).toFixed(2);
+  const unitStr = unitPrice.toLocaleString("zh-CN");
+
+  // 判断规格是否已全部选择
+  const allSpecsSelected = PRODUCT.specs.every((_, gi) => selections[gi] != null);
+
+  const desc = allSpecsSelected
+    ? PRODUCT.specs.map((g, gi) => g.options[selections[gi]].label).join(" / ") +
+      (quantity > 1 ? ` × ${quantity}` : "")
+    : "请选择规格";
+
+  const handleAddCart = () => {
+    if (!allSpecsSelected) { showToast("请先选择商品规格"); return; }
+    showToast(`已加入购物车：${desc}，合计 ¥${totalPrice}`);
+  };
+
+  const handleBuy = () => {
+    if (!allSpecsSelected) { showToast("请先选择商品规格"); return; }
+    showToast(`即将结算：${desc}，合计 ¥${totalPrice}`);
+  };
+
+  return (
+    <div className="detail-page">
+      <ImageCarousel images={PRODUCT.images} />
+
+      <div className="product-info">
+        {/* 价格 */}
+        <div className="price-section">
+          <div className="price-row">
+            <span className="price-symbol">¥</span>
+            <span className="price-value">{unitStr.split(".")[0]}</span>
+            {unitStr.includes(".") && <span className="price-decimal">.{unitStr.split(".")[1]}</span>}
+            <span className="price-original">¥{PRODUCT.originalPrice.toLocaleString("zh-CN")}</span>
+            <span className="price-tag">限时优惠</span>
+          </div>
+          {quantity > 1 && (
+            <div style={{ marginTop: 8, fontSize: 14, opacity: .9 }}>
+              小计：<span style={{ fontSize: 20, fontWeight: 600 }}>¥{Number(totalPrice).toLocaleString("zh-CN")}</span>
+            </div>
+          )}
+        </div>
+
+        {/* 标题 */}
+        <div className="product-title">
+          <h1>{PRODUCT.title}</h1>
+          <div className="sub-info">{PRODUCT.comment}</div>
+        </div>
+
+        {/* 规格选择 */}
+        <div className="info-block">
+          <div className="label">选择规格</div>
+          <SpecSelector specs={PRODUCT.specs} selections={selections} onSelect={handleSelectSpec} />
+        </div>
+
+        {/* 数量 */}
+        <div className="quantity-section">
+          <span className="label">数量</span>
+          <QuantitySelector
+            quantity={quantity}
+            min={1}
+            max={PRODUCT.stock}
+            onChange={setQuantity}
+          />
+          <span className="stock-info">库存 {PRODUCT.stock} 件</span>
+        </div>
+
+        {/* 服务 */}
+        <div className="service-section">
+          <div className="service-list">
+            {[["✓", "正品保障"], ["✓", "7天无理由退换"], ["✓", "顺丰包邮"], ["✓", "闪电发货"]].map(([icon, text], i) => (
+              <div key={i} className="service-item">
+                <span className="icon">{icon}</span> {text}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 已选摘要 */}
+        <div className="info-block">
+          <span className="label">已选：</span>
+          <span style={{ fontSize: 13 }}>{desc}</span>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="actions">
+          <button className={"btn-fav" + (liked ? " liked" : "")} onClick={() => setLiked(!liked)}>
+            ♡
+          </button>
+          <button className="btn-cart" onClick={handleAddCart}>加入购物车</button>
+          <button className="btn-buy" onClick={handleBuy}>立即购买</button>
+        </div>
+      </div>
+
+      <Toast message={toastMsg} visible={toastVisible} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<ProductDetail />);
+</script>
+</body>
+</html>
