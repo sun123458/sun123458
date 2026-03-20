@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>3D 虚拟试衣间</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- 加载指示器 -->
+  <div id="loader">
+    <div class="spinner"></div>
+    <p>加载中...</p>
+  </div>
+
+  <!-- 顶部标题栏 -->
+  <header id="header">
+    <h1>3D 虚拟试衣间</h1>
+    <span id="current-clothing">T恤</span>
+  </header>
+
+  <!-- 3D Canvas 容器 -->
+  <div id="canvas-container"></div>
+
+  <!-- 底部服装选择栏 -->
+  <nav id="clothing-nav">
+    <button class="clothing-btn active" data-clothing="0">
+      <span class="btn-icon">👕</span>
+      <span class="btn-label">T恤</span>
+    </button>
+    <button class="clothing-btn" data-clothing="1">
+      <span class="btn-icon">👗</span>
+      <span class="btn-label">连衣裙</span>
+    </button>
+    <button class="clothing-btn" data-clothing="2">
+      <span class="btn-icon">🧥</span>
+      <span class="btn-label">风衣</span>
+    </button>
+    <button class="clothing-btn" data-clothing="3">
+      <span class="btn-icon">👖</span>
+      <span class="btn-label">裤子</span>
+    </button>
+    <button class="clothing-btn" data-clothing="4">
+      <span class="btn-icon">🧢</span>
+      <span class="btn-label">卫衣</span>
+    </button>
+  </nav>
+
+  <!-- 操作提示 -->
+  <div id="tips">
+    <span>鼠标拖拽旋转 · 滚轮缩放 · 移动端支持陀螺仪</span>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
