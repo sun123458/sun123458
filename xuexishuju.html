@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学习数据统计仪表盘</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a' },
+            accent: { 400:'#a78bfa',500:'#8b5cf6',600:'#7c3aed' },
+            success: { 400:'#4ade80',500:'#22c55e' },
+            warning: { 400:'#facc15',500:'#eab308' },
+            danger: { 400:'#f87171',500:'#ef4444' },
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-out forwards',
+            'slide-up': 'slideUp 0.6s ease-out forwards',
+            'slide-in': 'slideIn 0.4s ease-out forwards',
+            'shimmer': 'shimmer 1.5s infinite',
+            'pulse-ring': 'pulseRing 1.2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite',
+            'spin-slow': 'spin 1.5s linear infinite',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+            slideIn: { '0%': { opacity: '0', transform: 'translateX(-10px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
+            shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+            pulseRing: { '0%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(59,130,246,0.4)' }, '70%': { transform: 'scale(1)', boxShadow: '0 0 0 15px rgba(59,130,246,0)' }, '100%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(59,130,246,0)' } },
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+
+    /* 骨架屏样式 */
+    .skeleton {
+      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+    .dark .skeleton {
+      background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+    /* 图表容器 */
+    .chart-container { position: relative; width: 100%; height: 280px; }
+
+    /* 环形进度条 */
+    .ring-progress {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ring-progress svg { transform: rotate(-90deg); }
+    .ring-progress text {
+      font-size: 28px;
+      font-weight: 700;
+      fill: currentColor;
+      dominant-baseline: central;
+    }
+
+    /* 卡片悬停效果 */
+    .stat-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+    }
+    .dark .stat-card:hover {
+      box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
+    }
+
+    /* 图表卡片 */
+    .chart-card {
+      transition: all 0.3s ease;
+    }
+    .chart-card:hover {
+      box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.1);
+    }
+    .dark .chart-card:hover {
+      box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 加载遮罩 */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+    }
+    .dark .loading-overlay {
+      background: rgba(15,23,42,0.85);
+    }
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 趋势指示器 */
+    .trend-up { color: #22c55e; }
+    .trend-down { color: #ef4444; }
+
+    /* 日期选择器样式 */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.3);
+      cursor: pointer;
+    }
+    .dark input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.7);
+    }
+
+    /* 数据表格 */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th, .data-table td {
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+    }
+    .dark .data-table th, .dark .data-table td {
+      border-bottom-color: #374151;
+    }
+
+    /* 提示工具 */
+    .tooltip-custom {
+      position: relative;
+      cursor: pointer;
+    }
+    .tooltip-custom::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 120%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 12px;
+      background: #1e293b;
+      color: white;
+      font-size: 12px;
+      border-radius: 6px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      z-index: 100;
+    }
+    .tooltip-custom:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* 渐变背景 */
+    .gradient-text {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .chart-container { height: 220px; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
+
+  <!-- 加载遮罩 -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="text-center">
+      <div class="loading-spinner mx-auto mb-4"></div>
+      <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">正在加载数据...</p>
+    </div>
+  </div>
+
+  <!-- 主容器 -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" id="mainContent" style="opacity:0;">
+
+    <!-- 顶部导航栏 -->
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4" style="animation-delay:0.1s">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold gradient-text">学习数据统计仪表盘</h1>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1" id="dateRangeLabel">2026年3月1日 - 2026年3月20日</p>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl px-3 py-2 shadow-sm border border-gray-100 dark:border-slate-700">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <input type="date" id="startDate" class="bg-transparent text-sm text-gray-700 dark:text-gray-300 outline-none cursor-pointer w-32" />
+          <span class="text-gray-400 text-xs">至</span>
+          <input type="date" id="endDate" class="bg-transparent text-sm text-gray-700 dark:text-gray-300 outline-none cursor-pointer w-32" />
+        </div>
+        <button id="exportBtn" class="flex items-center gap-2 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-4 py-2.5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all text-sm font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          导出报表
+        </button>
+        <button id="themeToggle" class="p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
+          <svg id="sunIcon" class="w-5 h-5 text-yellow-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <svg id="moonIcon" class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 统计卡片 -->
+    <div id="statsSection" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" style="animation:slideUp 0.6s ease-out forwards; animation-delay:0.2s; opacity:0;">
+      <!-- 卡片由JS渲染 -->
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <!-- 折线图 - 每日学习时长 -->
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700 chart-card" style="animation:slideIn 0.5s ease-out forwards; animation-delay:0.35s; opacity:0;">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-primary-500"></span>
+            每日学习时长趋势
+          </h3>
+          <span class="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded-lg">单位: 小时</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 柱状图 - 任务完成率 -->
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700 chart-card" style="animation:slideIn 0.5s ease-out forwards; animation-delay:0.45s; opacity:0;">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-accent-500"></span>
+            每日任务完成率
+          </h3>
+          <span class="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded-lg">单位: %</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <!-- 饼图 - 科目分布 -->
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700 chart-card" style="animation:slideIn 0.5s ease-out forwards; animation-delay:0.55s; opacity:0;">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-success-500"></span>
+            科目学习分布
+          </h3>
+        </div>
+        <div class="chart-container">
+          <canvas id="pieChart"></canvas>
+        </div>
+        <div id="pieLegend" class="flex flex-wrap justify-center gap-3 mt-3 text-xs"></div>
+      </div>
+
+      <!-- 环形进度条 - 连续打卡 -->
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700 chart-card lg:col-span-2" style="animation:slideIn 0.5s ease-out forwards; animation-delay:0.65s; opacity:0;">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-warning-400"></span>
+            连续打卡记录
+          </h3>
+        </div>
+        <div class="flex flex-col md:flex-row items-center gap-6 mt-4">
+          <div class="ring-progress">
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              <circle cx="80" cy="80" r="70" fill="none" stroke="#e5e7eb" stroke-width="12" class="dark:stroke-slate-600"/>
+              <circle id="ringProgress" cx="80" cy="80" r="70" fill="none" stroke="url(#ringGradient)" stroke-width="12" stroke-linecap="round" stroke-dasharray="439.6" stroke-dashoffset="439.6" style="transition: stroke-dashoffset 1.5s ease-out"/>
+              <defs>
+                <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#3b82f6"/>
+                  <stop offset="50%" style="stop-color:#8b5cf6"/>
+                  <stop offset="100%" style="stop-color:#ec4899"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span id="streakCount" class="text-3xl font-bold text-gray-800 dark:text-white">0</span>
+              <span class="text-xs text-gray-400 dark:text-gray-500">天连续</span>
+            </div>
+          </div>
+          <div class="flex-1 grid grid-cols-7 gap-2 w-full" id="checkinGrid">
+            <!-- 打卡格子由JS渲染 -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据明细表格 -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700" style="animation:slideIn 0.5s ease-out forwards; animation-delay:0.75s; opacity:0;">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-danger-400"></span>
+          学习明细数据
+        </h3>
+        <div class="flex items-center gap-2">
+          <input type="text" id="tableSearch" placeholder="搜索科目..." class="bg-gray-50 dark:bg-slate-700 text-sm text-gray-700 dark:text-gray-300 outline-none px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-600" />
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table">
+          <thead>
+            <tr class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+              <th class="font-medium">日期</th>
+              <th class="font-medium">学习时长</th>
+              <th class="font-medium">完成任务</th>
+              <th class="font-medium">完成率</th>
+              <th class="font-medium">主要科目</th>
+              <th class="font-medium">状态</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- 由JS渲染 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+// ==================== 数据集 ====================
+const subjects = ['数学', '英语', '编程', '物理', '化学', '历史'];
+const subjectColors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444'];
+
+function generateData(startDays, endDays) {
+  const data = [];
+  const now = new Date();
+  for (let i = endDays; i >= startDays; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const hours = Math.round((Math.random() * 4 + 1) * 10) / 10;
+    const tasks = Math.floor(Math.random() * 12 + 4);
+    const completed = Math.floor(Math.random() * tasks * 0.9 + tasks * 0.05);
+    const subject = subjects[Math.floor(Math.random() * subjects.length)];
+    data.push({
+      date: d,
+      hours,
+      tasks,
+      completed,
+      rate: Math.round(completed / tasks * 100),
+      subject,
+      checkin: Math.random() > 0.1,
+    });
+  }
+  return data;
+}
+
+// 全局状态
+let studyData = generateData(0, 20);
+let charts = {};
+let isDark = true;
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', () => {
+  initDates();
+  initTheme();
+  renderAll();
+  bindEvents();
+  simulateLoading();
+});
+
+function simulateLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 500);
+  }, 1200);
+}
+
+function initDates() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 20);
+  document.getElementById('startDate').value = formatDate(start);
+  document.getElementById('endDate').value = formatDate(end);
+}
+
+function formatDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDisplay(d) {
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+// ==================== 主题切换 ====================
+function initTheme() {
+  const saved = localStorage.getItem('dashboard-theme');
+  if (saved === 'light') {
+    isDark = false;
+    document.documentElement.classList.remove('dark');
+    document.getElementById('sunIcon').classList.remove('hidden');
+    document.getElementById('moonIcon').classList.add('hidden');
+  }
+}
+
+function toggleTheme() {
+  isDark = !isDark;
+  document.documentElement.classList.toggle('dark');
+  document.getElementById('sunIcon').classList.toggle('hidden');
+  document.getElementById('moonIcon').classList.toggle('hidden');
+  localStorage.setItem('dashboard-theme', isDark ? 'dark' : 'light');
+  updateChartColors();
+}
+
+// ==================== 渲染 ====================
+function renderAll() {
+  renderStats();
+  renderLineChart();
+  renderBarChart();
+  renderPieChart();
+  renderRingProgress();
+  renderCheckinGrid();
+  renderTable();
+}
+
+// 统计卡片
+function renderStats() {
+  const totalHours = studyData.reduce((s, d) => s + d.hours, 0);
+  const avgRate = Math.round(studyData.reduce((s, d) => s + d.rate, 0) / studyData.length);
+  const streak = calculateStreak();
+
+  const cards = [
+    { label: '总学习时长', value: `${totalHours.toFixed(1)}h`, sub: `日均 ${(totalHours / studyData.length).toFixed(1)}h`, color: 'primary', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', trend: '+12%' },
+    { label: '平均完成率', value: `${avgRate}%`, sub: `共 ${studyData.length} 天记录`, color: 'accent', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', trend: '+5%' },
+    { label: '连续打卡', value: `${streak}天`, sub: `本月目标 30 天`, color: 'success', icon: 'M13 10V3L4 14h7v7l9-11h-7z', trend: '+3天' },
+    { label: '学习科目', value: `${subjects.length}门`, sub: '覆盖6大领域', color: 'warning', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', trend: '' },
+  ];
+
+  const container = document.getElementById('statsSection');
+  container.innerHTML = cards.map((card, i) => `
+    <div class="stat-card bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700" style="animation-delay:${0.2 + i * 0.1}s">
+      <div class="flex items-center justify-between mb-3">
+        <div class="w-10 h-10 rounded-xl bg-${card.color}-50 dark:bg-${card.color}-500/10 flex items-center justify-center">
+          <svg class="w-5 h-5 text-${card.color}-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${card.icon}"/></svg>
+        </div>
+        ${card.trend ? `<span class="text-xs font-medium text-green-500 bg-green-50 dark:bg-green-500/10 px-2 py-0.5 rounded-full">${card.trend}</span>` : ''}
+      </div>
+      <p class="text-2xl font-bold text-gray-800 dark:text-white">${card.value}</p>
+      <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${card.sub}</p>
+    </div>
+  `).join('');
+}
+
+// 折线图 - 每日学习时长
+function renderLineChart() {
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  if (charts.line) charts.line.destroy();
+
+  const labels = studyData.map(d => `${d.date.getMonth()+1}/${d.date.getDate()}`);
+  const hours = studyData.map(d => d.hours);
+  const bgColor = isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)';
+
+  charts.line = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: '学习时长(h)',
+        data: hours,
+        borderColor: '#3b82f6',
+        backgroundColor: bgColor,
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }]
+    },
+    options: getChartOptions('y', {
+      scales: { y: { beginAtZero: true, max: 8, ticks: { callback: v => v + 'h' } } },
+      plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} 小时` } } },
+    }),
+  });
+}
+
+// 柱状图 - 任务完成率
+function renderBarChart() {
+  const ctx = document.getElementById('barChart').getContext('2d');
+  if (charts.bar) charts.bar.destroy();
+
+  const labels = studyData.map(d => `${d.date.getMonth()+1}/${d.date.getDate()}`);
+  const rates = studyData.map(d => d.rate);
+
+  // 根据完成率设置颜色
+  const bgColors = rates.map(r => r >= 80 ? 'rgba(34,197,94,0.7)' : r >= 60 ? 'rgba(59,130,246,0.7)' : 'rgba(239,68,68,0.7)');
+
+  charts.bar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '完成率(%)',
+        data: rates,
+        backgroundColor: bgColors,
+        borderColor: bgColors.map(c => c.replace('0.7', '1')),
+        borderWidth: 1.5,
+        borderRadius: 6,
+        barPercentage: 0.7,
+      }]
+    },
+    options: getChartOptions('y', {
+      scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } },
+      plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y}%` } } },
+    }),
+  });
+}
+
+// 饼图 - 科目分布
+function renderPieChart() {
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  if (charts.pie) charts.pie.destroy();
+
+  // 统计各科目时长
+  const subjectHours = {};
+  studyData.forEach(d => {
+    subjectHours[d.subject] = (subjectHours[d.subject] || 0) + d.hours;
+  });
+
+  const labels = Object.keys(subjectHours);
+  const values = Object.values(subjectHours);
+
+  charts.pie = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: subjectColors.slice(0, labels.length),
+        borderWidth: 0,
+        hoverOffset: 8,
+      }]
+    },
+    options: getChartOptions(false, {
+      cutout: '60%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed.toFixed(1)}h` } },
+      },
+    }),
+  });
+
+  // 自定义图例
+  const legend = document.getElementById('pieLegend');
+  legend.innerHTML = labels.map((l, i) => `
+    <div class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity" onclick="highlightSubject(${i})">
+      <span class="w-2.5 h-2.5 rounded-full" style="background:${subjectColors[i]}"></span>
+      <span class="text-gray-600 dark:text-gray-400">${l}</span>
+    </div>
+  `).join('');
+}
+
+// 环形进度条
+function renderRingProgress() {
+  const streak = calculateStreak();
+  const maxStreak = 30;
+  const percentage = Math.min(streak / maxStreak, 1);
+  const circumference = 2 * Math.PI * 70;
+  const offset = circumference * (1 - percentage);
+
+  const ring = document.getElementById('ringProgress');
+  const countEl = document.getElementById('streakCount');
+
+  // 动画
+  ring.style.strokeDashoffset = circumference;
+  countEl.textContent = '0';
+
+  setTimeout(() => {
+    ring.style.strokeDashoffset = offset;
+    animateNumber(countEl, 0, streak, 1200);
+  }, 300);
+}
+
+// 打卡网格
+function renderCheckinGrid() {
+  const grid = document.getElementById('checkinGrid');
+  grid.innerHTML = studyData.slice(-14).map(d => `
+    <div class="flex flex-col items-center gap-1">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium transition-all
+        ${d.checkin
+          ? 'bg-primary-500 text-white shadow-md shadow-primary-500/30'
+          : 'bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-500'}"
+        title="${d.checkin ? '已打卡' : '未打卡'}">
+        ${d.checkin ? '✓' : '✗'}
+      </div>
+      <span class="text-[10px] text-gray-400 dark:text-gray-600">${d.date.getMonth()+1}/${d.date.getDate()}</span>
+    </div>
+  `).join('');
+}
+
+// 数据表格
+function renderTable(filter = '') {
+  const tbody = document.getElementById('tableBody');
+  const filtered = filter
+    ? studyData.filter(d => d.subject.includes(filter))
+    : studyData;
+
+  tbody.innerHTML = filtered.slice(0, 10).map(d => `
+    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <td class="text-gray-700 dark:text-gray-300 whitespace-nowrap">${formatDisplay(d.date)}</td>
+      <td class="text-gray-700 dark:text-gray-300 font-medium">${d.hours}h</td>
+      <td class="text-gray-700 dark:text-gray-300">${d.completed}/${d.tasks}</td>
+      <td>
+        <span class="inline-flex items-center gap-1">
+          <span class="text-gray-700 dark:text-gray-300">${d.rate}%</span>
+          <span class="w-16 h-1.5 rounded-full bg-gray-200 dark:bg-slate-600">
+            <span class="h-full rounded-full ${d.rate >= 80 ? 'bg-green-500' : d.rate >= 60 ? 'bg-blue-500' : 'bg-red-500'}" style="width:${d.rate}%"></span>
+          </span>
+        </span>
+      </td>
+      <td><span class="text-sm px-2 py-0.5 rounded-full bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400">${d.subject}</span></td>
+      <td>
+        <span class="inline-flex items-center gap-1 text-xs ${d.checkin ? 'text-green-500' : 'text-gray-400'}">
+          ${d.checkin ? '✓ 已打卡' : '✗ 未打卡'}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ==================== 工具函数 ====================
+function calculateStreak() {
+  let streak = 0;
+  for (let i = studyData.length - 1; i >= 0; i--) {
+    if (studyData[i].checkin) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function animateNumber(el, start, end, duration) {
+  const startTime = performance.now();
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // easeOutCubic
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(start + (end - start) * eased);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function getChartOptions(hasLegend, extra) {
+  const textColor = isDark ? '#94a3b8' : '#6b7280';
+  const gridColor = isDark ? '#334155' : '#e5e7eb';
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 800, easing: 'easeOutQuart' },
+    plugins: {
+      legend: hasLegend !== false ? {
+        display: false,
+      } : extra?.plugins?.legend || { display: false },
+      tooltip: extra?.plugins?.tooltip || {
+        backgroundColor: isDark ? '#1e293b' : '#fff',
+        titleColor: isDark ? '#e2e8f0' : '#1e293b',
+        bodyColor: isDark ? '#cbd5e1' : '#475569',
+        borderColor: isDark ? '#334155' : '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 8,
+        displayColors: true,
+      },
+    },
+    scales: extra?.scales || (hasLegend ? {
+      x: {
+        grid: { display: false },
+        ticks: { color: textColor, font: { size: 11 } },
+      },
+      y: {
+        grid: { color: gridColor },
+        ticks: { color: textColor, font: { size: 11 } },
+      },
+    } : undefined),
+    ...extra,
+  };
+}
+
+function updateChartColors() {
+  Object.values(charts).forEach(chart => {
+    if (!chart) return;
+    if (chart.options.scales) {
+      const textColor = isDark ? '#94a3b8' : '#6b7280';
+      const gridColor = isDark ? '#334155' : '#e5e7eb';
+      if (chart.options.scales.x) {
+        chart.options.scales.x.ticks.color = textColor;
+      }
+      if (chart.options.scales.y) {
+        chart.options.scales.y.ticks.color = textColor;
+        chart.options.scales.y.grid.color = gridColor;
+      }
+    }
+    chart.update('none');
+  });
+  renderStats();
+  renderRingProgress();
+  renderCheckinGrid();
+  renderTable();
+}
+
+// ==================== 数据联动 ====================
+function highlightSubject(index) {
+  // 高亮对应科目数据 - 更新折线图只显示该科目
+  const subject = subjects[index];
+  const filtered = studyData.filter(d => d.subject === subject);
+  const allLabels = studyData.map(d => `${d.date.getMonth()+1}/${d.date.getDate()}`);
+  const filteredHours = studyData.map(d => d.subject === subject ? d.hours : null);
+
+  if (charts.line) {
+    charts.line.data.datasets[0].data = filteredHours;
+    charts.line.data.datasets[0].label = `${subject}学习时长`;
+    charts.line.update();
+  }
+}
+
+// ==================== 事件绑定 ====================
+function bindEvents() {
+  // 主题切换
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+  // 日期筛选
+  const applyFilter = () => {
+    const startStr = document.getElementById('startDate').value;
+    const endStr = document.getElementById('endDate').value;
+    if (!startStr || !endStr) return;
+
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    studyData = generateData(
+      Math.round((new Date() - end) / 86400000),
+      Math.round((new Date() - start) / 86400000)
+    );
+
+    document.getElementById('dateRangeLabel').textContent = `${formatDisplay(start)} - ${formatDisplay(end)}`;
+    renderAll();
+  };
+
+  document.getElementById('startDate').addEventListener('change', applyFilter);
+  document.getElementById('endDate').addEventListener('change', applyFilter);
+
+  // 表格搜索
+  document.getElementById('tableSearch').addEventListener('input', (e) => {
+    renderTable(e.target.value);
+  });
+
+  // 导出报表
+  document.getElementById('exportBtn').addEventListener('click', exportReport);
+}
+
+// ==================== 导出功能 ====================
+function exportReport() {
+  const canvasList = [
+    { canvas: document.getElementById('lineChart'), name: '每日学习时长趋势' },
+    { canvas: document.getElementById('barChart'), name: '任务完成率' },
+    { canvas: document.getElementById('pieChart'), name: '科目分布' },
+  ];
+
+  let exported = 0;
+  canvasList.forEach(({ canvas, name }) => {
+    const url = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `${name}_${formatDate(new Date())}.png`;
+    link.href = url;
+    link.click();
+    exported++;
+  });
+
+  // 导出CSV数据
+  const csvHeader = '日期,学习时长(h),总任务,已完成,完成率(%),科目,打卡\n';
+  const csvRows = studyData.map(d =>
+    `${formatDate(d.date)},${d.hours},${d.tasks},${d.completed},${d.rate},${d.subject},${d.checkin ? '是' : '否'}`
+  ).join('\n');
+  const csvContent = csvHeader + csvRows;
+  const csvBlob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const csvUrl = URL.createObjectURL(csvBlob);
+  const csvLink = document.createElement('a');
+  csvLink.download = `学习数据_${formatDate(new Date())}.csv`;
+  csvLink.href = csvUrl;
+  csvLink.click();
+
+  // 提示
+  showToast(`已导出 ${canvasList.length} 张图表 + 1个数据文件`);
+}
+
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.className = 'fixed bottom-6 right-6 bg-gray-800 dark:bg-slate-700 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50 animate-slide-up';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+// 骨架屏渲染（首次加载时显示）
+function renderSkeletons() {
+  // 由 loading overlay 替代骨架屏效果
+}
+</script>
+</body>
+</html>
