@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多路线规划对比组件</title>
+  <link rel="stylesheet" href="src/style.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    #app { width: 100%; height: 100%; }
+
+    /* 高德地图容器样式修复 */
+    .amap-logo, .amap-copyright { display: none !important; }
+
+    /* Key 输入提示（开发调试用） */
+    .key-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      padding: 12px 20px;
+      font-size: 13px;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .key-banner input {
+      flex: 1;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    .key-banner input::placeholder { color: rgba(255,255,255,0.6); }
+    .key-banner input:focus {
+      background: rgba(255,255,255,0.3);
+    }
+    .key-banner button {
+      padding: 6px 16px;
+      background: #fff;
+      color: #667eea;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .key-banner.hidden { display: none; }
+
+    .has-key-banner { padding-top: 44px; }
+  </style>
+</head>
+<body>
+
+  <!-- Key 输入（开发调试用，部署时可换成配置文件） -->
+  <div class="key-banner" id="keyBanner">
+    <span>🔑 高德 Key：</span>
+    <input type="text" id="amapKeyInput" placeholder="请输入您的高德地图 Web JS API Key">
+    <button onclick="applyKey()">加载地图</button>
+  </div>
+
+  <div id="app"></div>
+
+  <script src="src/RoutePlanner.js"></script>
+  <script>
+    // 检查 URL 参数或 localStorage 是否已存 Key
+    const urlKey = new URLSearchParams(location.search).get('key');
+    const savedKey = localStorage.getItem('mrp_amap_key');
+    const key = urlKey || savedKey;
+
+    function initPlanner(amapKey) {
+      if (amapKey) {
+        localStorage.setItem('mrp_amap_key', amapKey);
+        document.getElementById('keyBanner').classList.add('hidden');
+        document.getElementById('app').classList.add('has-key-banner');
+      }
+
+      window.planner = new MultiRoutePlanner('app', {
+        amapKey: amapKey || '',
+        center: [116.397428, 39.90923],
+        zoom: 13,
+        city: '北京'
+      });
+    }
+
+    function applyKey() {
+      const val = document.getElementById('amapKeyInput').value.trim();
+      if (!val) {
+        alert('请输入高德地图 Key');
+        return;
+      }
+      initPlanner(val);
+    }
+
+    // 如果已有 Key 则直接加载
+    if (key) {
+      document.getElementById('amapKeyInput').value = key;
+      initPlanner(key);
+    }
+  </script>
+</body>
+</html>

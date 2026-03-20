@@ -1,0 +1,662 @@
+/* ==========================================
+   MultiRoutePlanner - 多路线规划对比组件样式
+   ========================================== */
+
+/* ---- 布局 ---- */
+.mrp-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  color: #1a1a2e;
+  overflow: hidden;
+  background: #f5f6fa;
+}
+
+.mrp-main {
+  display: flex;
+  height: calc(100% - 64px);
+}
+
+.mrp-map-container {
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+}
+
+.mrp-marker {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+/* ---- 搜索栏 ---- */
+.mrp-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  z-index: 10;
+}
+
+.mrp-search-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mrp-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  background: #f5f6fa;
+  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1.5px solid transparent;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.mrp-input-group:focus-within {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+  background: #fff;
+}
+
+.mrp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mrp-dot-origin { background: #2ecc71; }
+.mrp-dot-dest { background: #e74c3c; }
+
+.mrp-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: #1a1a2e;
+  min-width: 0;
+}
+
+.mrp-input::placeholder { color: #adb5bd; }
+
+.mrp-swap-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f0f0f5;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  flex-shrink: 0;
+  color: #666;
+}
+
+.mrp-swap-btn:hover {
+  background: #667eea;
+  color: #fff;
+  transform: rotate(180deg);
+}
+
+.mrp-plan-btn {
+  padding: 8px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.mrp-plan-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+.mrp-plan-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.mrp-plan-btn.loading {
+  pointer-events: none;
+}
+
+.mrp-plan-btn.loading::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: mrpSpin 0.6s linear infinite;
+}
+
+@keyframes mrpSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- 对比面板 ---- */
+.mrp-panel {
+  width: 380px;
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.04);
+}
+
+.mrp-panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f5;
+  flex-shrink: 0;
+}
+
+.mrp-panel-header h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.mrp-panel-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.mrp-tab {
+  padding: 5px 14px;
+  border: 1.5px solid #e8e8ee;
+  background: #fff;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.25s;
+  color: #666;
+  font-weight: 500;
+}
+
+.mrp-tab.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+.mrp-tab:hover:not(.active) {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.mrp-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.mrp-panel-body::-webkit-scrollbar {
+  width: 4px;
+}
+.mrp-panel-body::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 2px;
+}
+
+/* ---- 空状态 ---- */
+.mrp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #adb5bd;
+  text-align: center;
+}
+
+.mrp-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.mrp-empty p {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ---- 路线卡片 ---- */
+.mrp-route-card {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  border: 1.5px solid #f0f0f5;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.mrp-route-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--route-color, #ccc);
+  border-radius: 4px 0 0 4px;
+  transition: width 0.3s;
+}
+
+.mrp-route-card:hover {
+  border-color: var(--route-color, #ccc);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.mrp-route-card:hover::before {
+  width: 6px;
+}
+
+.mrp-route-card.recommended {
+  border-color: #f0e6ff;
+  background: linear-gradient(135deg, #faf8ff 0%, #fff 100%);
+}
+
+.mrp-card-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+}
+
+.mrp-card-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.mrp-card-type {
+  font-size: 10px;
+  color: #999;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.mrp-card-center {
+  flex: 1;
+  min-width: 0;
+}
+
+.mrp-card-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.mrp-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.mrp-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1.2;
+}
+
+.mrp-stat-label {
+  font-size: 10px;
+  color: #adb5bd;
+  margin-top: 2px;
+}
+
+.mrp-card-bar {
+  height: 3px;
+  background: #f0f0f5;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mrp-card-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mrp-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.mrp-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.mrp-detail-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1.5px solid var(--route-color, #ccc);
+  background: transparent;
+  color: var(--route-color, #ccc);
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.25s;
+  font-weight: 500;
+}
+
+.mrp-detail-btn:hover {
+  background: var(--route-color, #ccc);
+  color: #fff;
+}
+
+/* ---- 详情浮层 ---- */
+.mrp-detail-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0);
+  z-index: 1000;
+  pointer-events: none;
+  transition: background 0.3s;
+}
+
+.mrp-detail-overlay.active {
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: all;
+}
+
+.mrp-detail-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 420px;
+  max-width: 90vw;
+  height: 100%;
+  background: #fff;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
+  pointer-events: all;
+}
+
+.mrp-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f5;
+  flex-shrink: 0;
+}
+
+.mrp-detail-header h4 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.mrp-detail-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f5f6fa;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #666;
+}
+
+.mrp-detail-close:hover {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.mrp-detail-summary {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  background: #f8f9fc;
+  border-bottom: 1px solid #f0f0f5;
+  flex-shrink: 0;
+}
+
+.mrp-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.mrp-summary-label {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.mrp-summary-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.mrp-detail-steps {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 20px;
+}
+
+.mrp-detail-steps::-webkit-scrollbar {
+  width: 4px;
+}
+.mrp-detail-steps::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 2px;
+}
+
+.mrp-step-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f8;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  margin: 0 -8px;
+}
+
+.mrp-step-item:hover {
+  background: #f8f9fc;
+}
+
+.mrp-step-item.active {
+  background: #eef0ff;
+}
+
+.mrp-step-index {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f0f0f5;
+  color: #666;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.mrp-step-item:hover .mrp-step-index,
+.mrp-step-item.active .mrp-step-index {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+
+.mrp-step-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.mrp-step-instruction {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a2e;
+  line-height: 1.5;
+}
+
+.mrp-step-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #999;
+}
+
+.mrp-step-road {
+  padding: 1px 6px;
+  background: #f0f0f5;
+  border-radius: 4px;
+  color: #667eea;
+  font-weight: 500;
+}
+
+.mrp-step-lights {
+  color: #e67e22;
+  font-weight: 500;
+}
+
+.mrp-no-steps {
+  text-align: center;
+  padding: 40px 0;
+  color: #adb5bd;
+}
+
+/* ---- Toast ---- */
+.mrp-toast {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  background: rgba(26, 26, 46, 0.88);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 9999;
+  opacity: 0;
+  transition: all 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+.mrp-toast.active {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---- 动画 ---- */
+@keyframes mrpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- 响应式 ---- */
+@media (max-width: 768px) {
+  .mrp-main {
+    flex-direction: column;
+  }
+
+  .mrp-panel {
+    width: 100%;
+    height: 40%;
+    border-left: none;
+    border-top: 1px solid #eee;
+  }
+
+  .mrp-search-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .mrp-search-inputs {
+    width: 100%;
+  }
+
+  .mrp-plan-btn {
+    width: 100%;
+  }
+
+  .mrp-detail-panel {
+    width: 100%;
+  }
+}

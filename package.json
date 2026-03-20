@@ -1,23 +1,12 @@
 {
-  "name": "ar-exhibition-app",
+  "name": "multi-route-planner",
   "version": "1.0.0",
-  "description": "基于Web技术栈的AR增强现实展厅应用",
+  "description": "多路线规划对比组件 - 步行/骑行/驾车路线对比",
   "main": "index.html",
   "scripts": {
-    "start": "npx http-server -p 8000 -c-1 --cors",
-    "dev": "npx http-server -p 8000 -c-1 --cors -o"
+    "start": "npx http-server . -p 8080 -o",
+    "dev": "npx http-server . -p 8080 -o --cors"
   },
-  "keywords": [
-    "ar",
-    "augmented-reality",
-    "webvr",
-    "threejs",
-    "aframe",
-    "exhibition"
-  ],
-  "author": "AR Exhibition Developer",
-  "license": "MIT",
-  "devDependencies": {
-    "http-server": "^14.1.1"
-  }
+  "keywords": ["route-planner", "amap", "map"],
+  "license": "MIT"
 }
