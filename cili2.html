@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>磁力连线粒子背景</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    overflow: hidden;
+    background: #0a0a1a;
+    width: 100vw;
+    height: 100vh;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let width, height, particles, mouse;
+
+// --- 配置 ---
+const CONFIG = {
+  particleCount: 160,
+  maxSpeed: 0.8,
+  particleMinRadius: 1.5,
+  particleMaxRadius: 3.5,
+  lineMaxDist: 140,        // 连线最大距离
+  mouseRepelDist: 180,      // 鼠标排斥半径
+  mouseRepelForce: 8,       // 排斥力强度
+  particleColor: { r: 100, g: 180, b: 255 },
+  lineColor: { r: 80, g: 160, b: 255 },
+  friction: 0.97,
+};
+
+// --- 自适应尺寸 ---
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- 鼠标 ---
+mouse = { x: -9999, y: -9999, active: false };
+canvas.addEventListener('mousemove', e => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  mouse.active = true;
+});
+canvas.addEventListener('mouseleave', () => { mouse.active = false; });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  mouse.x = e.touches[0].clientX;
+  mouse.y = e.touches[0].clientY;
+  mouse.active = true;
+}, { passive: false });
+canvas.addEventListener('touchend', () => { mouse.active = false; });
+
+// --- 粒子类 ---
+class Particle {
+  constructor() {
+    this.x = Math.random() * width;
+    this.y = Math.random() * height;
+    this.vx = (Math.random() - 0.5) * CONFIG.maxSpeed * 2;
+    this.vy = (Math.random() - 0.5) * CONFIG.maxSpeed * 2;
+    this.radius = CONFIG.particleMinRadius + Math.random() * (CONFIG.particleMaxRadius - CONFIG.particleMinRadius);
+    this.baseAlpha = 0.4 + Math.random() * 0.6;
+  }
+
+  update() {
+    // 鼠标排斥力
+    if (mouse.active) {
+      const dx = this.x - mouse.x;
+      const dy = this.y - mouse.y;
+      const distSq = dx * dx + dy * dy;
+      const repelDist = CONFIG.mouseRepelDist;
+      if (distSq < repelDist * repelDist && distSq > 0.01) {
+        const dist = Math.sqrt(distSq);
+        const force = CONFIG.mouseRepelForce * (1 - dist / repelDist);
+        this.vx += (dx / dist) * force;
+        this.vy += (dy / dist) * force;
+      }
+    }
+
+    // 摩擦力
+    this.vx *= CONFIG.friction;
+    this.vy *= CONFIG.friction;
+
+    // 速度限制
+    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    if (speed > CONFIG.maxSpeed * 4) {
+      this.vx = (this.vx / speed) * CONFIG.maxSpeed * 4;
+      this.vy = (this.vy / speed) * CONFIG.maxSpeed * 4;
+    }
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // 边界弹回
+    if (this.x < 0) { this.x = 0; this.vx *= -1; }
+    if (this.x > width) { this.x = width; this.vx *= -1; }
+    if (this.y < 0) { this.y = 0; this.vy *= -1; }
+    if (this.y > height) { this.y = height; this.vy *= -1; }
+  }
+
+  draw() {
+    const { r, g, b } = CONFIG.particleColor;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${this.baseAlpha})`;
+    ctx.fill();
+  }
+}
+
+// --- 初始化粒子 ---
+function initParticles() {
+  particles = [];
+  for (let i = 0; i < CONFIG.particleCount; i++) {
+    particles.push(new Particle());
+  }
+}
+initParticles();
+
+// --- 绘制连线（增效版：预分配数组避免 GC） ---
+const maxPairs = CONFIG.particleCount * (CONFIG.particleCount - 1) / 2;
+
+function drawLines() {
+  const { r, g, b } = CONFIG.lineColor;
+  const maxDist = CONFIG.lineMaxDist;
+  const maxDistSq = maxDist * maxDist;
+
+  ctx.lineCap = 'round';
+
+  for (let i = 0; i < particles.length; i++) {
+    const pi = particles[i];
+    for (let j = i + 1; j < particles.length; j++) {
+      const pj = particles[j];
+      const dx = pi.x - pj.x;
+      const dy = pi.y - pj.y;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq > maxDistSq) continue;
+
+      const dist = Math.sqrt(distSq);
+      const ratio = 1 - dist / maxDist;   // 0=远  1=近
+      const alpha = ratio * 0.6;
+      const lw = ratio * 2.2;
+
+      ctx.beginPath();
+      ctx.moveTo(pi.x, pi.y);
+      ctx.lineTo(pj.x, pj.y);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.lineWidth = lw;
+      ctx.stroke();
+    }
+  }
+}
+
+// --- 鼠标光环 ---
+function drawMouseGlow() {
+  if (!mouse.active) return;
+  const grad = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, CONFIG.mouseRepelDist);
+  grad.addColorStop(0, 'rgba(100,180,255,0.06)');
+  grad.addColorStop(1, 'rgba(100,180,255,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(mouse.x, mouse.y, CONFIG.mouseRepelDist, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// --- 主循环 ---
+function animate() {
+  ctx.clearRect(0, 0, width, height);
+
+  // 半透明覆盖制造轻微拖尾
+  // ctx.fillStyle = 'rgba(10,10,26,0.15)';
+  // ctx.fillRect(0, 0, width, height);
+
+  drawMouseGlow();
+  drawLines();
+
+  for (const p of particles) {
+    p.update();
+    p.draw();
+  }
+
+  requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>
