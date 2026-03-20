@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>心动配对</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="top-bar">
+    <button class="nav-btn" id="btn-back">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="url(#heartGrad)">
+        <defs><linearGradient id="heartGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FF6B6B"/><stop offset="100%" stop-color="#FFE66D"/></linearGradient></defs>
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+      <span>心动配对</span>
+    </div>
+    <button class="nav-btn" id="btn-settings">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+    </button>
+  </header>
+
+  <!-- 卡片区域 -->
+  <main class="card-area" id="cardArea">
+    <!-- 卡片由 JS 动态生成 -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🔍</div>
+      <p>暂无更多卡片</p>
+      <button class="refresh-btn" id="btnRefresh">重新发现</button>
+    </div>
+  </main>
+
+  <!-- 操作按钮 -->
+  <footer class="action-bar">
+    <button class="action-btn skip" id="btnSkip" title="跳过">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <button class="action-btn info" id="btnInfo" title="详情">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">i</text></svg>
+    </button>
+    <button class="action-btn like" id="btnLike" title="喜欢">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+    </button>
+  </footer>
+
+  <!-- 用户简介弹窗 -->
+  <div class="overlay" id="profileOverlay">
+    <div class="profile-modal" id="profileModal">
+      <button class="modal-close" id="modalClose">&times;</button>
+      <div class="profile-hero">
+        <img id="profileImg" src="" alt="">
+      </div>
+      <div class="profile-content">
+        <h2 class="profile-name" id="profileName"></h2>
+        <p class="profile-age-loc" id="profileAgeLoc"></p>
+        <div class="profile-divider"></div>
+        <h3>关于我</h3>
+        <p class="profile-bio" id="profileBio"></p>
+        <div class="profile-tags" id="profileTags"></div>
+        <div class="profile-divider"></div>
+        <div class="profile-stats">
+          <div class="stat">
+            <span class="stat-num" id="statPhotos">0</span>
+            <span class="stat-label">照片</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num" id="statDist">0</span>
+            <span class="stat-label">km 以内</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num" id="statMatches">0</span>
+            <span class="stat-label">共同好友</span>
+          </div>
+        </div>
+      </div>
+      <div class="profile-actions">
+        <button class="profile-btn skip" id="profileSkip">跳过</button>
+        <button class="profile-btn like" id="profileLike">喜欢</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 匹配成功弹窗 -->
+  <div class="overlay" id="matchOverlay">
+    <div class="match-modal">
+      <canvas id="confettiCanvas"></canvas>
+      <div class="match-content">
+        <div class="match-label">配对成功！</div>
+        <div class="match-avatars">
+          <img class="match-avatar me" src="https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=200&h=200&fit=crop&crop=face" alt="我">
+          <div class="match-heart">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="#FF6B6B">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </div>
+          <img class="match-avatar other" id="matchAvatar" src="" alt="">
+        </div>
+        <p class="match-text" id="matchText"></p>
+        <div class="match-actions">
+          <button class="match-btn secondary" id="matchLater">稍后聊</button>
+          <button class="match-btn primary" id="matchChat">发消息</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 背景噪点纹理 -->
+  <svg class="noise-bg" xmlns="http://www.w3.org/2000/svg">
+    <filter id="noise">
+      <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <rect width="100%" height="100%" filter="url(#noise)" opacity="0.03"/>
+  </svg>
+
+  <script src="app.js"></script>
+</body>
+</html>
