@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素捕虫大冒险</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: monospace;
+    overflow: hidden;
+  }
+  canvas {
+    border: 3px solid #e2b04a;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #2d5a1e;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="640" height="480"></canvas>
+<script>
+// ============================================================
+// 像素捕虫大冒险 — 完整游戏
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const TILE = 32;
+const COLS = W / TILE, ROWS = H / TILE;
+
+// --------------- 输入管理 ---------------
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function consumeKey(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --------------- 精灵绘制工具 ---------------
+function drawPixelRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
+}
+
+// --------------- 地图 ---------------
+// 0=草地 1=土路 2=树 3=水 4=花 5=房子(障碍)
+const MAP = [
+  [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+  [2,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
+  [2,0,4,0,1,1,0,0,2,2,0,0,4,4,0,0,0,4,0,2],
+  [2,0,0,0,1,1,0,0,2,2,0,0,4,0,0,0,0,0,0,2],
+  [2,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
+  [2,0,0,0,1,1,1,1,1,1,1,1,0,0,5,5,5,0,0,2],
+  [2,0,4,0,1,0,0,0,0,0,1,1,0,0,5,0,5,0,4,2],
+  [2,0,0,0,1,0,0,4,0,0,0,1,0,0,5,0,5,0,0,2],
+  [2,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,2],
+  [2,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,2],
+  [2,0,0,0,0,0,0,0,0,0,1,1,0,0,4,0,0,4,0,2],
+  [2,4,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,2],
+  [2,0,0,3,3,3,0,0,0,0,1,1,0,0,0,0,4,0,0,2],
+  [2,0,0,3,3,3,0,0,4,0,1,1,0,0,0,0,0,0,0,2],
+  [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+];
+
+function isBlocked(px, py, hw, hh) {
+  const corners = [
+    [px - hw, py - hh], [px + hw - 1, py - hh],
+    [px - hw, py + hh - 1], [px + hw - 1, py + hh - 1]
+  ];
+  for (const [cx, cy] of corners) {
+    const col = Math.floor(cx / TILE), row = Math.floor(cy / TILE);
+    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return true;
+    const t = MAP[row][col];
+    if (t === 2 || t === 3 || t === 5) return true;
+  }
+  return false;
+}
+
+function drawTile(type, x, y) {
+  switch (type) {
+    case 0: // 草地
+      drawPixelRect(x, y, TILE, TILE, '#3a7a24');
+      // 草地纹理小点
+      drawPixelRect(x + 4, y + 8, 2, 2, '#4a9030');
+      drawPixelRect(x + 18, y + 20, 2, 2, '#4a9030');
+      drawPixelRect(x + 10, y + 4, 2, 2, '#2d6a18');
+      break;
+    case 1: // 土路
+      drawPixelRect(x, y, TILE, TILE, '#c4a46c');
+      drawPixelRect(x + 6, y + 12, 2, 2, '#b0925a');
+      drawPixelRect(x + 20, y + 6, 2, 2, '#b0925a');
+      break;
+    case 2: // 树
+      drawPixelRect(x, y, TILE, TILE, '#3a7a24');
+      drawPixelRect(x + 10, y + 10, 12, 4, '#5c3a1a'); // 树干
+      drawPixelRect(x + 4, y + 2, 24, 20, '#2d6a18');  // 冠
+      drawPixelRect(x + 8, y + 6, 16, 12, '#3a8822');
+      drawPixelRect(x + 12, y + 4, 8, 8, '#4a9832');
+      break;
+    case 3: // 水
+      drawPixelRect(x, y, TILE, TILE, '#2a6ab0');
+      drawPixelRect(x + 4, y + 6, 10, 2, '#4a8ad0');
+      drawPixelRect(x + 16, y + 18, 10, 2, '#4a8ad0');
+      drawPixelRect(x + 8, y + 24, 8, 2, '#4a8ad0');
+      break;
+    case 4: // 花
+      drawPixelRect(x, y, TILE, TILE, '#3a7a24');
+      drawPixelRect(x + 12, y + 12, 8, 10, '#2d8a18');
+      drawPixelRect(x + 13, y + 8, 3, 3, '#ff6b8a');
+      drawPixelRect(x + 18, y + 8, 3, 3, '#ff6b8a');
+      drawPixelRect(x + 15, y + 10, 3, 3, '#ffdd44');
+      break;
+    case 5: // 房子
+      drawPixelRect(x, y, TILE, TILE, '#8b5e3c');
+      drawPixelRect(x + 4, y + 4, 24, 24, '#a0724a');
+      drawPixelRect(x + 8, y + 8, 8, 8, '#6ab4e8'); // 窗
+      drawPixelRect(x + 12, y + 20, 10, 8, '#5c3a1a'); // 门
+      break;
+  }
+}
+
+function drawMap() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      drawTile(MAP[r][c], c * TILE, r * TILE);
+}
+
+// --------------- 相机 ---------------
+const camera = { x: 0, y: 0 };
+function updateCamera(target) {
+  camera.x = target.x - W / 2;
+  camera.y = target.y - H / 2;
+  const mapW = COLS * TILE, mapH = ROWS * TILE;
+  camera.x = Math.max(0, Math.min(camera.x, mapW - W));
+  camera.y = Math.max(0, Math.min(camera.y, mapH - H));
+}
+
+// 扩展地图为更大世界
+const WORLD_COLS = 40, WORLD_ROWS = 30;
+const WORLD_TILE = 32;
+
+// 使用更大的世界地图（扩展版）
+const worldMap = [];
+for (let r = 0; r < WORLD_ROWS; r++) {
+  worldMap[r] = [];
+  for (let c = 0; c < WORLD_COLS; c++) {
+    if (r === 0 || r === WORLD_ROWS - 1 || c === 0 || c === WORLD_COLS - 1) {
+      worldMap[r][c] = 2;
+    } else {
+      // 基础草地
+      worldMap[r][c] = 0;
+    }
+  }
+}
+
+// 道路系统（十字路口）
+for (let r = 1; r < WORLD_ROWS - 1; r++) {
+  for (let c = 1; c < WORLD_COLS - 1; c++) {
+    // 横路
+    if ((r >= 7 && r <= 9) && c > 1 && c < WORLD_COLS - 1) worldMap[r][c] = 1;
+    // 竖路
+    if ((c >= 9 && c <= 11) && r > 1 && r < WORLD_ROWS - 1) worldMap[r][c] = 1;
+  }
+}
+
+// 随机种树（不覆盖路）
+for (let i = 0; i < 80; i++) {
+  const r = 2 + Math.floor(Math.random() * (WORLD_ROWS - 4));
+  const c = 2 + Math.floor(Math.random() * (WORLD_COLS - 4));
+  if (worldMap[r][c] === 0) worldMap[r][c] = 2;
+}
+
+// 水塘
+for (let r = 16; r <= 19; r++)
+  for (let c = 2; c <= 5; c++)
+    worldMap[r][c] = 3;
+
+for (let r = 3; r <= 5; r++)
+  for (let c = 28; c <= 32; c++)
+    worldMap[r][c] = 3;
+
+// 花丛
+const flowerSpots = [[4,4],[4,6],[5,5],[6,14],[6,16],[18,22],[18,24],[12,30],[12,32],[22,6],[22,8],[25,34],[25,35]];
+for (const [r,c] of flowerSpots) {
+  if (r < WORLD_ROWS && c < WORLD_COLS && worldMap[r][c] === 0) worldMap[r][c] = 4;
+}
+
+// 房子
+const houses = [[3,14],[3,18],[14,22],[14,26],[22,14]];
+for (const [r,c] of houses) {
+  worldMap[r][c] = 5;
+  worldMap[r][c+1] = 5;
+  worldMap[r+1][c] = 5;
+  worldMap[r+1][c+1] = 5;
+  // 确保门前通路
+  worldMap[r+2] && (worldMap[r+2][c] = 1, worldMap[r+2][c+1] = 1);
+}
+
+// 长路径连接
+for (let c = 12; c <= 15; c++) { worldMap[7][c] = 1; worldMap[8][c] = 1; worldMap[9][c] = 1; }
+for (let c = 20; c <= 25; c++) { worldMap[7][c] = 1; worldMap[8][c] = 1; worldMap[9][c] = 1; }
+for (let c = 1; c <= 8; c++) { worldMap[7][c] = 1; worldMap[8][c] = 1; worldMap[9][c] = 1; }
+for (let r = 10; r <= 16; r++) { worldMap[r][9] = 1; worldMap[r][10] = 1; worldMap[r][11] = 1; }
+for (let r = 1; r <= 6; r++) { worldMap[r][9] = 1; worldMap[r][10] = 1; worldMap[r][11] = 1; }
+for (let r = 19; r <= 25; r++) { worldMap[r][14] = 1; worldMap[r][15] = 1; worldMap[r][16] = 1; }
+for (let r = 19; r <= 25; r++) { worldMap[r][9] = 1; worldMap[r][10] = 1; worldMap[r][11] = 1; }
+for (let c = 1; c <= 8; c++) { worldMap[22][c] = 1; worldMap[23][c] = 1; }
+for (let c = 17; c <= 22; c++) { worldMap[22][c] = 1; worldMap[23][c] = 1; }
+for (let c = 22; c <= 35; c++) { worldMap[7][c] = 1; worldMap[8][c] = 1; worldMap[9][c] = 1; }
+for (let c = 25; c <= 38; c++) { worldMap[22][c] = 1; worldMap[23][c] = 1; }
+for (let r = 1; r <= 6; r++) { worldMap[r][25] = 1; worldMap[r][26] = 1; }
+for (let r = 19; r <= 25; r++) { worldMap[r][25] = 1; worldMap[r][26] = 1; }
+
+const MAP_W = WORLD_COLS * WORLD_TILE;
+const MAP_H = WORLD_ROWS * WORLD_TILE;
+
+function isWorldBlocked(px, py, hw, hh) {
+  const corners = [
+    [px - hw, py - hh], [px + hw - 1, py - hh],
+    [px - hw, py + hh - 1], [px + hw - 1, py + hh - 1]
+  ];
+  for (const [cx, cy] of corners) {
+    const col = Math.floor(cx / WORLD_TILE), row = Math.floor(cy / WORLD_TILE);
+    if (row < 0 || row >= WORLD_ROWS || col < 0 || col >= WORLD_COLS) return true;
+    const t = worldMap[row][col];
+    if (t === 2 || t === 3 || t === 5) return true;
+  }
+  return false;
+}
+
+function drawWorldMap() {
+  const startCol = Math.floor(camera.x / WORLD_TILE);
+  const endCol = Math.ceil((camera.x + W) / WORLD_TILE);
+  const startRow = Math.floor(camera.y / WORLD_TILE);
+  const endRow = Math.ceil((camera.y + H) / WORLD_TILE);
+  for (let r = startRow; r <= endRow; r++)
+    for (let c = startCol; c <= endCol; c++) {
+      if (r >= 0 && r < WORLD_ROWS && c >= 0 && c < WORLD_COLS)
+        drawTile(worldMap[r][c], c * WORLD_TILE - camera.x, r * WORLD_TILE - camera.y);
+    }
+}
+
+// --------------- 玩家 ---------------
+const player = {
+  x: 10 * WORLD_TILE + 16, y: 5 * WORLD_TILE + 16,
+  speed: 2.5,
+  dir: 0, // 0下 1左 2右 3上
+  frame: 0,
+  frameTimer: 0,
+  moving: false,
+  netSwing: 0, // 捕虫网挥动计时
+  hw: 8, hh: 6,
+};
+
+const dirNames = ['down', 'left', 'right', 'up'];
+
+function drawPlayer(p, offX, offY) {
+  const sx = Math.floor(p.x - offX), sy = Math.floor(p.y - offY);
+  const f = p.frame % 4;
+  const bobY = (p.moving && p.netSwing === 0) ? (f === 1 ? -2 : f === 3 ? -1 : 0) : 0;
+  const legAnim = p.moving ? (f < 2 ? -2 : 2) : 0;
+
+  // 阴影
+  ctx.globalAlpha = 0.3;
+  drawPixelRect(sx - 8, sy + 8, 16, 4, '#000000');
+  ctx.globalAlpha = 1;
+
+  // 腿
+  drawPixelRect(sx - 5, sy + 2 + legAnim, 4, 6, '#3a3a5a');
+  drawPixelRect(sx + 1, sy + 2 - legAnim, 4, 6, '#3a3a5a');
+  // 鞋子
+  drawPixelRect(sx - 6, sy + 7 + legAnim, 5, 3, '#6b3a1a');
+  drawPixelRect(sx + 1, sy + 7 - legAnim, 5, 3, '#6b3a1a');
+
+  // 身体
+  drawPixelRect(sx - 7, sy - 8 + bobY, 14, 12, '#4a90d9');
+  // 腰带
+  drawPixelRect(sx - 7, sy + 1 + bobY, 14, 2, '#c4923a');
+
+  // 头
+  const headY = sy - 16 + bobY;
+  drawPixelRect(sx - 6, headY, 12, 10, '#f0c08a'); // 皮肤
+  // 头发
+  drawPixelRect(sx - 7, headY - 2, 14, 6, '#5a3a1a');
+  drawPixelRect(sx - 5, headY + 1, 10, 3, '#5a3a1a');
+
+  // 眼睛（方向）
+  if (p.dir === 0) { // 下
+    drawPixelRect(sx - 4, headY + 5, 2, 2, '#1a1a1a');
+    drawPixelRect(sx + 2, headY + 5, 2, 2, '#1a1a1a');
+    drawPixelRect(sx - 3, headY + 5, 1, 1, '#ffffff');
+    drawPixelRect(sx + 3, headY + 5, 1, 1, '#ffffff');
+  } else if (p.dir === 3) { // 上
+    // 背面-不画眼睛
+  } else if (p.dir === 2) { // 右
+    drawPixelRect(sx + 2, headY + 5, 2, 2, '#1a1a1a');
+    drawPixelRect(sx + 3, headY + 5, 1, 1, '#ffffff');
+  } else { // 左
+    drawPixelRect(sx - 4, headY + 5, 2, 2, '#1a1a1a');
+    drawPixelRect(sx - 4, headY + 5, 1, 1, '#ffffff');
+  }
+
+  // 手臂
+  const armSwing = p.moving ? (f < 2 ? 2 : -2) : 0;
+  drawPixelRect(sx - 9, sy - 5 + bobY + armSwing, 3, 8, '#f0c08a');
+  drawPixelRect(sx + 6, sy - 5 + bobY - armSwing, 3, 8, '#f0c08a');
+
+  // 捕虫网
+  if (p.netSwing > 0) {
+    ctx.save();
+    ctx.translate(sx, sy - 4 + bobY);
+    const angle = (p.netSwing / 15) * Math.PI * 0.6 - Math.PI * 0.3;
+    const dirOffset = p.dir === 1 ? -1 : p.dir === 2 ? 1 : 0;
+    const yOff = p.dir === 3 ? -1 : p.dir === 0 ? 1 : 0;
+    ctx.rotate(angle + (dirOffset * 0.5));
+    if (p.dir === 1) ctx.scale(-1, 1);
+
+    // 网杆
+    drawPixelRect(-1, -20, 2, 20, '#8b5e3c');
+    // 网圈
+    drawPixelRect(-8, -26, 16, 2, '#4a90d9');
+    drawPixelRect(-8, -30, 2, 6, '#4a90d9');
+    drawPixelRect(6, -30, 2, 6, '#4a90d9');
+    drawPixelRect(-8, -32, 16, 2, '#4a90d9');
+    // 网
+    drawPixelRect(-6, -30, 12, 4, 'rgba(200,220,255,0.5)');
+
+    ctx.restore();
+  } else {
+    // 持网（静止）
+    ctx.save();
+    ctx.translate(sx + (p.dir === 2 ? 8 : p.dir === 1 ? -8 : 6), sy - 4 + bobY);
+    drawPixelRect(-1, -14, 2, 16, '#8b5e3c');
+    drawPixelRect(-4, -18, 8, 2, '#4a90d9');
+    drawPixelRect(-4, -22, 2, 6, '#4a90d9');
+    drawPixelRect(2, -22, 2, 6, '#4a90d9');
+    drawPixelRect(-4, -24, 8, 2, '#4a90d9');
+    ctx.restore();
+  }
+}
+
+function updatePlayer() {
+  let dx = 0, dy = 0;
+  if (keys['ArrowDown'] || keys['KeyS']) { dy = 1; player.dir = 0; }
+  if (keys['ArrowLeft'] || keys['KeyA']) { dx = -1; player.dir = 1; }
+  if (keys['ArrowRight'] || keys['KeyD']) { dx = 1; player.dir = 2; }
+  if (keys['ArrowUp'] || keys['KeyW']) { dy = -1; player.dir = 3; }
+
+  player.moving = dx !== 0 || dy !== 0;
+
+  if (player.moving) {
+    const len = Math.sqrt(dx * dx + dy * dy);
+    dx = dx / len * player.speed;
+    dy = dy / len * player.speed;
+
+    const newX = player.x + dx;
+    const newY = player.y + dy;
+
+    if (!isWorldBlocked(newX, player.y, player.hw, player.hh)) player.x = newX;
+    if (!isWorldBlocked(player.x, newY, player.hw, player.hh)) player.y = newY;
+
+    player.frameTimer++;
+    if (player.frameTimer > 6) {
+      player.frameTimer = 0;
+      player.frame++;
+    }
+  } else {
+    player.frame = 0;
+    player.frameTimer = 0;
+  }
+
+  // 捕虫网挥动
+  if (player.netSwing > 0) player.netSwing--;
+}
+
+// --------------- NPC ---------------
+const npcDialogs = [
+  { lines: ["你好呀，冒险者！", "我是村长老伯。", "这片土地上有很多稀有的虫子，", "试着用空格键挥动捕虫网吧！"], greeting: "老伯向你招了招手..." },
+  { lines: ["哇，你看到那只蝴蝶了吗？", "它非常漂亮！颜色真好看。", "我已经收集了100只虫子，加油！"], greeting: "小美兴奋地指着天空..." },
+  { lines: ["哼...我才不是在抓虫子呢。", "...好吧，其实我超级喜欢！", "我最近发现了一只闪光的金龟子！", "快去找找看！"], greeting: "小强假装不在意地抬起头..." },
+  { lines: ["欢迎来到捕虫村！", "在这里，一切生物都值得珍惜。", "记得和每个村民对话哦。"], greeting: "旅行者微笑着向你点头..." },
+  { lines: ["你知道吗？不同颜色的花附近，", "会出现不同种类的虫子。", "仔细观察花瓣的颜色吧！"], greeting: "学者推了推眼镜..." },
+];
+
+const npcs = [
+  { x: 10 * WORLD_TILE + 16, y: 8 * WORLD_TILE + 16, color: '#c4923a', hatColor: '#8b5e3c', dialogIdx: 0 },
+  { x: 25 * WORLD_TILE + 16, y: 5 * WORLD_TILE + 16, color: '#d94a7a', hatColor: '#a0325a', dialogIdx: 1 },
+  { x: 6 * WORLD_TILE + 16, y: 18 * WORLD_TILE + 16, color: '#4a9ad9', hatColor: '#2a6aa0', dialogIdx: 2 },
+  { x: 30 * WORLD_TILE + 16, y: 12 * WORLD_TILE + 16, color: '#d9a04a', hatColor: '#a07030', dialogIdx: 3 },
+  { x: 15 * WORLD_TILE + 16, y: 20 * WORLD_TILE + 16, color: '#8a4ad9', hatColor: '#5a2a90', dialogIdx: 4 },
+];
+
+function drawNPC(npc, offX, offY) {
+  const sx = Math.floor(npc.x - offX), sy = Math.floor(npc.y - offY);
+  const t = performance.now() / 1000;
+  const bobY = Math.sin(t * 2 + npc.x) * 1;
+  const d = npc.dialogIdx;
+
+  // 阴影
+  ctx.globalAlpha = 0.3;
+  drawPixelRect(sx - 8, sy + 8, 16, 4, '#000000');
+  ctx.globalAlpha = 1;
+
+  // 腿
+  drawPixelRect(sx - 5, sy + 2, 4, 6, '#4a4a5a');
+  drawPixelRect(sx + 1, sy + 2, 4, 6, '#4a4a5a');
+  drawPixelRect(sx - 6, sy + 7, 5, 3, '#5a3a1a');
+  drawPixelRect(sx + 1, sy + 7, 5, 3, '#5a3a1a');
+
+  // 身体
+  drawPixelRect(sx - 7, sy - 8 + bobY, 14, 12, npc.color);
+
+  // 头
+  const headY = sy - 16 + bobY;
+  drawPixelRect(sx - 6, headY, 12, 10, '#f0c08a');
+  // 帽子
+  drawPixelRect(sx - 8, headY - 4, 16, 6, npc.hatColor);
+  drawPixelRect(sx - 5, headY - 6, 10, 4, npc.hatColor);
+
+  // 眼睛
+  drawPixelRect(sx - 4, headY + 5, 2, 2, '#1a1a1a');
+  drawPixelRect(sx + 2, headY + 5, 2, 2, '#1a1a1a');
+
+  // 名字标签感叹号
+  drawPixelRect(sx - 5, sy - 26 + bobY, 10, 10, '#f0e040');
+  drawPixelRect(sx - 2, sy - 24 + bobY, 4, 6, '#1a1a1a');
+  drawPixelRect(sx - 1, sy - 24 + bobY, 2, 2, '#1a1a1a');
+}
+
+// --------------- 虫子 ---------------
+const BUG_TYPES = [
+  { name: '绿蝴蝶', bodyColor: '#5adb3a', wingColor: '#a0ff80', points: 10, speed: 1.2 },
+  { name: '红瓢虫', bodyColor: '#d93030', wingColor: '#ff5050', spots: true, points: 15, speed: 0.8 },
+  { name: '蓝蜻蜓', bodyColor: '#3080e0', wingColor: '#90c0ff', points: 20, speed: 1.8 },
+  { name: '金龟子', bodyColor: '#d9a020', wingColor: '#ffe060', points: 30, speed: 0.6, rare: true },
+  { name: '紫蛾', bodyColor: '#9040d0', wingColor: '#c080ff', points: 25, speed: 1.0 },
+];
+
+const bugs = [];
+const MAX_BUGS = 8;
+let bugSpawnTimer = 0;
+let bugSpawnInterval = 120; // 帧
+
+function spawnBug() {
+  if (bugs.length >= MAX_BUGS) return;
+  let attempts = 0;
+  while (attempts < 50) {
+    attempts++;
+    const col = 2 + Math.floor(Math.random() * (WORLD_COLS - 4));
+    const row = 2 + Math.floor(Math.random() * (WORLD_ROWS - 4));
+    if (worldMap[row][col] !== 0 && worldMap[row][col] !== 4) continue;
+
+    // 选择虫子类型
+    let typeIdx;
+    const r = Math.random();
+    if (r < 0.05) { typeIdx = 3; } // 金龟子 5%
+    else if (r < 0.20) { typeIdx = 2; } // 蜻蜓 15%
+    else if (r < 0.35) { typeIdx = 4; } // 紫蛾 15%
+    else if (r < 0.60) { typeIdx = 1; } // 瓢虫 25%
+    else { typeIdx = 0; } // 蝴蝶 40%
+
+    const type = BUG_TYPES[typeIdx];
+    bugs.push({
+      x: col * WORLD_TILE + 16,
+      y: row * WORLD_TILE + 16,
+      vx: (Math.random() - 0.5) * type.speed,
+      vy: (Math.random() - 0.5) * type.speed,
+      type: typeIdx,
+      alive: true,
+      flyPhase: Math.random() * Math.PI * 2,
+      changeTimer: 60 + Math.floor(Math.random() * 120),
+    });
+    break;
+  }
+}
+
+function drawBug(bug, offX, offY) {
+  const sx = Math.floor(bug.x - offX), sy = Math.floor(bug.y - offY);
+  const type = BUG_TYPES[bug.type];
+  const t = performance.now() / 1000;
+  const wingBeat = Math.sin(t * 15 + bug.flyPhase) * 4;
+  const hover = Math.sin(t * 3 + bug.flyPhase) * 2;
+
+  switch (bug.type) {
+    case 0: // 蝴蝶
+      drawPixelRect(sx - 1, sy + hover, 2, 4, type.bodyColor);
+      // 翅膀
+      drawPixelRect(sx - 6, sy - 4 + hover + wingBeat, 5, 6, type.wingColor);
+      drawPixelRect(sx + 1, sy - 4 + hover - wingBeat, 5, 6, type.wingColor);
+      drawPixelRect(sx - 4, sy - 6 + hover + wingBeat, 3, 3, type.wingColor);
+      drawPixelRect(sx + 1, sy - 6 + hover - wingBeat, 3, 3, type.wingColor);
+      break;
+    case 1: // 瓢虫
+      drawPixelRect(sx - 4, sy - 3 + hover, 8, 8, type.bodyColor);
+      drawPixelRect(sx - 4, sy + 1 + hover, 8, 2, '#1a1a1a'); // 分线
+      drawPixelRect(sx - 3, sy + 3 + hover, 2, 2, '#1a1a1a'); // 斑点
+      drawPixelRect(sx + 1, sy + 3 + hover, 2, 2, '#1a1a1a');
+      drawPixelRect(sx - 2, sy - 1 + hover, 2, 2, '#1a1a1a');
+      drawPixelRect(sx + 1, sy - 1 + hover, 2, 2, '#1a1a1a');
+      // 头
+      drawPixelRect(sx - 2, sy - 5 + hover, 4, 3, '#1a1a1a');
+      break;
+    case 2: // 蜻蜓
+      drawPixelRect(sx - 1, sy - 2 + hover, 2, 10, type.bodyColor);
+      drawPixelRect(sx - 1, sy - 4 + hover, 2, 3, type.bodyColor);
+      // 翅膀
+      drawPixelRect(sx - 10, sy - 4 + hover + wingBeat * 0.7, 9, 3, type.wingColor);
+      drawPixelRect(sx + 1, sy - 4 + hover - wingBeat * 0.7, 9, 3, type.wingColor);
+      drawPixelRect(sx - 8, sy - 1 + hover + wingBeat * 0.5, 7, 3, type.wingColor);
+      drawPixelRect(sx + 1, sy - 1 + hover - wingBeat * 0.5, 7, 3, type.wingColor);
+      break;
+    case 3: // 金龟子（稀有闪光）
+      const sparkle = Math.sin(t * 8) > 0 ? 1 : 0;
+      drawPixelRect(sx - 4, sy - 3 + hover, 8, 8, type.bodyColor);
+      drawPixelRect(sx - 2, sy - 5 + hover, 4, 3, type.wingColor);
+      if (sparkle) {
+        drawPixelRect(sx - 6, sy - 6 + hover, 2, 2, '#ffffff');
+        drawPixelRect(sx + 4, sy - 6 + hover, 2, 2, '#ffffff');
+        drawPixelRect(sx - 6, sy + 4 + hover, 2, 2, '#ffffff');
+        drawPixelRect(sx + 4, sy + 4 + hover, 2, 2, '#ffffff');
+      }
+      break;
+    case 4: // 紫蛾
+      drawPixelRect(sx - 1, sy + hover, 2, 5, type.bodyColor);
+      drawPixelRect(sx - 5, sy - 3 + hover + wingBeat * 0.6, 4, 7, type.wingColor);
+      drawPixelRect(sx + 1, sy - 3 + hover - wingBeat * 0.6, 4, 7, type.wingColor);
+      drawPixelRect(sx - 3, sy - 5 + hover + wingBeat * 0.6, 3, 3, type.wingColor);
+      drawPixelRect(sx + 1, sy - 5 + hover - wingBeat * 0.6, 3, 3, type.wingColor);
+      // 眼纹
+      drawPixelRect(sx - 4, sy - 1 + hover + wingBeat * 0.6, 2, 2, '#502090');
+      drawPixelRect(sx + 2, sy - 1 + hover - wingBeat * 0.6, 2, 2, '#502090');
+      break;
+  }
+
+  // 稀有标识
+  if (type.rare) {
+    ctx.globalAlpha = 0.4 + Math.sin(t * 4) * 0.3;
+    drawPixelRect(sx - 8, sy - 10 + hover, 16, 18, 'rgba(255,255,100,0.2)');
+    ctx.globalAlpha = 1;
+  }
+}
+
+function updateBugs() {
+  bugSpawnTimer++;
+  if (bugSpawnTimer >= bugSpawnInterval) {
+    bugSpawnTimer = 0;
+    spawnBug();
+  }
+
+  for (const bug of bugs) {
+    if (!bug.alive) continue;
+    const type = BUG_TYPES[bug.type];
+
+    bug.changeTimer--;
+    if (bug.changeTimer <= 0) {
+      bug.vx = (Math.random() - 0.5) * type.speed;
+      bug.vy = (Math.random() - 0.5) * type.speed;
+      bug.changeTimer = 60 + Math.floor(Math.random() * 120);
+    }
+
+    const newX = bug.x + bug.vx;
+    const newY = bug.y + bug.vy;
+
+    if (!isWorldBlocked(newX, bug.y, 4, 4)) bug.x = newX; else bug.vx *= -1;
+    if (!isWorldBlocked(bug.x, newY, 4, 4)) bug.y = newY; else bug.vy *= -1;
+  }
+
+  // 移除死虫
+  for (let i = bugs.length - 1; i >= 0; i--) {
+    if (!bugs[i].alive) bugs.splice(i, 1);
+  }
+}
+
+// --------------- 捕获系统 ---------------
+let bugsCaught = 0;
+let catchEffects = [];
+let recentCatches = [];
+
+function attemptCatch() {
+  if (player.netSwing > 0) return;
+  player.netSwing = 15;
+
+  const range = 30;
+  let bestBug = null, bestDist = range;
+
+  for (const bug of bugs) {
+    if (!bug.alive) continue;
+    const dx = bug.x - player.x, dy = bug.y - player.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestBug = bug;
+    }
+  }
+
+  if (bestBug) {
+    bestBug.alive = false;
+    bugsCaught++;
+    const type = BUG_TYPES[bestBug.type];
+    recentCatches.push({ name: type.name, points: type.points, timer: 180 });
+    catchEffects.push({
+      x: bestBug.x, y: bestBug.y,
+      timer: 30,
+      text: `+${type.points}`,
+      color: type.rare ? '#ffe040' : '#ffffff',
+    });
+    bugSpawnInterval = Math.max(40, bugSpawnInterval - 5);
+  }
+}
+
+// --------------- 对话框 ---------------
+let dialogActive = false;
+let dialogNpc = null;
+let dialogPhase = 0;
+let dialogCharIdx = 0;
+let dialogTimer = 0;
+let currentDialogLines = [];
+
+function startDialog(npcIdx) {
+  dialogActive = true;
+  dialogNpc = npcIdx;
+  dialogPhase = 0;
+  dialogCharIdx = 0;
+  dialogTimer = 0;
+  currentDialogLines = [...npcDialogs[npcIdx].greeting.split('\n') || [''], ...npcDialogs[npcIdx].lines];
+}
+
+function advanceDialog() {
+  dialogPhase++;
+  dialogCharIdx = 0;
+  if (dialogPhase >= currentDialogLines.length) {
+    dialogActive = false;
+    dialogNpc = null;
+  }
+}
+
+function drawDialog() {
+  if (!dialogActive) return;
+
+  const boxW = 560, boxH = 120;
+  const boxX = (W - boxW) / 2, boxY = H - boxH - 20;
+
+  // 背景
+  drawPixelRect(boxX - 4, boxY - 4, boxW + 8, boxH + 8, '#3a2a1a');
+  drawPixelRect(boxX, boxY, boxW, boxH, '#f5edd6');
+  drawPixelRect(boxX + 4, boxY + 4, boxW - 8, boxH - 8, '#fffcf5');
+
+  // NPC 名字
+  const names = ['老伯', '小美', '小强', '旅行者', '学者'];
+  ctx.fillStyle = '#c4923a';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText(names[dialogNpc] || 'NPC', boxX + 16, boxY + 24);
+
+  // 文字（打字机效果）
+  if (dialogPhase < currentDialogLines.length) {
+    const fullText = currentDialogLines[dialogPhase];
+    dialogCharIdx = Math.min(dialogCharIdx + 1, fullText.length);
+    const displayText = fullText.substring(0, dialogCharIdx);
+
+    ctx.fillStyle = '#2a1a0a';
+    ctx.font = '13px monospace';
+    // 自动换行
+    const maxWidth = boxW - 40;
+    const line1 = getWrappedLine(displayText, maxWidth);
+    const remain = displayText.substring(line1.length);
+    ctx.fillText(line1, boxX + 20, boxY + 50);
+    if (remain) {
+      const line2 = getWrappedLine(remain, maxWidth);
+      ctx.fillText(line2, boxX + 20, boxY + 72);
+    }
+  }
+
+  // 继续指示
+  ctx.fillStyle = '#8a7a6a';
+  ctx.font = '11px monospace';
+  const blink = Math.sin(performance.now() / 300) > 0;
+  if (blink) ctx.fillText('▼ 按 E 继续', boxX + boxW - 120, boxY + boxH - 16);
+}
+
+function getWrappedLine(text, maxWidth) {
+  for (let i = 1; i <= text.length; i++) {
+    if (ctx.measureText(text.substring(0, i)).width > maxWidth) {
+      return text.substring(0, i - 1);
+    }
+  }
+  return text;
+}
+
+// --------------- UI ---------------
+function drawUI() {
+  // 捕虫计数背景
+  drawPixelRect(8, 8, 180, 52, 'rgba(0,0,0,0.6)');
+  drawPixelRect(10, 10, 176, 48, 'rgba(30,20,10,0.8)');
+  drawPixelRect(12, 12, 172, 44, 'rgba(50,35,15,0.9)');
+
+  // 网图标
+  drawPixelRect(16, 18, 24, 24, '#8b5e3c');
+  drawPixelRect(14, 16, 28, 2, '#4a90d9');
+  drawPixelRect(14, 38, 28, 2, '#4a90d9');
+  drawPixelRect(14, 16, 2, 24, '#4a90d9');
+  drawPixelRect(40, 16, 2, 24, '#4a90d9');
+  drawPixelRect(20, 16, 2, 24, '#4a90d9');
+  drawPixelRect(14, 26, 28, 2, '#4a90d9');
+  drawPixelRect(32, 16, 2, 24, '#4a90d9');
+
+  ctx.fillStyle = '#ffe0a0';
+  ctx.font = 'bold 20px monospace';
+  ctx.fillText(`${bugsCaught}`, 50, 36);
+  ctx.fillStyle = '#c0a870';
+  ctx.font = '11px monospace';
+  ctx.fillText('已捕获', 50, 52);
+
+  // 最近捕获
+  for (let i = recentCatches.length - 1; i >= 0; i--) {
+    recentCatches[i].timer--;
+    if (recentCatches[i].timer <= 0) {
+      recentCatches.splice(i, 1);
+      continue;
+    }
+  }
+  if (recentCatches.length > 0) {
+    const last = recentCatches[recentCatches.length - 1];
+    const alpha = Math.min(1, last.timer / 60);
+    ctx.globalAlpha = alpha;
+    drawPixelRect(10, 66, 180, 22, 'rgba(50,35,15,0.9)');
+    ctx.fillStyle = '#80ff80';
+    ctx.font = '11px monospace';
+    ctx.fillText(`捕获了 ${last.name}! +${last.points}`, 18, 81);
+    ctx.globalAlpha = 1;
+  }
+
+  // 操作提示
+  drawPixelRect(W - 180, 8, 172, 70, 'rgba(0,0,0,0.5)');
+  ctx.fillStyle = '#d0c090';
+  ctx.font = '10px monospace';
+  ctx.fillText('方向键/WASD - 移动', W - 170, 26);
+  ctx.fillText('空格键 - 挥动捕虫网', W - 170, 42);
+  ctx.fillText('E - 与NPC对话', W - 170, 58);
+  ctx.fillText('ESC - 关闭对话框', W - 170, 74);
+}
+
+// --------------- 特效 ---------------
+function drawEffects() {
+  for (let i = catchEffects.length - 1; i >= 0; i--) {
+    const fx = catchEffects[i];
+    fx.timer--;
+    if (fx.timer <= 0) { catchEffects.splice(i, 1); continue; }
+    const sx = Math.floor(fx.x - camera.x);
+    const sy = Math.floor(fx.y - camera.y - (30 - fx.timer) * 1.5);
+    ctx.globalAlpha = fx.timer / 30;
+    ctx.fillStyle = fx.color;
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText(fx.text, sx - 12, sy);
+    ctx.globalAlpha = 1;
+
+    // 星星粒子
+    for (let j = 0; j < 4; j++) {
+      const angle = (j / 4) * Math.PI * 2 + fx.timer * 0.1;
+      const dist = (30 - fx.timer) * 1.5;
+      const px = sx + Math.cos(angle) * dist;
+      const py = sy + Math.sin(angle) * dist;
+      const size = Math.max(1, 3 - (30 - fx.timer) * 0.1);
+      drawPixelRect(px, py, size, size, '#ffe060');
+    }
+  }
+}
+
+// --------------- NPC 互动提示 ---------------
+function drawInteractHint(npc, offX, offY) {
+  const sx = Math.floor(npc.x - offX);
+  const sy = Math.floor(npc.y - offY);
+  const t = performance.now() / 600;
+  const bob = Math.sin(t) * 3;
+  ctx.globalAlpha = 0.6 + Math.sin(t * 1.5) * 0.3;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 10px monospace';
+  ctx.fillText('[E]', sx - 8, sy - 32 + bob);
+  ctx.globalAlpha = 1;
+}
+
+// --------------- 迷你地图 ---------------
+function drawMiniMap() {
+  const mmW = 80, mmH = 60;
+  const mmX = W - mmW - 10, mmY = H - mmH - 10;
+  const scaleX = mmW / MAP_W, scaleY = mmH / MAP_H;
+
+  drawPixelRect(mmX - 2, mmY - 2, mmW + 4, mmH + 4, 'rgba(30,20,10,0.9)');
+  drawPixelRect(mmX, mmY, mmW, mmH, 'rgba(20,30,10,0.8)');
+
+  // 简化的地图
+  for (let r = 0; r < WORLD_ROWS; r++) {
+    for (let c = 0; c < WORLD_COLS; c++) {
+      const t = worldMap[r][c];
+      let color;
+      switch (t) {
+        case 0: color = '#3a6a20'; break;
+        case 1: color = '#a08050'; break;
+        case 2: color = '#1a4a10'; break;
+        case 3: color = '#2a5a90'; break;
+        case 4: color = '#5aaa30'; break;
+        case 5: color = '#7a4a2a'; break;
+        default: color = '#3a6a20';
+      }
+      ctx.fillStyle = color;
+      ctx.fillRect(mmX + c * WORLD_TILE * scaleX, mmY + r * WORLD_TILE * scaleY,
+                   Math.ceil(WORLD_TILE * scaleX), Math.ceil(WORLD_TILE * scaleY));
+    }
+  }
+
+  // 玩家位置
+  ctx.fillStyle = '#ff4040';
+  ctx.fillRect(mmX + player.x * scaleX - 2, mmY + player.y * scaleY - 2, 4, 4);
+
+  // 视口
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mmX + camera.x * scaleX, mmY + camera.y * scaleY,
+                 W * scaleX, H * scaleY);
+}
+
+// --------------- 主循环 ---------------
+function update() {
+  if (dialogActive) {
+    if (consumeKey('KeyE') || consumeKey('Escape')) {
+      advanceDialog();
+    }
+    return;
+  }
+
+  updatePlayer();
+
+  // NPC 互动
+  if (consumeKey('KeyE')) {
+    for (let i = 0; i < npcs.length; i++) {
+      const npc = npcs[i];
+      const dx = npc.x - player.x, dy = npc.y - player.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 40) {
+        startDialog(i);
+        break;
+      }
+    }
+  }
+
+  // 捕虫
+  if (consumeKey('Space')) attemptCatch();
+
+  updateBugs();
+
+  // 清理按键
+  for (const k in justPressed) justPressed[k] = false;
+}
+
+function draw() {
+  updateCamera(player);
+
+  ctx.clearRect(0, 0, W, H);
+  drawWorldMap();
+
+  // 绘制所有有交互提示的NPC
+  for (const npc of npcs) {
+    drawNPC(npc, camera.x, camera.y);
+    const dx = npc.x - player.x, dy = npc.y - player.y;
+    if (Math.sqrt(dx * dx + dy * dy) < 50) {
+      drawInteractHint(npc, camera.x, camera.y);
+    }
+  }
+
+  // 虫子
+  for (const bug of bugs) {
+    if (bug.alive) drawBug(bug, camera.x, camera.y);
+  }
+
+  // 玩家
+  drawPlayer(player, camera.x, camera.y);
+
+  // 特效
+  drawEffects();
+
+  // UI
+  drawUI();
+  drawDialog();
+  drawMiniMap();
+}
+
+let running = true;
+function gameLoop() {
+  if (!running) return;
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// 初始生成一些虫子
+for (let i = 0; i < 4; i++) spawnBug();
+
+gameLoop();
+</script>
+</body>
+</html>
