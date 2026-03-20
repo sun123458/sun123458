@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简易地图 - 定位、标记与弹窗</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+    #map { height: 100%; width: 100%; }
+
+    /* 顶部工具栏 */
+    .toolbar {
+      position: absolute;
+      top: 16px;
+      left: 60px;
+      right: 16px;
+      z-index: 1000;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .toolbar button {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      background: #2b7de9;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .toolbar button:hover { background: #1a6bd1; transform: translateY(-1px); }
+    .toolbar button:active { transform: translateY(0); }
+    .toolbar button.active { background: #e63946; }
+
+    /* 定位状态指示器 */
+    .loc-indicator {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      color: #333;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .loc-indicator.show { opacity: 1; }
+
+    /* 自定义弹窗样式 */
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+    }
+    .leaflet-popup-content {
+      margin: 12px 14px;
+      min-width: 180px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .popup-title {
+      font-weight: 600;
+      font-size: 15px;
+      color: #1a1a2e;
+      margin-bottom: 6px;
+    }
+    .popup-detail {
+      color: #555;
+      font-size: 13px;
+    }
+    .popup-detail span { color: #2b7de9; font-weight: 500; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="toolbar" id="toolbar">
+  <button id="btn-locate" title="获取当前位置">&#9678; 定位</button>
+  <button id="btn-standard" title="标准地图" class="active">&#9632; 标准</button>
+  <button id="btn-satellite" title="卫星地图">&#9632; 卫星</button>
+  <button id="btn-terrain" title="地形地图">&#9632; 地形</button>
+  <button id="btn-dark" title="暗黑模式">&#9632; 暗黑</button>
+</div>
+
+<div class="loc-indicator" id="locIndicator">正在获取位置...</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script>
+  // ========== 地图初始化 ==========
+  var map = L.map('map').setView([39.9042, 116.4074], 12);
+
+  // ========== 底图图层定义 ==========
+  var layers = {
+    standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri &mdash; Sources: Esri, Maxar, Earthstar Geographics'
+    }),
+    terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      maxZoom: 17,
+      attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+    }),
+    dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
+    })
+  };
+
+  // 默认显示标准地图
+  layers.standard.addTo(map);
+
+  // 当前图层记录
+  var currentLayer = 'standard';
+
+  // ========== 标记数据 ==========
+  var markersData = [
+    {
+      lat: 39.9042, lng: 116.4074,
+      title: '天安门广场',
+      desc: '位于北京市中心，是中华人民共和国的象征。面积44万平方米，可容纳100万人举行盛大集会。',
+      icon: '🏛️',
+      color: '#e63946'
+    },
+    {
+      lat: 39.9889, lng: 116.3915,
+      title: '鸟巢（国家体育场）',
+      desc: '2008年北京奥运会主体育场，总建筑面积25.8万平方米，可容纳观众91000人。',
+      icon: '🏟️',
+      color: '#e63946'
+    },
+    {
+      lat: 39.9841, lng: 116.4365,
+      title: '水立方（国家游泳中心）',
+      desc: '2008年北京奥运会游泳比赛场馆，建筑外观像一个个水分子，建筑面积约8万平方米。',
+      icon: '🏊',
+      color: '#2b7de9'
+    },
+    {
+      lat: 39.9961, lng: 116.2818,
+      title: '颐和园',
+      desc: '中国现存规模最大、保存最完整的皇家园林，占地约290公顷，被誉为"皇家园林博物馆"。',
+      icon: '🏯',
+      color: '#2a9d8f'
+    },
+    {
+      lat: 40.3578, lng: 116.0055,
+      title: '八达岭长城',
+      desc: '万里长城的重要组成部分，是明长城中保存最好的一段，也是最具代表性的一段。',
+      icon: '🧱',
+      color: '#e76f51'
+    },
+    {
+      lat: 39.8704, lng: 116.4338,
+      title: '天坛',
+      desc: '明清两代帝王祭天、祈谷的场所，主要建筑包括祈年殿、皇穹宇等，1998年被列入世界遗产。',
+      icon: '⭕',
+      color: '#e9c46a'
+    }
+  ];
+
+  // ========== 创建自定义图标 ==========
+  function createIcon(color, emoji) {
+    return L.divIcon({
+      className: 'custom-marker',
+      html: '<div style="' +
+        'background:' + color + ';' +
+        'width:36px;height:36px;border-radius:50% 50% 50% 2px;' +
+        'display:flex;align-items:center;justify-content:center;' +
+        'font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,0.3);' +
+        'transform:rotate(-45deg);">' +
+        '<span style="transform:rotate(45deg);">' + emoji + '</span></div>',
+      iconSize: [36, 36],
+      iconAnchor: [18, 36],
+      popupAnchor: [0, -36]
+    });
+  }
+
+  // ========== 添加标记 ==========
+  var markers = [];
+  markersData.forEach(function (data) {
+    var marker = L.marker([data.lat, data.lng], {
+      icon: createIcon(data.color, data.icon),
+      title: data.title
+    }).addTo(map);
+
+    // 绑定弹窗内容
+    marker.bindPopup(
+      '<div class="popup-title">' + data.icon + ' ' + data.title + '</div>' +
+      '<div class="popup-detail">' + data.desc + '</div>' +
+      '<div class="popup-detail" style="margin-top:6px;">' +
+      '坐标：<span>' + data.lat.toFixed(4) + ', ' + data.lng.toFixed(4) + '</span></div>',
+      { maxWidth: 280 }
+    );
+
+    // 点击标记时打开弹窗并飞行到标记位置
+    marker.on('click', function () {
+      map.flyTo([data.lat, data.lng], 15, { duration: 0.8 });
+    });
+
+    markers.push(marker);
+  });
+
+  // ========== 底图切换 ==========
+  function switchLayer(name) {
+    if (name === currentLayer) return;
+    map.removeLayer(layers[currentLayer]);
+    layers[name].addTo(map);
+    currentLayer = name;
+
+    // 更新按钮状态
+    document.querySelectorAll('.toolbar button[id^="btn-"]').forEach(function (btn) {
+      btn.classList.remove('active');
+    });
+    document.getElementById('btn-' + name).classList.add('active');
+  }
+
+  document.getElementById('btn-standard').addEventListener('click', function () { switchLayer('standard'); });
+  document.getElementById('btn-satellite').addEventListener('click', function () { switchLayer('satellite'); });
+  document.getElementById('btn-terrain').addEventListener('click', function () { switchLayer('terrain'); });
+  document.getElementById('btn-dark').addEventListener('click', function () { switchLayer('dark'); });
+
+  // ========== 定位功能 ==========
+  var locationMarker = null;
+  var locationCircle = null;
+
+  document.getElementById('btn-locate').addEventListener('click', function () {
+    var indicator = document.getElementById('locIndicator');
+    indicator.textContent = '正在获取位置...';
+    indicator.classList.add('show');
+
+    if (!navigator.geolocation) {
+      indicator.textContent = '您的浏览器不支持地理定位';
+      setTimeout(function () { indicator.classList.remove('show'); }, 3000);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+        var accuracy = pos.coords.accuracy;
+
+        // 更新状态
+        indicator.textContent = '定位成功：' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+
+        // 飞到当前位置
+        map.flyTo([lat, lng], 16, { duration: 1.2 });
+
+        // 移除旧标记
+        if (locationMarker) map.removeLayer(locationMarker);
+        if (locationCircle) map.removeLayer(locationCircle);
+
+        // 添加定位标记（蓝色脉冲圆点）
+        locationMarker = L.circleMarker([lat, lng], {
+          radius: 8,
+          fillColor: '#2b7de9',
+          color: '#fff',
+          weight: 2,
+          fillOpacity: 1
+        }).addTo(map);
+
+        // 添加精度范围圆
+        locationCircle = L.circle([lat, lng], {
+          radius: accuracy,
+          color: '#2b7de9',
+          weight: 1,
+          fillColor: '#2b7de9',
+          fillOpacity: 0.15
+        }).addTo(map);
+
+        // 定位弹窗
+        locationMarker.bindPopup(
+          '<div class="popup-title">&#9678; 我的当前位置</div>' +
+          '<div class="popup-detail">纬度：<span>' + lat.toFixed(6) + '</span></div>' +
+          '<div class="popup-detail">经度：<span>' + lng.toFixed(6) + '</span></div>' +
+          '<div class="popup-detail">精度：<span>' + Math.round(accuracy) + ' 米</span></div>'
+        ).openPopup();
+
+        setTimeout(function () { indicator.classList.remove('show'); }, 4000);
+      },
+      function (err) {
+        var msg = '定位失败：';
+        switch (err.code) {
+          case 1: msg += '用户拒绝了定位请求'; break;
+          case 2: msg += '位置信息不可用'; break;
+          case 3: msg += '定位请求超时'; break;
+          default: msg += '未知错误';
+        }
+        indicator.textContent = msg;
+        setTimeout(function () { indicator.classList.remove('show'); }, 4000);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+
+  // ========== 地图点击添加标记 ==========
+  map.on('click', function (e) {
+    var lat = e.latlng.lat.toFixed(4);
+    var lng = e.latlng.lng.toFixed(4);
+
+    var marker = L.marker(e.latlng, {
+      icon: createIcon('#264653', '📍'),
+      title: '自定义标记'
+    }).addTo(map);
+
+    marker.bindPopup(
+      '<div class="popup-title">📍 自定义标记</div>' +
+      '<div class="popup-detail">经度：<span>' + lng + '</span></div>' +
+      '<div class="popup-detail">纬度：<span>' + lat + '</span></div>'
+    ).openPopup();
+
+    markers.push(marker);
+  });
+</script>
+
+</body>
+</html>
