@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学习数据统计仪表盘</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    /* ========== CSS 变量 & 主题 ========== */
+    :root {
+      --bg-primary: #f0f4f8;
+      --bg-card: #ffffff;
+      --bg-sidebar: #1e293b;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --accent: #6366f1;
+      --accent-light: #818cf8;
+      --accent-bg: rgba(99,102,241,0.08);
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 25px rgba(0,0,0,0.08);
+      --radius: 14px;
+      --radius-sm: 8px;
+      --skeleton-base: #e2e8f0;
+      --skeleton-shine: #f1f5f9;
+      --chart-grid: rgba(0,0,0,0.06);
+      --chart-text: #64748b;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-card: #1e293b;
+      --bg-sidebar: #0f172a;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border: #334155;
+      --accent-bg: rgba(99,102,241,0.15);
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-lg: 0 10px 25px rgba(0,0,0,0.3);
+      --skeleton-base: #334155;
+      --skeleton-shine: #3e4c63;
+      --chart-grid: rgba(255,255,255,0.06);
+      --chart-text: #94a3b8;
+    }
+
+    /* ========== 基础样式 ========== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: background .35s, color .35s;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+
+    /* ========== 布局 ========== */
+    .dashboard {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 240px;
+      background: var(--bg-sidebar);
+      color: #f1f5f9;
+      padding: 28px 20px;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      transition: transform .3s;
+    }
+
+    .sidebar-brand {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 36px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-brand svg { width: 28px; height: 28px; }
+
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      color: #94a3b8;
+      font-size: 14px;
+      transition: all .2s;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-nav a:hover, .sidebar-nav a.active {
+      background: rgba(99,102,241,0.15);
+      color: #818cf8;
+    }
+
+    .sidebar-nav a svg { width: 18px; height: 18px; opacity: .8; }
+
+    .main {
+      flex: 1;
+      margin-left: 240px;
+      padding: 28px 32px;
+    }
+
+    /* ========== 顶部栏 ========== */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .topbar h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .date-range {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 7px 14px;
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: border .2s;
+    }
+
+    .date-range input[type="date"] {
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .date-range input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: opacity(.5);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-accent:hover { background: var(--accent-light); }
+
+    .theme-toggle {
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: all .2s;
+      font-size: 18px;
+    }
+
+    .theme-toggle:hover { border-color: var(--accent); }
+
+    /* ========== 统计卡片 ========== */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+      transition: all .3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 3px;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity .3s;
+    }
+
+    .stat-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+    .stat-card:hover::after { opacity: 1; }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-label svg { width: 16px; height: 16px; }
+
+    .stat-value {
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .stat-change {
+      font-size: 12px;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat-change.up { color: var(--success); }
+    .stat-change.down { color: var(--danger); }
+
+    /* ========== 图表区域 ========== */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .charts-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+      transition: all .3s;
+    }
+
+    .chart-card:hover { box-shadow: var(--shadow-lg); }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .chart-export {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px;
+      border: none;
+      background: var(--accent-bg);
+      color: var(--accent);
+      cursor: pointer;
+      transition: all .2s;
+      font-size: 15px;
+    }
+
+    .chart-export:hover { background: var(--accent); color: #fff; }
+
+    .chart-wrap { position: relative; width: 100%; }
+    .chart-wrap canvas { width: 100% !important; }
+
+    /* ========== 环形进度 ========== */
+    .ring-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      padding: 10px 0;
+    }
+
+    .ring-item { text-align: center; }
+
+    .ring-svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+
+    .ring-bg { fill: none; stroke: var(--skeleton-base); stroke-width: 8; }
+
+    .ring-progress {
+      fill: none;
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);
+    }
+
+    .ring-value {
+      position: absolute;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .ring-label-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+
+    .ring-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ========== 科目列表 ========== */
+    .subject-list {
+      list-style: none;
+      margin-top: 14px;
+    }
+
+    .subject-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .subject-list li:last-child { border-bottom: none; }
+
+    .subject-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 10px;
+    }
+
+    .subject-name { display: flex; align-items: center; }
+    .subject-hours { color: var(--text-secondary); font-size: 13px; }
+
+    /* ========== 骨架屏 ========== */
+    .skeleton {
+      position: relative;
+      overflow: hidden;
+      min-height: 1em;
+      min-width: 3em;
+      border-radius: var(--radius-sm);
+      background: var(--skeleton-base);
+      color: transparent !important;
+    }
+
+    .skeleton * { visibility: hidden !important; }
+
+    .skeleton::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent 0%, var(--skeleton-shine) 50%, transparent 100%);
+      animation: shimmer 1.6s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .skeleton-card {
+      background: var(--skeleton-base);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+    }
+
+    .skeleton-line {
+      height: 14px;
+      background: var(--skeleton-base);
+      border-radius: 4px;
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .skeleton-line::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, var(--skeleton-shine) 50%, transparent 100%);
+      animation: shimmer 1.6s infinite;
+    }
+
+    .skeleton-circle {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: var(--skeleton-base);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .skeleton-circle::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, var(--skeleton-shine) 50%, transparent 100%);
+      animation: shimmer 1.6s infinite;
+    }
+
+    /* ========== 加载动画 ========== */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 9999;
+      transition: opacity .5s, visibility .5s;
+    }
+
+    .loading-overlay.hide {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loader {
+      width: 44px; height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text { font-size: 15px; color: var(--text-secondary); }
+
+    /* ========== 淡入动画 ========== */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp .5s forwards;
+    }
+
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ========== 快捷筛选 ========== */
+    .quick-filters {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-chip {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+    }
+
+    .filter-chip:hover, .filter-chip.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* ========== 响应式 ========== */
+    @media (max-width: 1200px) {
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid, .charts-grid-2 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; padding: 20px 16px; }
+      .stat-grid { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; align-items: flex-start; }
+    }
+
+    /* ========== 提示信息 ========== */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 22px;
+      box-shadow: var(--shadow-lg);
+      font-size: 14px;
+      z-index: 10000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all .35s;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ========== 移动端菜单 ========== */
+    .mobile-menu {
+      display: none;
+      width: 40px; height: 40px;
+      align-items: center; justify-content: center;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-menu { display: flex; }
+    }
+
+    /* ========== 数字滚动 ========== */
+    .count-up { transition: all .3s; }
+  </style>
+</head>
+<body>
+
+<!-- 加载动画 -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader"></div>
+  <div class="loading-text">正在加载学习数据...</div>
+</div>
+
+<!-- 提示 -->
+<div class="toast" id="toast"></div>
+
+<div class="dashboard">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      学习仪表盘
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        数据总览
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        学习趋势
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        时间记录
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        科目管理
+      </a>
+    </nav>
+  </aside>
+
+  <!-- 主内容 -->
+  <main class="main">
+    <!-- 顶部栏 -->
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="mobile-menu" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1>数据总览</h1>
+      </div>
+      <div class="topbar-actions">
+        <div class="quick-filters">
+          <button class="filter-chip active" data-range="7" onclick="setQuickRange(7, this)">近7天</button>
+          <button class="filter-chip" data-range="14" onclick="setQuickRange(14, this)">近14天</button>
+          <button class="filter-chip" data-range="30" onclick="setQuickRange(30, this)">近30天</button>
+        </div>
+        <div class="date-range">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <input type="date" id="dateStart">
+          <span style="color:var(--text-muted)">至</span>
+          <input type="date" id="dateEnd">
+          <button class="btn" style="padding:4px 10px;font-size:12px;" onclick="applyDateFilter()">筛选</button>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
+      </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stat-grid" id="statGrid">
+      <!-- 骨架屏占位 -->
+      <div class="skeleton-card"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%;height:30px;margin-top:14px"></div><div class="skeleton-line" style="width:30%"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%;height:30px;margin-top:14px"></div><div class="skeleton-line" style="width:30%"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%;height:30px;margin-top:14px"></div><div class="skeleton-line" style="width:30%"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%;height:30px;margin-top:14px"></div><div class="skeleton-line" style="width:30%"></div></div>
+    </div>
+
+    <!-- 折线图 + 饼图 -->
+    <div class="charts-grid" id="chartsRow1">
+      <div class="skeleton-card"><div class="skeleton-line" style="width:50%"></div><div class="skeleton-line" style="width:100%;height:280px;margin-top:20px;border-radius:8px"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line" style="width:50%"></div><div class="skeleton-line" style="width:100%;height:280px;margin-top:20px;border-radius:8px"></div></div>
+    </div>
+
+    <!-- 柱状图 + 环形进度 -->
+    <div class="charts-grid-2" id="chartsRow2">
+      <div class="skeleton-card"><div class="skeleton-line" style="width:50%"></div><div class="skeleton-line" style="width:100%;height:280px;margin-top:20px;border-radius:8px"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line" style="width:50%"></div><div style="display:flex;gap:24px;justify-content:center;margin-top:20px"><div class="skeleton-circle"></div><div class="skeleton-circle"></div></div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ==================== 数据生成 ====================
+const SUBJECTS = ['数学', '英语', '物理', '编程', '语文', '化学'];
+const SUBJECT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6'];
+
+function generateData(days) {
+  const data = [];
+  const today = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().slice(0, 10);
+    const subjects = {};
+    let totalHours = 0;
+    let totalTasks = 0;
+    let completedTasks = 0;
+
+    SUBJECTS.forEach(s => {
+      const hours = +(Math.random() * 3 + 0.5).toFixed(1);
+      subjects[s] = hours;
+      totalHours += hours;
+    });
+
+    totalTasks = Math.floor(Math.random() * 6) + 3;
+    completedTasks = Math.floor(Math.random() * (totalTasks + 1));
+
+    data.push({ date: dateStr, subjects, totalHours: +totalHours.toFixed(1), totalTasks, completedTasks });
+  }
+  return data;
+}
+
+// ==================== 状态 ====================
+let allData = generateData(60);
+let filteredData = [];
+let charts = {};
+let currentRange = 7;
+let isDark = localStorage.getItem('theme') === 'dark';
+
+// ==================== 初始化 ====================
+window.addEventListener('DOMContentLoaded', () => {
+  if (isDark) document.documentElement.setAttribute('data-theme', 'dark');
+  updateThemeIcon();
+
+  const today = new Date();
+  const start = new Date(today); start.setDate(start.getDate() - 6);
+  document.getElementById('dateStart').value = start.toISOString().slice(0, 10);
+  document.getElementById('dateEnd').value = today.toISOString().slice(0, 10);
+
+  filterData();
+
+  setTimeout(() => {
+    document.getElementById('loadingOverlay').classList.add('hide');
+  }, 1000);
+});
+
+// ==================== 筛选 ====================
+function filterData() {
+  const startStr = document.getElementById('dateStart').value;
+  const endStr = document.getElementById('dateEnd').value;
+  filteredData = allData.filter(d => d.date >= startStr && d.date <= endStr);
+  renderAll();
+}
+
+function setQuickRange(days, el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentRange = days;
+  const today = new Date();
+  const start = new Date(today); start.setDate(start.getDate() - days + 1);
+  document.getElementById('dateStart').value = start.toISOString().slice(0, 10);
+  document.getElementById('dateEnd').value = today.toISOString().slice(0, 10);
+  filterData();
+}
+
+function applyDateFilter() {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  currentRange = null;
+  filterData();
+}
+
+// ==================== 渲染总控 ====================
+function renderAll() {
+  renderStats();
+  renderLineChart();
+  renderBarChart();
+  renderPieChart();
+  renderRingProgress();
+}
+
+// ==================== 工具 ====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function countUp(el, target, suffix = '', duration = 800) {
+  const start = performance.now();
+  const isFloat = String(target).includes('.');
+  const from = 0;
+  (function tick(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = from + (target - from) * eased;
+    el.textContent = (isFloat ? current.toFixed(1) : Math.round(current)) + suffix;
+    if (progress < 1) requestAnimationFrame(tick);
+  })(start);
+}
+
+// ==================== 统计卡片 ====================
+function renderStats() {
+  const total = filteredData;
+  if (!total.length) return;
+
+  const avgHours = +(total.reduce((s, d) => s + d.totalHours, 0) / total.length).toFixed(1);
+  const totalTasks = total.reduce((s, d) => s + d.totalTasks, 0);
+  const completedTasks = total.reduce((s, d) => s + d.completedTasks, 0);
+  const rate = totalTasks ? Math.round(completedTasks / totalTasks * 100) : 0;
+
+  // 计算连续打卡（使用全部数据）
+  let streak = 0;
+  const sorted = [...allData].reverse();
+  for (const d of sorted) {
+    if (d.totalHours >= 1) streak++;
+    else break;
+  }
+
+  const html = `
+    <div class="stat-card fade-up" style="animation-delay:.05s">
+      <div class="stat-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        平均学习时长
+      </div>
+      <div class="stat-value count-up" data-target="${avgHours}" data-suffix=" h">0 h</div>
+      <div class="stat-change up">↑ ${streak > 5 ? '12%' : '5%'} 较上周</div>
+    </div>
+    <div class="stat-card fade-up" style="animation-delay:.1s">
+      <div class="stat-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+        任务完成率
+      </div>
+      <div class="stat-value count-up" data-target="${rate}" data-suffix="%">0%</div>
+      <div class="stat-change up">↑ ${rate > 70 ? '8%' : '3%'} 较上周</div>
+    </div>
+    <div class="stat-card fade-up" style="animation-delay:.15s">
+      <div class="stat-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        学习科目数
+      </div>
+      <div class="stat-value count-up" data-target="${SUBJECTS.length}" data-suffix="">0</div>
+      <div class="stat-change" style="color:var(--text-muted)">覆盖全部科目</div>
+    </div>
+    <div class="stat-card fade-up" style="animation-delay:.2s">
+      <div class="stat-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        连续打卡天数
+      </div>
+      <div class="stat-value count-up" data-target="${streak}" data-suffix=" 天">0 天</div>
+      <div class="stat-change up">🔥 坚持打卡中</div>
+    </div>
+  `;
+  document.getElementById('statGrid').innerHTML = html;
+
+  // 启动数字动画
+  setTimeout(() => {
+    document.querySelectorAll('.count-up').forEach(el => {
+      countUp(el, +el.dataset.target, el.dataset.suffix);
+    });
+  }, 200);
+}
+
+// ==================== 图表通用配置 ====================
+function getCommonOptions(extra = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim(), font: { size: 12 }, usePointStyle: true, padding: 16 } },
+      ...extra.plugins
+    },
+    scales: {
+      x: { grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() }, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim(), font: { size: 11 } } },
+      y: { grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() }, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim(), font: { size: 11 } } },
+      ...extra.scales
+    }
+  };
+}
+
+function themeColor(varName) {
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+// ==================== 折线图：每日学习时长 ====================
+function renderLineChart() {
+  const ctx = document.createElement('canvas');
+  ctx.id = 'lineCanvas';
+
+  const container = document.getElementById('chartsRow1');
+  container.innerHTML = `
+    <div class="chart-card fade-up" style="animation-delay:.25s" id="lineCard">
+      <div class="chart-header">
+        <div class="chart-title">每日学习时长</div>
+        <button class="chart-export" onclick="exportChart('lineCard','每日学习时长')" title="导出图片">⬇</button>
+      </div>
+      <div class="chart-wrap" style="height:280px" id="lineWrap"></div>
+    </div>
+    <div class="skeleton-card" id="piePlaceholder"><div class="skeleton-line" style="width:50%"></div><div class="skeleton-line" style="width:100%;height:280px;margin-top:20px;border-radius:8px"></div></div>
+  `;
+  document.getElementById('lineWrap').appendChild(ctx);
+
+  const labels = filteredData.map(d => d.date.slice(5));
+  const values = filteredData.map(d => d.totalHours);
+
+  if (charts.line) charts.line.destroy();
+  charts.line = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: '学习时长 (h)',
+        data: values,
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,0.08)',
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointBackgroundColor: '#6366f1',
+        pointHoverRadius: 7,
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: { ...getCommonOptions(), interaction: { mode: 'index', intersect: false }, plugins: { ...getCommonOptions().plugins, tooltip: { backgroundColor: 'rgba(30,41,59,0.9)', titleFont: { size: 13 }, bodyFont: { size: 12 }, padding: 12, cornerRadius: 8 } } }
+  });
+}
+
+// ==================== 饼图：科目分布 ====================
+function renderPieChart() {
+  // 先检查折线图容器是否已经渲染
+  const lineCard = document.getElementById('lineCard');
+  if (!lineCard) return;
+
+  const container = document.getElementById('chartsRow1');
+  // 移除占位
+  const ph = document.getElementById('piePlaceholder');
+  if (ph) ph.remove();
+
+  const ctx = document.createElement('canvas');
+  ctx.id = 'pieCanvas';
+
+  const totalHours = {};
+  SUBJECTS.forEach(s => totalHours[s] = 0);
+  filteredData.forEach(d => { SUBJECTS.forEach(s => totalHours[s] += d.subjects[s]); });
+  const values = SUBJECTS.map(s => +totalHours[s].toFixed(1));
+
+  const card = document.createElement('div');
+  card.className = 'chart-card fade-up';
+  card.style.animationDelay = '.3s';
+  card.id = 'pieCard';
+  card.innerHTML = `
+    <div class="chart-header">
+      <div class="chart-title">科目时间分布</div>
+      <button class="chart-export" onclick="exportChart('pieCard','科目时间分布')" title="导出图片">⬇</button>
+    </div>
+    <div class="chart-wrap" style="height:280px" id="pieWrap"></div>
+  `;
+  container.appendChild(card);
+  document.getElementById('pieWrap').appendChild(ctx);
+
+  if (charts.pie) charts.pie.destroy();
+  charts.pie = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: SUBJECTS,
+      datasets: [{ data: values, backgroundColor: SUBJECT_COLORS, borderWidth: 2, borderColor: themeColor('--bg-card') }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: themeColor('--chart-text'), font: { size: 12 }, usePointStyle: true, padding: 12 } },
+        tooltip: { backgroundColor: 'rgba(30,41,59,0.9)', padding: 12, cornerRadius: 8 }
+      }
+    }
+  });
+}
+
+// ==================== 柱状图：任务完成率 ====================
+function renderBarChart() {
+  const container = document.getElementById('chartsRow2');
+
+  const ctx = document.createElement('canvas');
+  ctx.id = 'barCanvas';
+
+  container.innerHTML = `
+    <div class="chart-card fade-up" style="animation-delay:.35s" id="barCard">
+      <div class="chart-header">
+        <div class="chart-title">每日任务完成情况</div>
+        <button class="chart-export" onclick="exportChart('barCard','每日任务完成情况')" title="导出图片">⬇</button>
+      </div>
+      <div class="chart-wrap" style="height:280px" id="barWrap"></div>
+    </div>
+    <div class="skeleton-card" id="ringPlaceholder"><div class="skeleton-line" style="width:50%"></div><div style="display:flex;gap:24px;justify-content:center;margin-top:20px"><div class="skeleton-circle"></div><div class="skeleton-circle"></div></div></div>
+  `;
+  document.getElementById('barWrap').appendChild(ctx);
+
+  const labels = filteredData.map(d => d.date.slice(5));
+
+  if (charts.bar) charts.bar.destroy();
+  charts.bar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '已完成',
+          data: filteredData.map(d => d.completedTasks),
+          backgroundColor: 'rgba(99,102,241,0.8)',
+          borderRadius: 4,
+          barPercentage: 0.6
+        },
+        {
+          label: '未完成',
+          data: filteredData.map(d => d.totalTasks - d.completedTasks),
+          backgroundColor: 'rgba(99,102,241,0.15)',
+          borderRadius: 4,
+          barPercentage: 0.6
+        }
+      ]
+    },
+    options: {
+      ...getCommonOptions(),
+      plugins: {
+        ...getCommonOptions().plugins,
+        tooltip: { backgroundColor: 'rgba(30,41,59,0.9)', padding: 12, cornerRadius: 8 }
+      },
+      interaction: { mode: 'index', intersect: false }
+    }
+  });
+}
+
+// ==================== 环形进度条 ====================
+function renderRingProgress() {
+  const total = filteredData;
+  const totalTasks = total.reduce((s, d) => s + d.totalTasks, 0);
+  const completed = total.reduce((s, d) => s + d.completedTasks, 0);
+  const rate = totalTasks ? Math.round(completed / totalTasks * 100) : 0;
+
+  // 连续打卡
+  let streak = 0;
+  const sorted = [...allData].reverse();
+  for (const d of sorted) { if (d.totalHours >= 1) streak++; else break; }
+  const goalHours = 5;
+  const avgHours = total.length ? +(total.reduce((s, d) => s + d.totalHours, 0) / total.length).toFixed(1) : 0;
+  const hoursPercent = Math.min(Math.round(avgHours / goalHours * 100), 100);
+
+  const rph = document.getElementById('ringPlaceholder');
+  if (rph) rph.remove();
+
+  const container = document.getElementById('chartsRow2');
+
+  function makeRing(percent, color, value, label, id) {
+    const circumference = 2 * Math.PI * 52;
+    const offset = circumference * (1 - percent / 100);
+    return `
+      <div class="ring-wrapper">
+        <svg class="ring-svg" viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="52"/>
+          <circle class="ring-progress" cx="60" cy="60" r="52"
+            stroke="${color}"
+            stroke-dasharray="${circumference}"
+            stroke-dashoffset="${circumference}"
+            data-target-offset="${offset}"
+            id="${id}"/>
+        </svg>
+        <div class="ring-value">${value}</div>
+      </div>
+      <div class="ring-label-text">${label}</div>
+    `;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'chart-card fade-up';
+  card.style.animationDelay = '.4s';
+  card.id = 'ringCard';
+  card.innerHTML = `
+    <div class="chart-header">
+      <div class="chart-title">学习目标达成</div>
+      <button class="chart-export" onclick="exportChart('ringCard','学习目标达成')" title="导出图片">⬇</button>
+    </div>
+    <div class="ring-container">
+      <div class="ring-item">${makeRing(rate, '#6366f1', rate + '%', '任务完成率', 'ring1')}</div>
+      <div class="ring-item">${makeRing(Math.min(streak, 30) / 30 * 100, '#10b981', streak + '天', '连续打卡', 'ring2')}</div>
+      <div class="ring-item">${makeRing(hoursPercent, '#f59e0b', avgHours + '/5h', '日均目标', 'ring3')}</div>
+    </div>
+  `;
+  container.appendChild(card);
+
+  // 动画环形进度
+  setTimeout(() => {
+    ['ring1', 'ring2', 'ring3'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.strokeDashoffset = el.dataset.targetOffset;
+    });
+  }, 100);
+}
+
+// ==================== 导出图表 ====================
+function exportChart(cardId, filename) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  html2canvas(card, { backgroundColor: null, scale: 2 }).then(canvas => {
+    const link = document.createElement('a');
+    link.download = `${filename}_${new Date().toISOString().slice(0,10)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('图表已导出为图片');
+  });
+}
+
+// ==================== 深色模式 ====================
+function toggleTheme() {
+  isDark = !isDark;
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : '');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  updateThemeIcon();
+  // 重绘图表以更新颜色
+  setTimeout(renderAll, 50);
+}
+
+function updateThemeIcon() {
+  document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
+}
+
+// ==================== 数据联动：点击折线图更新柱状图 ====================
+document.addEventListener('click', (e) => {
+  // 如果点击了侧边栏链接以外的区域，在移动端关闭 sidebar
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar.classList.contains('open') && !sidebar.contains(e.target)) {
+    sidebar.classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>
