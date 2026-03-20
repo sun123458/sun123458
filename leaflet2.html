@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>简易地图 - Leaflet</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    #map { width: 100vw; height: 100vh; z-index: 1; }
+
+    /* ---------- 顶部工具栏 ---------- */
+    .toolbar {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      gap: 8px;
+      background: rgba(255,255,255,.95);
+      backdrop-filter: blur(8px);
+      padding: 8px 12px;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.15);
+    }
+
+    .toolbar h2 {
+      font-size: 15px;
+      line-height: 36px;
+      margin-right: 8px;
+      white-space: nowrap;
+      color: #333;
+    }
+
+    .toolbar button {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .btn-locate {
+      background: #2563eb;
+      color: #fff;
+    }
+    .btn-locate:hover { background: #1d4ed8; }
+
+    .layer-btn {
+      background: #f3f4f6;
+      color: #374151;
+    }
+    .layer-btn:hover { background: #e5e7eb; }
+    .layer-btn.active { background: #2563eb; color: #fff; }
+
+    /* ---------- 弹窗样式 ---------- */
+    .popup-content h3 {
+      font-size: 15px;
+      margin-bottom: 6px;
+      color: #1e40af;
+    }
+    .popup-content p {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #4b5563;
+      margin-bottom: 4px;
+    }
+    .popup-content .tag {
+      display: inline-block;
+      font-size: 11px;
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部工具栏 -->
+  <div class="toolbar">
+    <h2>Leaflet Map</h2>
+    <button class="btn-locate" id="btnLocate" title="定位到当前位置">
+      &#9654; 定位
+    </button>
+    <button class="layer-btn active" data-layer="osm">标准地图</button>
+    <button class="layer-btn" data-layer="topo">地形地图</button>
+    <button class="layer-btn" data-layer="dark">暗色地图</button>
+  </div>
+
+  <!-- 地图容器 -->
+  <div id="map"></div>
+
+  <script>
+    /* ========================================
+     * 1. 初始化地图，默认中心为北京
+     * ======================================== */
+    const map = L.map('map', {
+      zoomControl: false
+    }).setView([39.9042, 116.4074], 12);
+
+    // 缩放控件放右下角
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    /* ========================================
+     * 2. 底图切换
+     * ======================================== */
+    const baseLayers = {
+      osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+      }),
+      topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenTopoMap',
+        maxZoom: 17,
+      }),
+      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB',
+        maxZoom: 19,
+      }),
+    };
+
+    // 默认添加标准底图
+    baseLayers.osm.addTo(map);
+    let currentLayer = 'osm';
+
+    // 底图切换按钮
+    document.querySelectorAll('.layer-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.layer;
+        if (key === currentLayer) return;
+
+        map.removeLayer(baseLayers[currentLayer]);
+        baseLayers[key].addTo(map);
+        currentLayer = key;
+
+        document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    /* ========================================
+     * 3. 示例兴趣点数据
+     * ======================================== */
+    const pois = [
+      {
+        name: '故宫博物院',
+        lat: 39.9163,
+        lng: 116.3972,
+        address: '北京市东城区景山前街4号',
+        desc: '中国明清两代的皇家宫殿，世界文化遗产。',
+        tags: ['5A景区', '世界遗产'],
+      },
+      {
+        name: '天安门广场',
+        lat: 39.9055,
+        lng: 116.3976,
+        address: '北京市东城区',
+        desc: '世界上最大的城市广场之一。',
+        tags: ['地标'],
+      },
+      {
+        name: '颐和园',
+        lat: 39.9998,
+        lng: 116.2755,
+        address: '北京市海淀区新建宫门路19号',
+        desc: '中国古典园林的典范，皇家园林。',
+        tags: ['5A景区', '皇家园林'],
+      },
+      {
+        name: '鸟巢（国家体育场）',
+        lat: 39.9929,
+        lng: 116.3966,
+        address: '北京市朝阳区国家体育场南路1号',
+        desc: '2008年北京奥运会主场馆。',
+        tags: ['奥运场馆'],
+      },
+      {
+        name: '北京大学',
+        lat: 39.9869,
+        lng: 116.3059,
+        address: '北京市海淀区颐和园路5号',
+        desc: '中国顶尖学府之一，创建于1898年。',
+        tags: ['高校'],
+      },
+    ];
+
+    /* ========================================
+     * 4. 创建自定义图标 & 添加标记
+     * ======================================== */
+    // 用 DivIcon 绘制彩色圆点标记
+    function createIcon(color = '#2563eb') {
+      return L.divIcon({
+        className: '',
+        html: `<svg width="28" height="40" viewBox="0 0 28 40" xmlns="http://www.w3.org/2000/svg">
+                 <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z"
+                       fill="${color}" stroke="#fff" stroke-width="2"/>
+                 <circle cx="14" cy="14" r="6" fill="#fff"/>
+               </svg>`,
+        iconSize: [28, 40],
+        iconAnchor: [14, 40],
+        popupAnchor: [0, -44],
+      });
+    }
+
+    const tagColors = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#8b5cf6'];
+
+    pois.forEach((poi, i) => {
+      const color = tagColors[i % tagColors.length];
+      const tagsHtml = poi.tags.map(t => `<span class="tag">${t}</span>`).join(' ');
+
+      const popup = L.popup({ maxWidth: 260 }).setContent(`
+        <div class="popup-content">
+          <h3>${poi.name}</h3>
+          <p><strong>地址：</strong>${poi.address}</p>
+          <p>${poi.desc}</p>
+          <div>${tagsHtml}</div>
+        </div>
+      `);
+
+      L.marker([poi.lat, poi.lng], { icon: createIcon(color) })
+        .bindPopup(popup)
+        .addTo(map);
+    });
+
+    /* ========================================
+     * 5. 定位功能
+     * ======================================== */
+    const btnLocate = document.getElementById('btnLocate');
+
+    btnLocate.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert('您的浏览器不支持定位功能');
+        return;
+      }
+
+      btnLocate.textContent = '定位中...';
+      btnLocate.disabled = true;
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const { latitude, longitude } = pos.coords;
+          map.setView([latitude, longitude], 14);
+
+          // 如果之前有定位标记就移除
+          if (window._userMarker) map.removeLayer(window._userMarker);
+
+          const userIcon = createIcon('#ef4444');
+          window._userMarker = L.marker([latitude, longitude], { icon: userIcon })
+            .bindPopup(`
+              <div class="popup-content">
+                <h3>当前位置</h3>
+                <p>纬度：${latitude.toFixed(6)}</p>
+                <p>经度：${longitude.toFixed(6)}</p>
+              </div>
+            `)
+            .openPopup()
+            .addTo(map);
+
+          btnLocate.innerHTML = '&#9654; 定位';
+          btnLocate.disabled = false;
+        },
+        err => {
+          console.error(err);
+          alert('定位失败，请检查定位权限设置');
+          btnLocate.innerHTML = '&#9654; 定位';
+          btnLocate.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+  </script>
+</body>
+</html>
