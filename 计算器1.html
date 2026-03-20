@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>科学函数计算器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <h1>科学函数计算器</h1>
+            <div class="header-controls">
+                <label for="themeSelect">主题</label>
+                <select id="themeSelect">
+                    <option value="light">浅色</option>
+                    <option value="dark">深色</option>
+                    <option value="retro">复古</option>
+                </select>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <!-- History Panel -->
+            <aside class="panel history-panel" id="historyPanel">
+                <div class="panel-header">
+                    <h2>计算历史</h2>
+                    <button id="clearHistoryBtn" class="btn-icon" title="清空历史">&#x1F5D1;</button>
+                </div>
+                <div id="historyList" class="history-list"></div>
+            </aside>
+
+            <!-- Calculator -->
+            <section class="calculator-section">
+                <div class="display-container">
+                    <div id="expression" class="expression"></div>
+                    <div id="result" class="result">0</div>
+                </div>
+
+                <div class="keypad">
+                    <!-- Row 1: Scientific -->
+                    <button class="btn sci" data-action="sin">sin</button>
+                    <button class="btn sci" data-action="cos">cos</button>
+                    <button class="btn sci" data-action="tan">tan</button>
+                    <button class="btn sci" data-action="log">log</button>
+                    <button class="btn sci" data-action="sqrt">√</button>
+
+                    <!-- Row 2: Control -->
+                    <button class="btn ctrl" data-action="pow">x<sup>y</sup></button>
+                    <button class="btn ctrl" data-action="(">(</button>
+                    <button class="btn ctrl" data-action=")">)</button>
+                    <button class="btn ctrl" data-action="clear">AC</button>
+                    <button class="btn ctrl" data-action="backspace">&#x232B;</button>
+
+                    <!-- Row 3: 7 8 9 ÷ π -->
+                    <button class="btn num" data-action="7">7</button>
+                    <button class="btn num" data-action="8">8</button>
+                    <button class="btn num" data-action="9">9</button>
+                    <button class="btn op" data-action="/">&#xF7;</button>
+                    <button class="btn sci" data-action="pi">π</button>
+
+                    <!-- Row 4: 4 5 6 × e -->
+                    <button class="btn num" data-action="4">4</button>
+                    <button class="btn num" data-action="5">5</button>
+                    <button class="btn num" data-action="6">6</button>
+                    <button class="btn op" data-action="*">&#xD7;</button>
+                    <button class="btn sci" data-action="e">e</button>
+
+                    <!-- Row 5: 1 2 3 − % -->
+                    <button class="btn num" data-action="1">1</button>
+                    <button class="btn num" data-action="2">2</button>
+                    <button class="btn num" data-action="3">3</button>
+                    <button class="btn op" data-action="-">&#x2212;</button>
+                    <button class="btn sci" data-action="percent">%</button>
+
+                    <!-- Row 6: 0 . = + abs -->
+                    <button class="btn num" data-action="0">0</button>
+                    <button class="btn num" data-action=".">.</button>
+                    <button class="btn equals" data-action="equals">=</button>
+                    <button class="btn op" data-action="+">+</button>
+                    <button class="btn sci" data-action="abs">|x|</button>
+                </div>
+            </section>
+
+            <!-- Graph Panel -->
+            <aside class="panel graph-panel" id="graphPanel">
+                <div class="panel-header">
+                    <h2>函数绘图</h2>
+                </div>
+                <div class="graph-inputs">
+                    <input type="text" id="graphInput" placeholder="如 x^2, sin(x)" value="x^2">
+                    <div class="graph-btns">
+                        <button id="plotBtn" class="btn-small">绘图</button>
+                        <button id="resetGraphBtn" class="btn-small">重置</button>
+                    </div>
+                </div>
+                <div class="graph-presets">
+                    <button class="preset-btn" data-func="x^2">x²</button>
+                    <button class="preset-btn" data-func="x^3">x³</button>
+                    <button class="preset-btn" data-func="sin(x)">sin(x)</button>
+                    <button class="preset-btn" data-func="cos(x)">cos(x)</button>
+                    <button class="preset-btn" data-func="tan(x)">tan(x)</button>
+                    <button class="preset-btn" data-func="log(x)">ln(x)</button>
+                    <button class="preset-btn" data-func="sqrt(x)">√x</button>
+                    <button class="preset-btn" data-func="1/x">1/x</button>
+                    <button class="preset-btn" data-func="abs(x)">|x|</button>
+                    <button class="preset-btn" data-func="x*sin(x)">x·sin(x)</button>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="graphCanvas"></canvas>
+                </div>
+                <div class="graph-info">
+                    <span id="graphCoords">坐标: (-,-)</span>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
