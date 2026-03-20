@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Swipe Dating</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 30%, #4a1d6e 60%, #1a0a2e 100%);
+    overflow: hidden;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* Header */
+  .header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+    background: linear-gradient(180deg, rgba(26,10,46,0.95) 0%, transparent 100%);
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 1px;
+  }
+  .header .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #ff6b9d, #c44dff);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  /* Card Container */
+  .card-container {
+    position: absolute;
+    top: 80px; left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 40px);
+    max-width: 400px;
+    height: calc(100% - 220px);
+    perspective: 1200px;
+  }
+
+  /* Card */
+  .card {
+    position: absolute;
+    width: 100%; height: 100%;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 2px 10px rgba(0,0,0,0.2);
+    cursor: grab;
+    transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1),
+                box-shadow 0.25s ease;
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+  .card.dragging {
+    transition: none;
+    cursor: grabbing;
+    z-index: 100 !important;
+  }
+  .card-image {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+  .card-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 60px 20px 24px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    color: #fff;
+  }
+  .card-name {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .card-info {
+    font-size: 15px;
+    opacity: 0.9;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .card-tag {
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  /* Swipe Labels */
+  .swipe-label {
+    position: absolute;
+    top: 24px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 20px;
+    font-weight: 700;
+    border: 4px solid;
+    opacity: 0;
+    pointer-events: none;
+    transform: rotate(-12deg);
+    transition: opacity 0.15s ease;
+  }
+  .swipe-label.like {
+    left: 20px;
+    color: #00e676;
+    border-color: #00e676;
+    background: rgba(0,230,118,0.15);
+  }
+  .swipe-label.nope {
+    right: 20px;
+    color: #ff5252;
+    border-color: #ff5252;
+    background: rgba(255,82,82,0.15);
+    transform: rotate(12deg);
+  }
+
+  /* Bottom Action Bar */
+  .action-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 20px 24px 36px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    z-index: 100;
+    background: linear-gradient(0deg, rgba(26,10,46,0.98) 0%, rgba(26,10,46,0.8) 70%, transparent 100%);
+  }
+  .action-btn {
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    flex-shrink: 0;
+  }
+  .action-btn:hover {
+    transform: scale(1.08);
+  }
+  .action-btn:active {
+    transform: scale(0.92);
+  }
+  .btn-rewind {
+    background: rgba(255,255,255,0.12);
+    color: #f9ca24;
+    box-shadow: 0 4px 16px rgba(249,202,36,0.15);
+  }
+  .btn-rewind:hover {
+    background: rgba(255,255,255,0.2);
+    box-shadow: 0 6px 24px rgba(249,202,36,0.3);
+  }
+  .btn-skip {
+    background: rgba(255,82,82,0.15);
+    color: #ff5252;
+    box-shadow: 0 4px 16px rgba(255,82,82,0.15);
+  }
+  .btn-skip:hover {
+    background: rgba(255,82,82,0.25);
+    box-shadow: 0 6px 24px rgba(255,82,82,0.3);
+  }
+  .btn-super {
+    width: 48px; height: 48px;
+    background: rgba(0,230,118,0.12);
+    color: #00e676;
+    box-shadow: 0 4px 12px rgba(0,230,118,0.1);
+  }
+  .btn-like {
+    width: 68px; height: 68px;
+    background: linear-gradient(135deg, #00e676, #00c853);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0,230,118,0.35);
+  }
+  .btn-like:hover {
+    box-shadow: 0 6px 28px rgba(0,230,118,0.5);
+  }
+  .btn-info {
+    background: rgba(76,29,110,0.5);
+    color: #c44dff;
+    box-shadow: 0 4px 16px rgba(196,77,255,0.2);
+  }
+  .btn-info:hover {
+    background: rgba(76,29,110,0.7);
+  }
+
+  /* Info Button Overlay on Card */
+  .info-btn-card {
+    position: absolute;
+    bottom: 22px; right: 18px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s ease, background 0.2s ease;
+    z-index: 10;
+  }
+  .info-btn-card:hover {
+    background: rgba(255,255,255,0.4);
+    transform: scale(1.1);
+  }
+
+  /* Match Popup */
+  .match-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  .match-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .match-content {
+    text-align: center;
+    transform: scale(0.6);
+    opacity: 0;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+  }
+  .match-overlay.show .match-content {
+    transform: scale(1);
+    opacity: 1;
+  }
+  .match-title {
+    font-size: 38px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #ff6b9d, #c44dff, #00e676);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+  .match-subtitle {
+    font-size: 16px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 30px;
+  }
+  .match-cards {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  .match-card {
+    width: 100px; height: 130px;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    animation: matchFloat 3s ease-in-out infinite;
+  }
+  .match-card:first-child {
+    animation-delay: 0s;
+    transform: rotate(-8deg);
+  }
+  .match-card:last-child {
+    animation-delay: 0.15s;
+    transform: rotate(8deg);
+  }
+  @keyframes matchFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  .match-card img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .match-btn {
+    padding: 14px 40px;
+    border: none;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    background: linear-gradient(135deg, #c44dff, #ff6b9d);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(196,77,255,0.4);
+  }
+  .match-btn:hover {
+    transform: scale(1.05);
+  }
+
+  /* Profile Modal */
+  .profile-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 900;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .profile-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .profile-sheet {
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    background: #1e1e2e;
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px 40px;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    color: #fff;
+  }
+  .profile-overlay.show .profile-sheet {
+    transform: translateY(0);
+  }
+  .profile-handle {
+    width: 40px; height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+  .profile-header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .profile-avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #c44dff;
+  }
+  .profile-basic h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .profile-basic p {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+  }
+  .profile-section {
+    margin-bottom: 20px;
+  }
+  .profile-section h3 {
+    font-size: 15px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .profile-bio {
+    font-size: 15px;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.85);
+  }
+  .profile-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .profile-tag {
+    background: rgba(196,77,255,0.15);
+    color: #c44dff;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    border: 1px solid rgba(196,77,255,0.2);
+  }
+  .profile-gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .profile-gallery img {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    object-fit: cover;
+  }
+  .profile-close {
+    position: absolute;
+    top: 16px; right: 20px;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #fff;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Empty State */
+  .empty-state {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: rgba(255,255,255,0.6);
+    display: none;
+  }
+  .empty-state.show { display: block; }
+  .empty-state h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+    color: #fff;
+  }
+  .empty-state p {
+    font-size: 15px;
+  }
+  .empty-state .reload-btn {
+    margin-top: 20px;
+    padding: 12px 30px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: transparent;
+    color: #fff;
+    border-radius: 30px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  .empty-state .reload-btn:hover {
+    background: rgba(255,255,255,0.1);
+  }
+
+  /* Floating particles */
+  .particles {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.15;
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp {
+    0% {
+      transform: translateY(100vh) scale(0);
+      opacity: 0;
+    }
+    10% { opacity: 0.15; }
+    90% { opacity: 0.15; }
+    100% {
+      transform: translateY(-20vh) scale(1);
+      opacity: 0;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 420px) {
+    .action-bar { gap: 10px; padding: 16px 16px 32px; }
+    .action-btn { width: 50px; height: 50px; }
+    .btn-like { width: 60px; height: 60px; }
+    .card-container { top: 70px; }
+    .header { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Floating Particles -->
+<div class="particles" id="particles"></div>
+
+<!-- Header -->
+<div class="header">
+  <h1>Swipe</h1>
+  <div class="logo-icon">&#x1F525;</div>
+</div>
+
+<!-- Card Container -->
+<div class="card-container" id="cardContainer">
+  <div class="empty-state" id="emptyState">
+    <h2>没有更多卡片啦</h2>
+    <p>今天的缘分已耗尽，明天再来吧</p>
+    <button class="reload-btn" onclick="reloadCards()">重新加载</button>
+  </div>
+</div>
+
+<!-- Action Bar -->
+<div class="action-bar">
+  <button class="action-btn btn-rewind" onclick="rewind()" title="回退">&#x21BA;</button>
+  <button class="action-btn btn-skip" onclick="swipeAction('left')" title="跳过">&#x2717;</button>
+  <button class="action-btn btn-super" onclick="superLike()" title="超级喜欢">&#x2B50;</button>
+  <button class="action-btn btn-like" onclick="swipeAction('right')" title="喜欢">&#x2764;</button>
+  <button class="action-btn btn-info" onclick="openProfile()" title="详情">&#x24D8;</button>
+</div>
+
+<!-- Match Popup -->
+<div class="match-overlay" id="matchOverlay" onclick="closeMatch(event)">
+  <div class="match-content">
+    <div class="match-title">IT'S A MATCH!</div>
+    <div class="match-subtitle">你们互相喜欢对方，快去打招呼吧</div>
+    <div class="match-cards">
+      <div class="match-card"><img id="matchImg1" src="" alt=""></div>
+      <div class="match-card"><img id="matchImg2" src="" alt=""></div>
+    </div>
+    <button class="match-btn" onclick="closeMatch()">发消息</button>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="profile-overlay" id="profileOverlay" onclick="closeProfile(event)">
+  <div class="profile-sheet" id="profileSheet" onclick="event.stopPropagation()">
+    <button class="profile-close" onclick="closeProfile()">&#x2715;</button>
+    <div class="profile-handle"></div>
+    <div class="profile-header">
+      <img class="profile-avatar" id="profileAvatar" src="" alt="">
+      <div class="profile-basic">
+        <h2 id="profileName"></h2>
+        <p id="profileMeta"></p>
+      </div>
+    </div>
+    <div class="profile-section">
+      <h3>个人简介</h3>
+      <p class="profile-bio" id="profileBio"></p>
+    </div>
+    <div class="profile-section">
+      <h3>兴趣爱好</h3>
+      <div class="profile-tags" id="profileTags"></div>
+    </div>
+    <div class="section">
+      <h3>更多照片</h3>
+      <div class="profile-gallery" id="profileGallery"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Mock User Data =====
+const USERS = [
+  {
+    id: 1,
+    name: '小雨',
+    age: 23,
+    distance: '3km',
+    occupation: '插画师',
+    bio: '喜欢在午后阳光下画画，养了一只叫"布丁"的英短。周末会去独立咖啡馆写生，期待遇见懂艺术的你。',
+    tags: ['画画', '咖啡', '猫咪', '旅行'],
+    photos: [
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400',
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400',
+    ],
+  },
+  {
+    id: 2,
+    name: '林夏',
+    age: 25,
+    distance: '5km',
+    occupation: '产品经理',
+    bio: '工作日认真搬砖，周末认真生活。喜欢徒步和烘焙，相信努力的人运气不会差。',
+    tags: ['徒步', '烘焙', '健身', '读书'],
+    photos: [
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400',
+      'https://images.unsplash.com/photo-1522609925277-090de1ac037b?w=400',
+      'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=400',
+    ],
+  },
+  {
+    id: 3,
+    name: '思琪',
+    age: 21,
+    distance: '1.2km',
+    occupation: '大学生',
+    bio: '摄影系大三学生，用镜头记录生活美好。喜欢逛展和探店，约拍可以联系我～',
+    tags: ['摄影', '展馆', '探店', '音乐'],
+    photos: [
+      'https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?w=400',
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400',
+      'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400',
+    ],
+  },
+  {
+    id: 4,
+    name: '梦瑶',
+    age: 24,
+    distance: '8km',
+    occupation: '护士',
+    bio: '在ICU工作的夜班天使，温柔且坚韧。休息时喜欢泡温泉和看悬疑剧，希望找到一个能一起熬夜的人。',
+    tags: ['温泉', '悬疑', '熬夜', '温柔'],
+    photos: [
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+      'https://images.unsplash.com/photo-1517516364010-4e1a4f5d1e0f?w=400',
+      'https://images.unsplash.com/photo-1520813792240-56fc4a3765a7?w=400',
+    ],
+  },
+  {
+    id: 5,
+    name: '子萱',
+    age: 22,
+    distance: '4km',
+    occupation: 'UI设计师',
+    bio: '审美控，细节控，对生活有要求。喜欢小众音乐和独立电影，寻找一个有趣的灵魂。',
+    tags: ['音乐', '电影', '设计', '美食'],
+    photos: [
+      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400',
+      'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400',
+      'https://images.unsplash.com/photo-1545410802-1c5b8e3e1b52?w=400',
+    ],
+  },
+  {
+    id: 6,
+    name: '语嫣',
+    age: 26,
+    distance: '6km',
+    occupation: '律师',
+    bio: '庭上犀利，庭下软萌。周末喜欢窝在沙发看剧吃零食，需要一个能陪我一起傻笑的人。',
+    tags: ['追剧', '零食', '法律', '游泳'],
+    photos: [
+      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400',
+      'https://images.unsplash.com/photo-1522635631607-5c941f7c36b6?w=400',
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400',
+    ],
+  },
+];
+
+// ===== State =====
+let cardQueue = [...USERS];
+let swipeHistory = [];
+let activeCard = null;
+let startX = 0, startY = 0;
+let currentX = 0, currentY = 0;
+let isDragging = false;
+
+// ===== Init =====
+function init() {
+  createParticles();
+  renderCards();
+}
+
+// ===== Particles =====
+function createParticles() {
+  const container = document.getElementById('particles');
+  const colors = ['#ff6b9d', '#c44dff', '#00e676', '#f9ca24', '#00bcd4'];
+  for (let i = 0; i < 12; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random() * 6 + 3;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDuration = (Math.random() * 15 + 10) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    container.appendChild(p);
+  }
+}
+
+// ===== Render Cards =====
+function renderCards() {
+  const container = document.getElementById('cardContainer');
+  const emptyState = document.getElementById('emptyState');
+
+  // Clear existing cards
+  container.querySelectorAll('.card').forEach(c => c.remove());
+
+  if (cardQueue.length === 0) {
+    emptyState.classList.add('show');
+    return;
+  }
+  emptyState.classList.remove('show');
+
+  // Render top 3 cards for visual stacking effect
+  const visibleCount = Math.min(3, cardQueue.length);
+  for (let i = visibleCount - 1; i >= 0; i--) {
+    const user = cardQueue[i];
+    const card = createCardElement(user, i);
+    container.appendChild(card);
+  }
+
+  // Set active card (topmost)
+  activeCard = container.querySelector('.card');
+  if (activeCard) attachDragListeners(activeCard);
+}
+
+function createCardElement(user, index) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = user.id;
+
+  const scale = 1 - index * 0.05;
+  const translateY = index * 12;
+  const opacity = 1 - index * 0.15;
+  const rotateZ = (index % 2 === 0 ? -1 : 1) * (index * 0.8);
+
+  card.style.zIndex = 10 - index;
+  card.style.transform = `translateY(${translateY}px) scale(${scale}) rotateZ(${rotateZ}deg)`;
+  card.style.opacity = opacity;
+
+  card.innerHTML = `
+    <img class="card-image" src="${user.photos[0]}" alt="${user.name}" loading="lazy">
+    <div class="card-overlay">
+      <div class="card-name">${user.name}, ${user.age}</div>
+      <div class="card-info">${user.occupation} · 距离${user.distance}</div>
+      <div class="card-tags">
+        ${user.tags.map(t => `<span class="card-tag">#${t}</span>`).join('')}
+      </div>
+    </div>
+    <div class="info-btn-card" onclick="openProfileById(${user.id})">&#x24D8;</div>
+    <div class="swipe-label like">LIKE</div>
+    <div class="swipe-label nope">NOPE</div>
+  `;
+
+  return card;
+}
+
+// ===== Drag Handlers =====
+function attachDragListeners(card) {
+  // Mouse events
+  card.addEventListener('mousedown', onDragStart);
+  // Touch events
+  card.addEventListener('touchstart', onDragStart, { passive: false });
+}
+
+function onDragStart(e) {
+  if (!activeCard || activeCard !== e.currentTarget) return;
+  e.preventDefault();
+  isDragging = true;
+  activeCard.classList.add('dragging');
+
+  const point = e.touches ? e.touches[0] : e;
+  startX = point.clientX;
+  startY = point.clientY;
+  currentX = 0;
+  currentY = 0;
+
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+  document.addEventListener('touchmove', onDragMove, { passive: false });
+  document.addEventListener('touchend', onDragEnd);
+}
+
+function onDragMove(e) {
+  if (!isDragging) return;
+  e.preventDefault();
+
+  const point = e.touches ? e.touches[0] : e;
+  currentX = point.clientX - startX;
+  currentY = point.clientY - startY;
+
+  const rotation = currentX * 0.08;
+  const threshold = window.innerWidth * 0.35;
+  const progress = Math.min(Math.abs(currentX) / threshold, 1);
+
+  activeCard.style.transform = `translateX(${currentX}px) translateY(${currentY * 0.3}px) rotate(${rotation}deg) scale(1.05)`;
+  activeCard.style.opacity = 1 - progress * 0.3;
+
+  // Show/hide labels
+  const likeLabel = activeCard.querySelector('.swipe-label.like');
+  const nopeLabel = activeCard.querySelector('.swipe-label.nope');
+  likeLabel.style.opacity = currentX > 50 ? progress : 0;
+  nopeLabel.style.opacity = currentX < -50 ? progress : 0;
+
+  // Tint effect
+  const tint = currentX > 0
+    ? `rgba(0,230,118,${progress * 0.15})`
+    : `rgba(255,82,82,${progress * 0.15})`;
+  activeCard.style.boxShadow = `0 8px 40px rgba(0,0,0,0.4), 0 2px 10px rgba(0,0,0,0.2), inset 0 0 60px ${tint}`;
+}
+
+function onDragEnd() {
+  if (!isDragging) return;
+  isDragging = false;
+  activeCard.classList.remove('dragging');
+
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragEnd);
+  document.removeEventListener('touchmove', onDragMove);
+  document.removeEventListener('touchend', onDragEnd);
+
+  const threshold = window.innerWidth * 0.25;
+  const likeLabel = activeCard.querySelector('.swipe-label.like');
+  const nopeLabel = activeCard.querySelector('.swipe-label.nope');
+
+  if (Math.abs(currentX) > threshold) {
+    // Swipe out
+    const direction = currentX > 0 ? 'right' : 'like' : 'left';
+    completeSwipe(currentX > 0 ? 'right' : 'left');
+  } else {
+    // Bounce back
+    likeLabel.style.opacity = 0;
+    nopeLabel.style.opacity = 0;
+    animateBounceBack();
+  }
+}
+
+function animateBounceBack() {
+  activeCard.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, box-shadow 0.3s ease';
+  activeCard.style.transform = 'translateX(0) translateY(0) rotate(0deg) scale(1)';
+  activeCard.style.opacity = 1;
+  activeCard.style.boxShadow = '0 8px 40px rgba(0,0,0,0.4), 0 2px 10px rgba(0,0,0,0.2)';
+
+  // Reset transition after bounce
+  setTimeout(() => {
+    if (activeCard) {
+      activeCard.style.transition = 'transform 0.25s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.25s ease';
+    }
+  }, 500);
+}
+
+function completeSwipe(direction) {
+  const userId = parseInt(activeCard.dataset.id);
+  const user = USERS.find(u => u.id === userId);
+
+  // Record in history
+  swipeHistory.push({ userId, direction });
+  if (swipeHistory.length > 20) swipeHistory.shift();
+
+  // Fly out animation
+  const flyX = direction === 'right' ? window.innerWidth + 300 : -(window.innerWidth + 300);
+  const rotation = direction === 'right' ? 20 : -20;
+
+  activeCard.style.transition = 'transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.3s ease';
+  activeCard.style.transform = `translateX(${flyX}px) rotate(${rotation}deg)`;
+  activeCard.style.opacity = '0';
+
+  setTimeout(() => {
+    // Remove from queue
+    cardQueue = cardQueue.filter(u => u.id !== userId);
+
+    // Check for match (random 30% chance on like)
+    if (direction === 'right' && Math.random() < 0.3) {
+      showMatch(user);
+    }
+
+    renderCards();
+  }, 400);
+}
+
+// ===== Button Actions =====
+function swipeAction(direction) {
+  if (!activeCard) return;
+  completeSwipe(direction);
+}
+
+function superLike() {
+  if (!activeCard) return;
+  // Super like with star animation
+  activeCard.style.transition = 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)';
+  activeCard.style.transform = `translateY(-200px) scale(1.1) rotate(5deg)`;
+  activeCard.style.opacity = '0';
+
+  const userId = parseInt(activeCard.dataset.id);
+  swipeHistory.push({ userId, direction: 'super' });
+  setTimeout(() => {
+    cardQueue = cardQueue.filter(u => u.id !== userId);
+    renderCards();
+  }, 500);
+}
+
+function rewind() {
+  if (swipeHistory.length === 0) return;
+  const last = swipeHistory.pop();
+  const user = USERS.find(u => u.id === last.userId);
+  if (user) {
+    cardQueue.unshift(user);
+    renderCards();
+  }
+}
+
+function reloadCards() {
+  cardQueue = [...USERS];
+  swipeHistory = [];
+  renderCards();
+}
+
+// ===== Match Popup =====
+function showMatch(user) {
+  document.getElementById('matchImg1').src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200';
+  document.getElementById('matchImg2').src = user.photos[0];
+  document.getElementById('matchOverlay').classList.add('show');
+}
+
+function closeMatch(e) {
+  if (e && e.target !== document.getElementById('matchOverlay')) return;
+  document.getElementById('matchOverlay').classList.remove('show');
+}
+
+// ===== Profile Modal =====
+function openProfile() {
+  if (!activeCard) return;
+  const userId = parseInt(activeCard.dataset.id);
+  openProfileById(userId);
+}
+
+function openProfileById(userId) {
+  const user = USERS.find(u => u.id === userId);
+  if (!user) return;
+
+  document.getElementById('profileAvatar').src = user.photos[0];
+  document.getElementById('profileName').textContent = `${user.name}, ${user.age}`;
+  document.getElementById('profileMeta').textContent = `${user.occupation} · 距离${user.distance}`;
+  document.getElementById('profileBio').textContent = user.bio;
+  document.getElementById('profileTags').innerHTML = user.tags.map(t =>
+    `<span class="profile-tag">${t}</span>`
+  ).join('');
+  document.getElementById('profileGallery').innerHTML = user.photos.map(p =>
+    `<img src="${p}" alt="photo" loading="lazy">`
+  ).join('');
+
+  document.getElementById('profileOverlay').classList.add('show');
+}
+
+function closeProfile(e) {
+  if (e && e.target !== document.getElementById('profileOverlay')) return;
+  document.getElementById('profileOverlay').classList.add('show');
+  document.getElementById('profileOverlay').classList.remove('show');
+}
+
+// ===== Prevent default touch behaviors =====
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('gestureend', e => e.preventDefault());
+
+// ===== Start =====
+init();
+</script>
+</body>
+</html>
