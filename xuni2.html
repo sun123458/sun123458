@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>3D Virtual Fitting Room</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #fff;
+  height: 100vh;
+  width: 100vw;
+}
+
+#canvas-container {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 1;
+}
+
+canvas { display: block; }
+
+/* Loading screen */
+#loading {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.8s ease;
+}
+
+#loading.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-spinner {
+  width: 60px; height: 60px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: #e94560;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loader-text {
+  margin-top: 20px;
+  font-size: 16px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 2px;
+}
+
+/* Top bar */
+#top-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#top-bar > * { pointer-events: auto; }
+
+.app-title {
+  font-size: 18px;
+  font-weight: 600;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  letter-spacing: 1px;
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.ctrl-btn {
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.ctrl-btn:hover { background: rgba(255,255,255,0.2); }
+.ctrl-btn.active { background: rgba(233,69,96,0.6); border-color: #e94560; }
+
+/* Clothing selector panel */
+#clothing-panel {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  padding: 16px;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+}
+
+.clothing-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 8px 4px;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+
+.clothing-list::-webkit-scrollbar { display: none; }
+
+.clothing-card {
+  flex: 0 0 auto;
+  width: 90px;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 10px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.clothing-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.15);
+}
+
+.clothing-card.active {
+  border-color: #e94560;
+  background: rgba(233,69,96,0.2);
+  transform: translateY(-6px) scale(1.05);
+  box-shadow: 0 8px 24px rgba(233,69,96,0.3);
+}
+
+.clothing-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.clothing-name {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: rgba(255,255,255,0.9);
+}
+
+.clothing-color {
+  width: 20px; height: 3px;
+  border-radius: 2px;
+  margin: 6px auto 0;
+}
+
+/* Clothing transition overlay */
+#transition-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0);
+  z-index: 5;
+  pointer-events: none;
+  transition: background 0.3s ease;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .clothing-card { width: 76px; padding: 8px 6px; }
+  .clothing-icon { width: 40px; height: 40px; font-size: 18px; }
+  .clothing-name { font-size: 10px; }
+  .app-title { font-size: 15px; }
+  .ctrl-btn { padding: 8px 12px; font-size: 12px; }
+}
+
+@media (min-width: 768px) {
+  .clothing-card { width: 100px; }
+  #top-bar { padding: 20px 28px; }
+  #clothing-panel { padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loading">
+  <div class="loader-spinner"></div>
+  <div class="loader-text">LOADING FITTING ROOM</div>
+</div>
+
+<!-- 3D Canvas -->
+<div id="canvas-container"></div>
+
+<!-- Transition overlay -->
+<div id="transition-overlay"></div>
+
+<!-- Top bar -->
+<div id="top-bar">
+  <div class="app-title">3D FITTING ROOM</div>
+  <div class="btn-group">
+    <button class="ctrl-btn" id="btn-auto-rotate" title="Auto Rotate">&#x21bb;</button>
+    <button class="ctrl-btn" id="btn-gyro" title="Gyroscope">&#x1f4f1;</button>
+  </div>
+</div>
+
+<!-- Clothing Panel -->
+<div id="clothing-panel">
+  <div class="clothing-list" id="clothing-list"></div>
+</div>
+
+<!-- Three.js via importmap -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// =============================================
+// Constants
+// =============================================
+const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const PIXEL_RATIO = Math.min(window.devicePixelRatio, IS_MOBILE ? 2 : 2.5);
+const SKIN_COLOR = 0xf5c5a3;
+const GRAVITY = new THREE.Vector3(0, -0.4, 0);
+const DAMPING = 0.97;
+const CONSTRAINT_ITERS = 4;
+const WIND_STRENGTH = 0.15;
+
+// =============================================
+// Scene Setup
+// =============================================
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+
+// Gradient background
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = 2; bgCanvas.height = 512;
+const bgCtx = bgCanvas.getContext('2d');
+const grad = bgCtx.createLinearGradient(0, 0, 0, 512);
+grad.addColorStop(0, '#2a1b3d');
+grad.addColorStop(0.4, '#1a1a2e');
+grad.addColorStop(1, '#0f0f1a');
+bgCtx.fillStyle = grad;
+bgCtx.fillRect(0, 0, 2, 512);
+scene.background = new THREE.CanvasTexture(bgCanvas);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 1.2, 4);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer({ antialias: !IS_MOBILE, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(PIXEL_RATIO);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = IS_MOBILE ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+container.appendChild(renderer.domElement);
+
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0.95, 0);
+controls.minDistance = 2;
+controls.maxDistance = 7;
+controls.minPolarAngle = Math.PI * 0.2;
+controls.maxPolarAngle = Math.PI * 0.7;
+controls.enablePan = false;
+controls.autoRotate = false;
+controls.autoRotateSpeed = 1.5;
+controls.update();
+
+// =============================================
+// Lighting
+// =============================================
+const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xfff0e6, 1.2);
+dirLight.position.set(3, 5, 4);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(IS_MOBILE ? 1024 : 2048, IS_MOBILE ? 1024 : 2048);
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 20;
+dirLight.shadow.camera.left = -3;
+dirLight.shadow.camera.right = 3;
+dirLight.shadow.camera.top = 3;
+dirLight.shadow.camera.bottom = -1;
+dirLight.shadow.bias = -0.001;
+scene.add(dirLight);
+
+const fillLight = new THREE.DirectionalLight(0xb0c4ff, 0.4);
+fillLight.position.set(-3, 3, -2);
+scene.add(fillLight);
+
+const rimLight = new THREE.PointLight(0xff8866, 0.6, 10);
+rimLight.position.set(-2, 2, -3);
+scene.add(rimLight);
+
+const spotLight = new THREE.SpotLight(0xffffff, 0.8, 15, Math.PI / 6, 0.5, 1);
+spotLight.position.set(0, 6, 2);
+spotLight.target.position.set(0, 0.8, 0);
+spotLight.castShadow = true;
+spotLight.shadow.mapSize.set(IS_MOBILE ? 512 : 1024, IS_MOBILE ? 512 : 1024);
+scene.add(spotLight);
+scene.add(spotLight.target);
+
+// =============================================
+// Floor & Environment
+// =============================================
+const floorGeo = new THREE.CircleGeometry(3, 64);
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0x1a1a2e,
+  roughness: 0.8,
+  metalness: 0.1,
+});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -0.02;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Shadow circle under mannequin
+const shadowGeo = new THREE.CircleGeometry(0.5, 32);
+const shadowMat = new THREE.MeshBasicMaterial({
+  color: 0x000000,
+  transparent: true,
+  opacity: 0.25,
+  depthWrite: false,
+});
+const shadowCircle = new THREE.Mesh(shadowGeo, shadowMat);
+shadowCircle.rotation.x = -Math.PI / 2;
+shadowCircle.position.y = 0.001;
+scene.add(shadowCircle);
+
+// Simple environment for reflections
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+const envScene = new THREE.Scene();
+envScene.background = new THREE.Color(0x888899);
+const envL = new THREE.DirectionalLight(0xffffff, 2);
+envL.position.set(1, 1, 1);
+envScene.add(envL);
+const envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
+scene.environment = envMap;
+pmremGenerator.dispose();
+
+// =============================================
+// Materials
+// =============================================
+const skinMat = new THREE.MeshPhysicalMaterial({
+  color: SKIN_COLOR,
+  roughness: 0.6,
+  metalness: 0,
+  clearcoat: 0.1,
+});
+
+// =============================================
+// Mannequin Builder
+// =============================================
+function createMannequin() {
+  const group = new THREE.Group();
+  const bodyScale = 1.0;
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(0.11, 24, 24);
+  const head = new THREE.Mesh(headGeo, skinMat);
+  head.position.y = 1.65;
+  head.castShadow = true;
+  group.add(head);
+
+  // Neck
+  const neckGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.1, 16);
+  const neck = new THREE.Mesh(neckGeo, skinMat);
+  neck.position.y = 1.5;
+  neck.castShadow = true;
+  group.add(neck);
+
+  // Torso - using LatheGeometry for a smooth body shape
+  const bodyProfile = [
+    new THREE.Vector2(0.15, 0.72),   // hips bottom
+    new THREE.Vector2(0.18, 0.78),   // hips
+    new THREE.Vector2(0.19, 0.82),   // high hips
+    new THREE.Vector2(0.155, 0.92),  // waist
+    new THREE.Vector2(0.15, 0.96),   // waist top
+    new THREE.Vector2(0.175, 1.0),   // ribcage
+    new THREE.Vector2(0.19, 1.06),   // bust
+    new THREE.Vector2(0.185, 1.1),   // upper bust
+    new THREE.Vector2(0.17, 1.16),   // chest
+    new THREE.Vector2(0.155, 1.22),  // upper chest
+    new THREE.Vector2(0.19, 1.28),   // shoulders
+    new THREE.Vector2(0.17, 1.32),   // shoulder top
+    new THREE.Vector2(0.15, 1.35),   // neck base
+    new THREE.Vector2(0, 1.35),      // center top
+  ];
+
+  const torsoGeo = new THREE.LatheGeometry(bodyProfile, 32);
+  const torso = new THREE.Mesh(torsoGeo, skinMat);
+  torso.castShadow = true;
+  group.add(torso);
+
+  // Arms
+  const createArm = (side) => {
+    const armGroup = new THREE.Group();
+    const sign = side === 'left' ? -1 : 1;
+
+    // Shoulder joint
+    const shoulderGeo = new THREE.SphereGeometry(0.06, 12, 12);
+    const shoulder = new THREE.Mesh(shoulderGeo, skinMat);
+    shoulder.position.set(0, 0, 0);
+    armGroup.add(shoulder);
+
+    // Upper arm
+    const upperArmGeo = createTaperedCylinder(0.045, 0.038, 0.28, 12);
+    const upperArm = new THREE.Mesh(upperArmGeo, skinMat);
+    upperArm.position.set(0, -0.16, 0);
+    upperArm.castShadow = true;
+    armGroup.add(upperArm);
+
+    // Elbow joint
+    const elbowGeo = new THREE.SphereGeometry(0.035, 10, 10);
+    const elbow = new THREE.Mesh(elbowGeo, skinMat);
+    elbow.position.set(0, -0.3, 0);
+    armGroup.add(elbow);
+
+    // Forearm
+    const forearmGeo = createTaperedCylinder(0.038, 0.028, 0.26, 12);
+    const forearm = new THREE.Mesh(forearmGeo, skinMat);
+    forearm.position.set(0, -0.45, 0.02);
+    forearm.rotation.x = -0.08;
+    forearm.castShadow = true;
+    armGroup.add(forearm);
+
+    // Hand
+    const handGeo = new THREE.SphereGeometry(0.03, 10, 10);
+    handGeo.scale(0.8, 1.2, 0.5);
+    const hand = new THREE.Mesh(handGeo, skinMat);
+    hand.position.set(0, -0.59, 0.03);
+    armGroup.add(hand);
+
+    armGroup.position.set(sign * 0.24, 1.28, 0);
+    armGroup.rotation.z = sign * 0.12;
+
+    return armGroup;
+  };
+
+  group.add(createArm('left'));
+  group.add(createArm('right'));
+
+  // Legs
+  const createLeg = (side) => {
+    const legGroup = new THREE.Group();
+    const sign = side === 'left' ? -1 : 1;
+
+    // Upper leg
+    const upperLegGeo = createTaperedCylinder(0.07, 0.05, 0.42, 14);
+    const upperLeg = new THREE.Mesh(upperLegGeo, skinMat);
+    upperLeg.position.set(0, -0.21, 0);
+    upperLeg.castShadow = true;
+    legGroup.add(upperLeg);
+
+    // Knee
+    const kneeGeo = new THREE.SphereGeometry(0.048, 10, 10);
+    const knee = new THREE.Mesh(kneeGeo, skinMat);
+    knee.position.set(0, -0.42, 0);
+    legGroup.add(knee);
+
+    // Lower leg
+    const lowerLegGeo = createTaperedCylinder(0.05, 0.035, 0.4, 14);
+    const lowerLeg = new THREE.Mesh(lowerLegGeo, skinMat);
+    lowerLeg.position.set(0, -0.64, 0);
+    lowerLeg.castShadow = true;
+    legGroup.add(lowerLeg);
+
+    // Foot
+    const footGeo = new THREE.BoxGeometry(0.07, 0.04, 0.14);
+    const foot = new THREE.Mesh(footGeo, skinMat);
+    foot.position.set(0, -0.85, 0.03);
+    foot.castShadow = true;
+    legGroup.add(foot);
+
+    legGroup.position.set(sign * 0.09, 0.72, 0);
+
+    return legGroup;
+  };
+
+  group.add(createLeg('left'));
+  group.add(createLeg('right'));
+
+  return group;
+}
+
+function createTaperedCylinder(radiusTop, radiusBottom, height, segments) {
+  return new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments);
+}
+
+const mannequin = createMannequin();
+scene.add(mannequin);
+
+// =============================================
+// Clothing Definitions
+// =============================================
+const clothingDefs = [
+  { id: 'tshirt', name: 'Classic Tee', icon: '&#x1F455;', color: '#ffffff', colorHex: 0xffffff },
+  { id: 'dress', name: 'Summer Dress', icon: '&#x1F457;', color: '#ff7f7f', colorHex: 0xff7f7f },
+  { id: 'jacket', name: 'Biker Jacket', icon: '&#x1F9E5;', color: '#2a2a2a', colorHex: 0x2a2a2a },
+  { id: 'hoodie', name: 'Cozy Hoodie', icon: '&#x1F9E3;', color: '#2244aa', colorHex: 0x2244aa },
+  { id: 'gown', name: 'Evening Gown', icon: '&#x1F9BE;', color: '#cc1133', colorHex: 0xcc1133 },
+];
+
+// =============================================
+// Clothing Geometry Builders
+// =============================================
+function createTshirtGeometry() {
+  // Short sleeve T-shirt - wrap around torso
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  const norms = [];
+  const uvs = [];
+  const idxs = [];
+  const segs = 24;
+  const sleeveLen = 0.12;
+  const bodyOffset = 0.012;
+
+  // Body points (profile) offset outward
+  const profilePoints = [
+    { y: 0.88, r: 0.155 + bodyOffset, seam: false },
+    { y: 0.92, r: 0.155 + bodyOffset, seam: false },
+    { y: 0.96, r: 0.15 + bodyOffset, seam: true },   // waist
+    { y: 1.0, r: 0.175 + bodyOffset, seam: false },
+    { y: 1.04, r: 0.18 + bodyOffset, seam: false },   // bust
+    { y: 1.1, r: 0.17 + bodyOffset, seam: false },
+    { y: 1.16, r: 0.155 + bodyOffset, seam: false },
+    { y: 1.22, r: 0.19 + bodyOffset, seam: true },   // sleeves start
+    { y: 1.28, r: 0.17 + bodyOffset, seam: false },
+    { y: 1.33, r: 0.12 + bodyOffset, seam: false },   // collar
+  ];
+
+  let ringIdx = 0;
+  for (let p = 0; p < profilePoints.length; p++) {
+    const pt = profilePoints[p];
+    for (let s = 0; s <= segs; s++) {
+      const angle = (s / segs) * Math.PI * 2;
+      // Add slight sleeve bulge on sides at sleeve line
+      let rExtra = 0;
+      if (p >= 7 && p <= 8) {
+        const sideFactor = Math.abs(Math.sin(angle));
+        rExtra = sideFactor * sleeveLen * ((p - 7) / 1.5);
+      }
+      const r = pt.r + rExtra;
+      const x = Math.cos(angle) * r;
+      const z = Math.sin(angle) * r;
+      verts.push(x, pt.y, z);
+      const nx = Math.cos(angle);
+      const nz = Math.sin(angle);
+      norms.push(nx, 0, nz);
+      uvs.push(s / segs, p / (profilePoints.length - 1));
+    }
+  }
+
+  // Indices
+  const cols = segs + 1;
+  for (let p = 0; p < profilePoints.length - 1; p++) {
+    for (let s = 0; s < segs; s++) {
+      const a = p * cols + s;
+      const b = p * cols + s + 1;
+      const c = (p + 1) * cols + s;
+      const d = (p + 1) * cols + s + 1;
+      idxs.push(a, c, b);
+      idxs.push(b, c, d);
+    }
+  }
+
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idxs);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createDressGeometry() {
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  const norms = [];
+  const uvs = [];
+  const idxs = [];
+  const segs = 32;
+  const bodyOffset = 0.015;
+
+  const profilePoints = [
+    { y: 0.18, r: 0.35, flare: true },
+    { y: 0.25, r: 0.32, flare: true },
+    { y: 0.35, r: 0.26, flare: true },
+    { y: 0.45, r: 0.21, flare: true },
+    { y: 0.55, r: 0.195, flare: false },
+    { y: 0.65, r: 0.185, flare: false },
+    { y: 0.72, r: 0.19 + bodyOffset, seam: false },
+    { y: 0.78, r: 0.19 + bodyOffset, seam: false },
+    { y: 0.82, r: 0.155 + bodyOffset, seam: false },
+    { y: 0.87, r: 0.155 + bodyOffset, seam: false },
+    { y: 0.92, r: 0.155 + bodyOffset, seam: false },
+    { y: 0.96, r: 0.15 + bodyOffset, seam: true },
+    { y: 1.0, r: 0.175 + bodyOffset, seam: false },
+    { y: 1.06, r: 0.18 + bodyOffset, seam: false },
+    { y: 1.1, r: 0.17 + bodyOffset, seam: false },
+    { y: 1.16, r: 0.155 + bodyOffset, seam: false },
+    { y: 1.22, r: 0.19 + bodyOffset, seam: true },
+    { y: 1.28, r: 0.17 + bodyOffset, seam: false },
+    { y: 1.33, r: 0.12 + bodyOffset, seam: false },
+  ];
+
+  for (let p = 0; p < profilePoints.length; p++) {
+    const pt = profilePoints[p];
+    for (let s = 0; s <= segs; s++) {
+      const angle = (s / segs) * Math.PI * 2;
+      const r = pt.r + (pt.flare ? 0.02 * Math.sin(angle * 3) : 0);
+      verts.push(Math.cos(angle) * r, pt.y, Math.sin(angle) * r);
+      norms.push(Math.cos(angle), 0, Math.sin(angle));
+      uvs.push(s / segs, p / (profilePoints.length - 1));
+    }
+  }
+
+  const cols = segs + 1;
+  for (let p = 0; p < profilePoints.length - 1; p++) {
+    for (let s = 0; s < segs; s++) {
+      const a = p * cols + s;
+      const b = p * cols + s + 1;
+      const c = (p + 1) * cols + s;
+      const d = (p + 1) * cols + s + 1;
+      idxs.push(a, c, b);
+      idxs.push(b, c, d);
+    }
+  }
+
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idxs);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createJacketGeometry() {
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  const norms = [];
+  const uvs = [];
+  const idxs = [];
+  const segs = 28;
+  const bodyOffset = 0.025;
+
+  const profilePoints = [
+    { y: 0.82, r: 0.17 + bodyOffset },
+    { y: 0.86, r: 0.16 + bodyOffset },
+    { y: 0.92, r: 0.155 + bodyOffset },
+    { y: 0.96, r: 0.15 + bodyOffset },
+    { y: 1.0, r: 0.175 + bodyOffset },
+    { y: 1.04, r: 0.19 + bodyOffset },
+    { y: 1.08, r: 0.185 + bodyOffset },
+    { y: 1.12, r: 0.175 + bodyOffset },
+    { y: 1.16, r: 0.155 + bodyOffset },
+    { y: 1.2, r: 0.19 + bodyOffset },
+    { y: 1.24, r: 0.18 + bodyOffset },
+    { y: 1.28, r: 0.20 + bodyOffset },
+    { y: 1.32, r: 0.15 + bodyOffset },
+    { y: 1.36, r: 0.09 + bodyOffset }, // collar
+  ];
+
+  const sleeveExtra = 0.22;
+  for (let p = 0; p < profilePoints.length; p++) {
+    const pt = profilePoints[p];
+    for (let s = 0; s <= segs; s++) {
+      const angle = (s / segs) * Math.PI * 2;
+      let rExtra = 0;
+      if (p >= 9 && p <= 11) {
+        const sideFactor = Math.abs(Math.sin(angle));
+        rExtra = sideFactor * sleeveExtra * ((p - 9) / 2.5);
+      }
+      const r = pt.r + rExtra;
+      verts.push(Math.cos(angle) * r, pt.y, Math.sin(angle) * r);
+      norms.push(Math.cos(angle), 0, Math.sin(angle));
+      uvs.push(s / segs, p / (profilePoints.length - 1));
+    }
+  }
+
+  const cols = segs + 1;
+  for (let p = 0; p < profilePoints.length - 1; p++) {
+    for (let s = 0; s < segs; s++) {
+      const a = p * cols + s;
+      const b = p * cols + s + 1;
+      const c = (p + 1) * cols + s;
+      const d = (p + 1) * cols + s + 1;
+      idxs.push(a, c, b);
+      idxs.push(b, c, d);
+    }
+  }
+
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idxs);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createHoodieGeometry() {
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  const norms = [];
+  const uvs = [];
+  const idxs = [];
+  const segs = 28;
+  const bodyOffset = 0.02;
+
+  const profilePoints = [
+    { y: 0.85, r: 0.175 + bodyOffset },
+    { y: 0.9, r: 0.16 + bodyOffset },
+    { y: 0.96, r: 0.155 + bodyOffset },
+    { y: 1.0, r: 0.175 + bodyOffset },
+    { y: 1.06, r: 0.18 + bodyOffset },
+    { y: 1.1, r: 0.175 + bodyOffset },
+    { y: 1.16, r: 0.155 + bodyOffset },
+    { y: 1.22, r: 0.195 + bodyOffset },
+    { y: 1.28, r: 0.175 + bodyOffset },
+    { y: 1.34, r: 0.13 + bodyOffset },
+    { y: 1.40, r: 0.10 + bodyOffset }, // hood
+    { y: 1.45, r: 0.08 + bodyOffset }, // hood top
+  ];
+
+  const sleeveExtra = 0.2;
+  for (let p = 0; p < profilePoints.length; p++) {
+    const pt = profilePoints[p];
+    for (let s = 0; s <= segs; s++) {
+      const angle = (s / segs) * Math.PI * 2;
+      let rExtra = 0;
+      if (p >= 7 && p <= 8) {
+        const sideFactor = Math.abs(Math.sin(angle));
+        rExtra = sideFactor * sleeveExtra * ((p - 7) / 1.5);
+      }
+      // Hood: narrower on front/back, wider on sides at top
+      if (p >= 9) {
+        const hoodFactor = Math.abs(Math.cos(angle));
+        rExtra += hoodFactor * 0.02 * ((p - 9) / 2);
+      }
+      const r = pt.r + rExtra;
+      verts.push(Math.cos(angle) * r, pt.y, Math.sin(angle) * r);
+      norms.push(Math.cos(angle), 0, Math.sin(angle));
+      uvs.push(s / segs, p / (profilePoints.length - 1));
+    }
+  }
+
+  const cols = segs + 1;
+  for (let p = 0; p < profilePoints.length - 1; p++) {
+    for (let s = 0; s < segs; s++) {
+      const a = p * cols + s;
+      const b = p * cols + s + 1;
+      const c = (p + 1) * cols + s;
+      const d = (p + 1) * cols + s + 1;
+      idxs.push(a, c, b);
+      idxs.push(b, c, d);
+    }
+  }
+
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idxs);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createGownGeometry() {
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  const norms = [];
+  const uvs = [];
+  const idxs = [];
+  const segs = 36;
+  const bodyOffset = 0.012;
+
+  const profilePoints = [
+    { y: 0.02, r: 0.45, flare: true },
+    { y: 0.06, r: 0.42, flare: true },
+    { y: 0.12, r: 0.38, flare: true },
+    { y: 0.2, r: 0.32, flare: true },
+    { y: 0.3, r: 0.26, flare: true },
+    { y: 0.4, r: 0.22, flare: true },
+    { y: 0.5, r: 0.2, flare: true },
+    { y: 0.58, r: 0.19, flare: false },
+    { y: 0.65, r: 0.185 + bodyOffset, flare: false },
+    { y: 0.72, r: 0.19 + bodyOffset },
+    { y: 0.78, r: 0.19 + bodyOffset },
+    { y: 0.82, r: 0.155 + bodyOffset },
+    { y: 0.92, r: 0.155 + bodyOffset },
+    { y: 0.96, r: 0.15 + bodyOffset },
+    { y: 1.0, r: 0.175 + bodyOffset },
+    { y: 1.06, r: 0.18 + bodyOffset },
+    { y: 1.1, r: 0.17 + bodyOffset },
+    { y: 1.16, r: 0.155 + bodyOffset },
+    { y: 1.22, r: 0.19 + bodyOffset },
+    { y: 1.28, r: 0.17 + bodyOffset },
+    { y: 1.33, r: 0.1 + bodyOffset },
+  ];
+
+  for (let p = 0; p < profilePoints.length; p++) {
+    const pt = profilePoints[p];
+    for (let s = 0; s <= segs; s++) {
+      const angle = (s / segs) * Math.PI * 2;
+      let ripple = 0;
+      if (pt.flare) {
+        ripple = 0.015 * Math.sin(angle * 4 + p * 0.5);
+      }
+      const r = pt.r + ripple;
+      verts.push(Math.cos(angle) * r, pt.y, Math.sin(angle) * r);
+      norms.push(Math.cos(angle), 0, Math.sin(angle));
+      uvs.push(s / segs, p / (profilePoints.length - 1));
+    }
+  }
+
+  const cols = segs + 1;
+  for (let p = 0; p < profilePoints.length - 1; p++) {
+    for (let s = 0; s < segs; s++) {
+      const a = p * cols + s;
+      const b = p * cols + s + 1;
+      const c = (p + 1) * cols + s;
+      const d = (p + 1) * cols + s + 1;
+      idxs.push(a, c, b);
+      idxs.push(b, c, d);
+    }
+  }
+
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idxs);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// =============================================
+// Clothing Materials
+// =============================================
+function getClothingMaterial(id) {
+  switch (id) {
+    case 'tshirt':
+      return new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        roughness: 0.85,
+        metalness: 0,
+        sheen: 0.1,
+        sheenColor: new THREE.Color(0xffffff),
+        side: THREE.DoubleSide,
+      });
+    case 'dress':
+      return new THREE.MeshPhysicalMaterial({
+        color: 0xff7f7f,
+        roughness: 0.7,
+        metalness: 0,
+        sheen: 0.3,
+        sheenColor: new THREE.Color(0xffaaaa),
+        side: THREE.DoubleSide,
+      });
+    case 'jacket':
+      return new THREE.MeshPhysicalMaterial({
+        color: 0x1a1a1a,
+        roughness: 0.3,
+        metalness: 0.1,
+        clearcoat: 0.8,
+        clearcoatRoughness: 0.2,
+        side: THREE.DoubleSide,
+      });
+    case 'hoodie':
+      return new THREE.MeshPhysicalMaterial({
+        color: 0x2244aa,
+        roughness: 0.9,
+        metalness: 0,
+        sheen: 0.5,
+        sheenRoughness: 0.6,
+        sheenColor: new THREE.Color(0x4466cc),
+        side: THREE.DoubleSide,
+      });
+    case 'gown':
+      return new THREE.MeshPhysicalMaterial({
+        color: 0xcc1133,
+        roughness: 0.2,
+        metalness: 0.15,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.1,
+        sheen: 1.0,
+        sheenColor: new THREE.Color(0xff3355),
+        side: THREE.DoubleSide,
+      });
+  }
+}
+
+function getClothingGeometry(id) {
+  switch (id) {
+    case 'tshirt': return createTshirtGeometry();
+    case 'dress': return createDressGeometry();
+    case 'jacket': return createJacketGeometry();
+    case 'hoodie': return createHoodieGeometry();
+    case 'gown': return createGownGeometry();
+  }
+}
+
+// =============================================
+// Cloth Physics System (Simplified Verlet)
+// =============================================
+class ClothSimulation {
+  constructor(mesh) {
+    this.mesh = mesh;
+    this.geometry = mesh.geometry;
+    this.positions = this.geometry.attributes.position;
+    this.originalPositions = new Float32Array(this.positions.array);
+
+    // Create particles for bottom edge/flowy vertices
+    this.particles = [];
+    this.restPositions = [];
+    this.velocities = [];
+    this.fixedMask = [];
+
+    const numVerts = this.positions.count;
+    const cols = this._getCols();
+
+    // Determine which vertices are "free" for cloth sim
+    // Free vertices: bottom rings and side vertices
+    const numRows = Math.floor(numVerts / cols);
+    const freeThreshold = Math.floor(numRows * 0.4); // Bottom 40% are free
+
+    for (let i = 0; i < numVerts; i++) {
+      const row = Math.floor(i / cols);
+      const isFixed = row < numRows - freeThreshold;
+      this.fixedMask.push(isFixed ? 1 : 0);
+
+      const px = this.originalPositions[i * 3];
+      const py = this.originalPositions[i * 3 + 1];
+      const pz = this.originalPositions[i * 3 + 2];
+      this.particles.push(new THREE.Vector3(px, py, pz));
+      this.restPositions.push(new THREE.Vector3(px, py, pz));
+      this.velocities.push(new THREE.Vector3(0, 0, 0));
+    }
+
+    // Distance constraints between neighboring particles in free region
+    this.constraints = [];
+    for (let i = 0; i < numVerts; i++) {
+      if (this.fixedMask[i]) continue;
+      // Horizontal neighbors
+      if ((i + 1) % cols !== 0 && !this.fixedMask[i + 1]) {
+        const rest = this.particles[i].distanceTo(this.particles[i + 1]);
+        this.constraints.push({ a: i, b: i + 1, rest });
+      }
+      // Vertical neighbors
+      if (i + cols < numVerts && !this.fixedMask[i + cols]) {
+        const rest = this.particles[i].distanceTo(this.particles[i + cols]);
+        this.constraints.push({ a: i, b: i + cols, rest });
+      }
+    }
+  }
+
+  _getCols() {
+    // Find the number of columns by looking for y-repeat
+    if (this.positions.count < 2) return 24;
+    const y0 = this.originalPositions[1];
+    let cols = 1;
+    for (let i = 2; i < Math.min(this.positions.count, 100); i++) {
+      if (Math.abs(this.originalPositions[i * 3 + 1] - y0) < 0.0001) cols++;
+      else break;
+    }
+    return Math.max(cols, 2);
+  }
+
+  update(time, deltaTime) {
+    const wind = new THREE.Vector3(
+      Math.sin(time * 0.7) * WIND_STRENGTH,
+      0,
+      Math.cos(time * 0.5) * WIND_STRENGTH * 0.5
+    );
+
+    for (let i = 0; i < this.particles.length; i++) {
+      if (this.fixedMask[i]) continue;
+
+      // Apply gravity + wind
+      this.velocities[i].add(GRAVITY.clone().multiplyScalar(deltaTime * 60));
+      this.velocities[i].add(wind.clone().multiplyScalar(deltaTime * 60 * 0.3));
+
+      // Damping
+      this.velocities[i].multiplyScalar(DAMPING);
+
+      // Verlet integration
+      const newP = this.particles[i].clone().add(this.velocities[i].clone().multiplyScalar(deltaTime * 60));
+
+      // Spring back to rest position (prevents excessive stretching)
+      const rest = this.restPositions[i];
+      const spring = rest.clone().sub(newP).multiplyScalar(0.02);
+      newP.add(spring);
+
+      // Floor collision
+      if (newP.y < 0.02) {
+        newP.y = 0.02;
+        this.velocities[i].y *= -0.2;
+      }
+
+      // Body collision - simple sphere collision along vertical axis
+      const bodyY = newP.y;
+      if (bodyY > 0.72 && bodyY < 1.35) {
+        let bodyR;
+        if (bodyY < 0.82) bodyR = 0.18;
+        else if (bodyY < 0.92) bodyR = 0.155 + (0.82 - bodyY) * (-0.05 / 0.1);
+        else if (bodyY < 0.96) bodyR = 0.155;
+        else if (bodyY < 1.06) bodyR = 0.175;
+        else if (bodyY < 1.16) bodyR = 0.165;
+        else bodyR = 0.17;
+
+        const dist = Math.sqrt(newP.x * newP.x + newP.z * newP.z);
+        const minDist = bodyR + 0.005;
+        if (dist < minDist) {
+          const pushDir = new THREE.Vector2(newP.x, newP.z).normalize();
+          newP.x = pushDir.x * minDist;
+          newP.z = pushDir.y * minDist;
+        }
+      }
+
+      this.particles[i].copy(newP);
+    }
+
+    // Constraint solving
+    for (let iter = 0; iter < CONSTRAINT_ITERS; iter++) {
+      for (const c of this.constraints) {
+        const diff = this.particles[c.b].clone().sub(this.particles[c.a]);
+        const dist = diff.length();
+        if (dist < 0.0001) continue;
+        const correction = diff.multiplyScalar((dist - c.rest) / dist * 0.5);
+        if (!this.fixedMask[c.a]) this.particles[c.a].add(correction);
+        if (!this.fixedMask[c.b]) this.particles[c.b].sub(correction);
+      }
+    }
+
+    // Apply to mesh
+    for (let i = 0; i < this.particles.length; i++) {
+      this.positions.setXYZ(
+        i,
+        this.particles[i].x,
+        this.particles[i].y,
+        this.particles[i].z
+      );
+    }
+    this.positions.needsUpdate = true;
+    this.geometry.computeVertexNormals();
+  }
+
+  reset() {
+    for (let i = 0; i < this.positions.count; i++) {
+      this.particles[i].copy(this.restPositions[i]);
+      this.velocities[i].set(0, 0, 0);
+    }
+  }
+}
+
+// =============================================
+// Clothing Manager
+// =============================================
+const clothingGroup = new THREE.Group();
+scene.add(clothingGroup);
+
+let currentClothingId = null;
+let currentClothSim = null;
+let clothingTransition = { active: false, phase: 'out', scale: 1, target: null, alpha: 0 };
+
+// Pre-build meshes
+const clothingMeshes = {};
+for (const def of clothingDefs) {
+  const geo = getClothingGeometry(def.id);
+  const mat = getClothingMaterial(def.id);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  mesh.visible = false;
+  clothingGroup.add(mesh);
+  clothingMeshes[def.id] = mesh;
+}
+
+function switchClothing(id) {
+  if (id === currentClothingId || clothingTransition.active) return;
+
+  clothingTransition.active = true;
+  clothingTransition.phase = 'out';
+  clothingTransition.scale = 1;
+  clothingTransition.target = id;
+  clothingTransition.alpha = 0;
+}
+
+function completeSwitch(targetId) {
+  // Hide current
+  if (currentClothingId && clothingMeshes[currentClothingId]) {
+    clothingMeshes[currentClothingId].visible = false;
+  }
+
+  // Show new
+  currentClothingId = targetId;
+  const mesh = clothingMeshes[targetId];
+  mesh.visible = true;
+  mesh.scale.set(0.01, 0.01, 0.01);
+  mesh.material.opacity = 0;
+  mesh.material.transparent = true;
+
+  // Reset cloth sim
+  if (currentClothSim) currentClothSim.reset();
+  currentClothSim = new ClothSimulation(mesh);
+
+  // Update UI
+  updateClothingUI(targetId);
+}
+
+function updateClothingTransition(deltaTime) {
+  if (!clothingTransition.active) return;
+
+  const speed = 4.0;
+
+  if (clothingTransition.phase === 'out') {
+    clothingTransition.scale -= speed * deltaTime;
+    if (clothingTransition.scale <= 0.01) {
+      completeSwitch(clothingTransition.target);
+      clothingTransition.phase = 'in';
+      clothingTransition.scale = 0.01;
+    }
+    if (currentClothingId && clothingMeshes[currentClothingId]) {
+      const s = Math.max(0.01, clothingTransition.scale);
+      clothingMeshes[currentClothingId].scale.set(s, s, s);
+    }
+  } else if (clothingTransition.phase === 'in') {
+    clothingTransition.scale += speed * deltaTime;
+    if (clothingTransition.scale >= 1) {
+      clothingTransition.scale = 1;
+      clothingTransition.active = false;
+    }
+    const s = clothingTransition.scale;
+    clothingMeshes[currentClothingId].scale.set(s, s, s);
+    clothingMeshes[currentClothingId].material.opacity = s;
+  }
+}
+
+// =============================================
+// UI
+// =============================================
+const clothingListEl = document.getElementById('clothing-list');
+
+function buildClothingUI() {
+  clothingListEl.innerHTML = '';
+  for (const def of clothingDefs) {
+    const card = document.createElement('div');
+    card.className = 'clothing-card';
+    card.dataset.id = def.id;
+    card.innerHTML = `
+      <div class="clothing-icon" style="background: ${def.color}20;">${def.icon}</div>
+      <div class="clothing-name">${def.name}</div>
+      <div class="clothing-color" style="background: ${def.color};"></div>
+    `;
+    card.addEventListener('click', () => switchClothing(def.id));
+    clothingListEl.appendChild(card);
+  }
+}
+
+function updateClothingUI(activeId) {
+  const cards = clothingListEl.querySelectorAll('.clothing-card');
+  cards.forEach(card => {
+    card.classList.toggle('active', card.dataset.id === activeId);
+  });
+}
+
+buildClothingUI();
+
+// =============================================
+// Auto Rotate
+// =============================================
+const btnAutoRotate = document.getElementById('btn-auto-rotate');
+btnAutoRotate.addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  btnAutoRotate.classList.toggle('active', controls.autoRotate);
+});
+
+// =============================================
+// Gyroscope Support
+// =============================================
+const btnGyro = document.getElementById('btn-gyro');
+let gyroEnabled = false;
+let gyroOffset = { alpha: 0, beta: 0, gamma: 0 };
+let gyroReady = false;
+
+function enableGyroscope() {
+  // iOS 13+ requires permission
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === 'granted') {
+          startGyro();
+        }
+      })
+      .catch(console.error);
+  } else {
+    startGyro();
+  }
+}
+
+function startGyro() {
+  gyroEnabled = true;
+  gyroReady = false;
+  btnGyro.classList.add('active');
+
+  window.addEventListener('deviceorientation', (e) => {
+    if (!gyroEnabled) return;
+
+    if (!gyroReady) {
+      gyroOffset.alpha = e.alpha || 0;
+      gyroOffset.beta = e.beta || 0;
+      gyroOffset.gamma = e.gamma || 0;
+      gyroReady = true;
+      return;
+    }
+
+    const da = ((e.alpha || 0) - gyroOffset.alpha) * 0.002;
+    const db = ((e.beta || 0) - gyroOffset.beta) * 0.003;
+    const dg = ((e.gamma || 0) - gyroOffset.gamma) * 0.003;
+
+    mannequin.rotation.y -= dg;
+    clothingGroup.rotation.y = mannequin.rotation.y;
+  }, true);
+}
+
+btnGyro.addEventListener('click', () => {
+  if (!gyroEnabled) {
+    enableGyroscope();
+  } else {
+    gyroEnabled = false;
+    btnGyro.classList.remove('active');
+    mannequin.rotation.y = 0;
+    clothingGroup.rotation.y = 0;
+  }
+});
+
+// Sync clothing rotation with mannequin
+function syncRotation() {
+  clothingGroup.rotation.y = mannequin.rotation.y;
+  clothingGroup.rotation.x = mannequin.rotation.x;
+}
+
+// =============================================
+// Mannequin idle animation
+// =============================================
+let idleTime = 0;
+
+function updateIdleAnimation(time) {
+  idleTime = time;
+  // Gentle breathing effect
+  const breathe = Math.sin(time * 1.2) * 0.003;
+  mannequin.children.forEach(child => {
+    if (child.isMesh && child.geometry.type === 'LatheGeometry') {
+      child.scale.x = 1 + breathe;
+      child.scale.z = 1 + breathe;
+    }
+  });
+}
+
+// =============================================
+// Animation Loop
+// =============================================
+const clock = new THREE.Clock();
+let lastTime = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const deltaTime = Math.min(clock.getDelta(), 0.06);
+  const elapsed = clock.getElapsedTime();
+
+  // Update controls
+  controls.update();
+
+  // Sync clothing rotation
+  syncRotation();
+
+  // Idle animation
+  updateIdleAnimation(elapsed);
+
+  // Clothing transition
+  updateClothingTransition(deltaTime);
+
+  // Cloth physics
+  if (currentClothSim && clothingTransition.phase !== 'out') {
+    currentClothSim.update(elapsed, deltaTime);
+  }
+
+  // Subtle rim light animation
+  rimLight.position.x = Math.sin(elapsed * 0.5) * 3;
+  rimLight.position.z = Math.cos(elapsed * 0.5) * 3;
+
+  renderer.render(scene, camera);
+}
+
+// =============================================
+// Resize Handler
+// =============================================
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// =============================================
+// Initialize
+// =============================================
+function init() {
+  // Default clothing
+  switchClothing('tshirt');
+  // Immediate complete (no transition on load)
+  completeSwitch('tshirt');
+
+  // Hide loading
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hidden');
+  }, 800);
+
+  animate();
+}
+
+init();
+</script>
+</body>
+</html>
