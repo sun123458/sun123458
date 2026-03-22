@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D 虚拟试衣间</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  #canvas-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+  }
+  canvas { display: block; }
+
+  /* Top bar */
+  .top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: linear-gradient(180deg, rgba(10,10,15,0.95), rgba(10,10,15,0.6));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .top-bar h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    background: linear-gradient(135deg, #c9a96e, #f0d9a0, #c9a96e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Side panel */
+  .side-panel {
+    position: fixed;
+    right: 0; top: 56px; bottom: 0;
+    width: 280px;
+    background: linear-gradient(180deg, rgba(15,15,22,0.95), rgba(10,10,15,0.9));
+    backdrop-filter: blur(16px);
+    border-left: 1px solid rgba(255,255,255,0.06);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px;
+    overflow-y: auto;
+  }
+  .panel-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #c9a96e;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+
+  /* Garment cards */
+  .garment-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .garment-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .garment-card:hover {
+    background: rgba(201,169,110,0.08);
+    border-color: rgba(201,169,110,0.3);
+    transform: translateX(-4px);
+  }
+  .garment-card.active {
+    background: rgba(201,169,110,0.12);
+    border-color: rgba(201,169,110,0.5);
+    box-shadow: 0 0 20px rgba(201,169,110,0.1);
+  }
+  .garment-card.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: #c9a96e;
+  }
+  .garment-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+  .garment-info {
+    flex: 1;
+  }
+  .garment-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .garment-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+  }
+  .garment-tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(201,169,110,0.15);
+    color: #c9a96e;
+    display: inline-block;
+    margin-top: 4px;
+  }
+
+  /* Bottom controls */
+  .bottom-controls {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(calc(-50% - 140px));
+    display: flex;
+    gap: 12px;
+    z-index: 100;
+  }
+  .ctrl-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(15,15,22,0.85);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    font-size: 18px;
+  }
+  .ctrl-btn:hover {
+    background: rgba(201,169,110,0.15);
+    border-color: #c9a96e;
+    color: #c9a96e;
+    transform: scale(1.1);
+  }
+  .ctrl-btn.active {
+    background: rgba(201,169,110,0.2);
+    border-color: #c9a96e;
+    color: #c9a96e;
+  }
+
+  /* Info overlay */
+  .info-overlay {
+    position: fixed;
+    bottom: 84px;
+    left: 50%;
+    transform: translateX(calc(-50% - 140px));
+    background: rgba(15,15,22,0.8);
+    backdrop-filter: blur(10px);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    z-index: 100;
+    border: 1px solid rgba(255,255,255,0.05);
+    white-space: nowrap;
+  }
+
+  /* Loading */
+  .loading-screen {
+    position: fixed;
+    inset: 0;
+    background: #0a0a0f;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.8s ease;
+  }
+  .loading-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 2px solid rgba(201,169,110,0.1);
+    border-top-color: #c9a96e;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  .loading-text {
+    margin-top: 16px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    transform: translateX(calc(-50% - 140px)) translateY(-20px);
+    background: rgba(201,169,110,0.15);
+    border: 1px solid rgba(201,169,110,0.3);
+    color: #f0d9a0;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 200;
+    opacity: 0;
+    transition: all 0.4s ease;
+    pointer-events: none;
+    backdrop-filter: blur(10px);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(calc(-50% - 140px)) translateY(0);
+  }
+
+  /* Color picker for garments */
+  .color-section {
+    margin-top: 20px;
+  }
+  .color-swatches {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+  }
+  .color-swatch:hover, .color-swatch.active {
+    border-color: #fff;
+    transform: scale(1.15);
+  }
+
+  /* Size selector */
+  .size-section {
+    margin-top: 16px;
+  }
+  .size-options {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .size-btn {
+    flex: 1;
+    padding: 6px 0;
+    text-align: center;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .size-btn:hover, .size-btn.active {
+    background: rgba(201,169,110,0.12);
+    border-color: rgba(201,169,110,0.4);
+    color: #c9a96e;
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">初始化试衣间...</div>
+</div>
+
+<div class="top-bar">
+  <h1>3D 虚拟试衣间</h1>
+</div>
+
+<div id="canvas-container"></div>
+
+<div class="side-panel">
+  <div class="panel-title">选择服装</div>
+  <div class="garment-grid" id="garmentGrid"></div>
+
+  <div class="color-section" id="colorSection" style="display:none">
+    <div class="panel-title">颜色</div>
+    <div class="color-swatches" id="colorSwatches"></div>
+  </div>
+
+  <div class="size-section" id="sizeSection" style="display:none">
+    <div class="panel-title">尺寸</div>
+    <div class="size-options" id="sizeOptions"></div>
+  </div>
+</div>
+
+<div class="info-overlay">拖拽旋转 · 滚轮缩放 · 右键平移</div>
+
+<div class="bottom-controls">
+  <button class="ctrl-btn" id="btnAutoRotate" title="自动旋转">⟳</button>
+  <button class="ctrl-btn" id="btnReset" title="重置视角">⌂</button>
+  <button class="ctrl-btn" id="btnWireframe" title="线框模式">◇</button>
+  <button class="ctrl-btn" id="btnScreenshot" title="截图">▣</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/ClothSimulation.js"></script>
+<script src="js/Mannequin.js"></script>
+<script src="js/GarmentFactory.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
