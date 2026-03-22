@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>简易地图 - Leaflet</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+    /* 地图容器 */
+    #map { width: 100vw; height: 100vh; }
+
+    /* 顶部标题栏 */
+    .header {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 1000; background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+      padding: 8px 24px; border-radius: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.15);
+      font-size: 15px; font-weight: 600; color: #333; white-space: nowrap;
+    }
+
+    /* 底图切换按钮组 */
+    .tile-switcher {
+      position: absolute; top: 60px; right: 16px; z-index: 1000;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .tile-btn {
+      padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer;
+      font-size: 13px; color: #fff; transition: opacity .2s, transform .1s;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .tile-btn:hover { opacity: .85; transform: scale(1.03); }
+    .tile-btn.active { outline: 3px solid #fff; outline-offset: 1px; }
+    .tile-btn.std   { background: #4a90d9; }
+    .tile-btn.sat   { background: #2d8f4e; }
+    .tile-btn.dark  { background: #2c2c2c; }
+    .tile-btn.terrain { background: #b5651d; }
+
+    /* 定位按钮 */
+    .locate-btn {
+      position: absolute; bottom: 32px; right: 16px; z-index: 1000;
+      width: 40px; height: 40px; border: none; border-radius: 8px;
+      background: #4a90d9; color: #fff; font-size: 20px; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25); display: flex; align-items: center;
+      justify-content: center; transition: background .2s;
+    }
+    .locate-btn:hover { background: #357abd; }
+
+    /* 详情面板 */
+    .detail-panel {
+      position: absolute; bottom: 32px; left: 16px; z-index: 1000;
+      width: 300px; background: rgba(255,255,255,.95); backdrop-filter: blur(6px);
+      border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.18);
+      padding: 18px 20px; transform: translateY(120%); transition: transform .35s ease;
+    }
+    .detail-panel.show { transform: translateY(0); }
+    .detail-panel h3 { margin-bottom: 6px; font-size: 16px; color: #333; }
+    .detail-panel .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 6px; }
+    .detail-panel .desc { margin-top: 10px; font-size: 13px; color: #666; line-height: 1.6; }
+    .detail-panel .close-btn {
+      position: absolute; top: 10px; right: 14px; background: none; border: none;
+      font-size: 18px; cursor: pointer; color: #999;
+    }
+    .detail-panel .img-placeholder {
+      width: 100%; height: 120px; border-radius: 8px; margin: 10px 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">Leaflet 简易地图</div>
+
+  <div id="map"></div>
+
+  <!-- 底图切换 -->
+  <div class="tile-switcher">
+    <button class="tile-btn std active" data-tile="std">标准地图</button>
+    <button class="tile-btn sat" data-tile="sat">卫星地图</button>
+    <button class="tile-btn dark" data-tile="dark">暗黑地图</button>
+    <button class="tile-btn terrain" data-tile="terrain">地形地图</button>
+  </div>
+
+  <!-- 定位按钮 -->
+  <button class="locate-btn" id="locateBtn" title="定位到当前位置">&#9906;</button>
+
+  <!-- 详情面板 -->
+  <div class="detail-panel" id="detailPanel">
+    <button class="close-btn" id="closePanel">&times;</button>
+    <h3 id="panelTitle"></h3>
+    <div id="panelTags"></div>
+    <div class="img-placeholder" id="panelImg"></div>
+    <div class="desc" id="panelDesc"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ========== 底图图层 ==========
+    const tiles = {
+      std: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+      }),
+      sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri', maxZoom: 18
+      }),
+      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB', maxZoom: 19
+      }),
+      terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenTopoMap', maxZoom: 17
+      })
+    };
+
+    // ========== 初始化地图 ==========
+    const map = L.map('map', {
+      center: [39.9042, 116.4074],   // 默认北京天安门
+      zoom: 12,
+      layers: [tiles.std]
+    });
+
+    // ========== 兴趣点数据 ==========
+    const locations = [
+      {
+        name: '故宫博物院',
+        lat: 39.9163, lng: 116.3972,
+        tags: [{ text: '文化', bg: '#e74c3c' }, { text: '5A景区', bg: '#f39c12' }],
+        color: '#e74c3c',
+        imgBg: '#fde8e8',
+        desc: '故宫又称紫禁城，明清两代的皇家宫殿，是世界上现存规模最大、保存最为完整的木质结构古建筑群之一，被列为世界文化遗产。'
+      },
+      {
+        name: '鸟巢·国家体育场',
+        lat: 39.9929, lng: 116.3966,
+        tags: [{ text: '体育', bg: '#3498db' }, { text: '地標', bg: '#9b59b6' }],
+        color: '#3498db',
+        imgBg: '#e0ecf8',
+        desc: '2008年北京奥运会主场馆，外形如同一个由树枝般的钢网编织而成的鸟巢，可容纳91000名观众，是北京的标志性建筑。'
+      },
+      {
+        name: '颐和园',
+        lat: 39.9999, lng: 116.2755,
+        tags: [{ text: '园林', bg: '#27ae60' }, { text: '5A景区', bg: '#f39c12' }],
+        color: '#27ae60',
+        imgBg: '#e0f5ea',
+        desc: '颐和园是中国古典园林之首，以昆明湖和万寿山为基址，汲取江南园林的设计手法建成的大型山水园林，列入世界文化遗产。'
+      },
+      {
+        name: '北京大学',
+        lat: 39.9869, lng: 116.3059,
+        tags: [{ text: '教育', bg: '#1abc9c' }, { text: '985高校', bg: '#8e44ad' }],
+        color: '#1abc9c',
+        imgBg: '#d5f5f0',
+        desc: '北京大学创立于1898年，初名京师大学堂，是中国近现代第一所国立综合性大学，也是新文化运动的中心和五四运动的策源地。'
+      },
+      {
+        name: '中关村科技园',
+        lat: 39.9818, lng: 116.3104,
+        tags: [{ text: '科技', bg: '#e67e22' }, { text: '创新', bg: '#2c3e50' }],
+        color: '#e67e22',
+        imgBg: '#fce8d0',
+        desc: '中关村是中国第一个国家级高新技术产业开发区，被誉为"中国硅谷"，聚集了大量科技企业和创业公司，是创新驱动发展的前沿阵地。'
+      }
+    ];
+
+    // ========== 创建自定义图标 ==========
+    function createIcon(color) {
+      return L.divIcon({
+        className: '',
+        html: `<div style="
+          width:28px;height:28px;border-radius:50% 50% 50% 0;
+          background:${color};transform:rotate(-45deg);
+          border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);
+          display:flex;align-items:center;justify-content:center;
+        "><span style="transform:rotate(45deg);color:#fff;font-size:12px;font-weight:bold;">●</span></div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+        popupAnchor: [0, -30]
+      });
+    }
+
+    // ========== 添加标记 ==========
+    const detailPanel = document.getElementById('detailPanel');
+
+    locations.forEach(function(loc) {
+      var marker = L.marker([loc.lat, loc.lng], { icon: createIcon(loc.color) }).addTo(map);
+
+      // 点击标记 → 打开详情面板
+      marker.on('click', function () {
+        document.getElementById('panelTitle').textContent = loc.name;
+        var tagsHtml = loc.tags.map(function (t) {
+          return '<span class="tag" style="background:' + t.bg + ';color:#fff">' + t.text + '</span>';
+        }).join('');
+        document.getElementById('panelTags').innerHTML = tagsHtml;
+        document.getElementById('panelImg').style.background = loc.imgBg;
+        document.getElementById('panelImg').textContent = '📸 ' + loc.name;
+        document.getElementById('panelDesc').textContent = loc.desc;
+        detailPanel.classList.add('show');
+      });
+    });
+
+    // 关闭面板
+    document.getElementById('closePanel').addEventListener('click', function () {
+      detailPanel.classList.remove('show');
+    });
+
+    // ========== 底图切换 ==========
+    document.querySelectorAll('.tile-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var key = this.dataset.tile;
+        // 移除当前图层
+        map.eachLayer(function (layer) { if (layer instanceof L.TileLayer) map.removeLayer(layer); });
+        tiles[key].addTo(map);
+        // 更新按钮状态
+        document.querySelectorAll('.tile-btn').forEach(function (b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
+    });
+
+    // ========== 定位功能 ==========
+    document.getElementById('locateBtn').addEventListener('click', function () {
+      if (!navigator.geolocation) {
+        alert('您的浏览器不支持定位功能');
+        return;
+      }
+      this.textContent = '⏳';
+      var btn = this;
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          var lat = pos.coords.latitude;
+          var lng = pos.coords.longitude;
+          map.setView([lat, lng], 15);
+          // 定位圆圈
+          L.circle([lat, lng], {
+            radius: pos.coords.accuracy,
+            color: '#4a90d9', fillColor: '#4a90d9', fillOpacity: 0.15, weight: 2
+          }).addTo(map);
+          // 定位点
+          L.circleMarker([lat, lng], {
+            radius: 8, color: '#fff', fillColor: '#4a90d9',
+            fillOpacity: 1, weight: 3
+          }).addTo(map);
+          btn.textContent = '✓';
+          setTimeout(function () { btn.innerHTML = '&#9906;'; }, 1500);
+        },
+        function () {
+          alert('定位失败，请检查是否允许了位置权限');
+          btn.innerHTML = '&#9906;';
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+  </script>
+</body>
+</html>
