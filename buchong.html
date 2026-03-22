@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>像素捕虫游戏</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: monospace;
+    overflow: hidden;
+  }
+  #gameContainer { position: relative; }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border: 3px solid #333;
+  }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <canvas id="game" width="800" height="600"></canvas>
+</div>
+<script>
+// ===================== 常量与配置 =====================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const TILE = 32;
+const COLS = 25;
+const ROWS = 19;
+
+const DIR = { DOWN: 0, LEFT: 1, RIGHT: 2, UP: 3 };
+
+// ===================== 调色板 =====================
+const PAL = {
+  grass1: '#4a8c3f', grass2: '#3d7a34', grass3: '#56a347',
+  tree_trunk: '#6b4226', tree_leaves: '#2d7a2d', tree_leaves2: '#1e5c1e',
+  water: '#3a7cbd', water2: '#4a9cd8',
+  path: '#c4a65a', path2: '#b39548',
+  fence: '#8B7355', fence2: '#6B5335',
+  flower1: '#e84393', flower2: '#fdcb6e', flower3: '#74b9ff',
+  player_hair: '#5a3a1a', player_skin: '#f5cba7', player_shirt: '#e74c3c',
+  player_pants: '#2c3e50', player_shoes: '#1a1a1a',
+  npc1_hair: '#2c3e50', npc1_dress: '#9b59b6', npc1_skin: '#f5cba7',
+  npc2_hat: '#e67e22', npc2_shirt: '#27ae60', npc2_skin: '#d4a574',
+  npc3_hair: '#c0392b', npc3_robe: '#3498db', npc3_skin: '#f5cba7',
+  bug_green: '#2ecc71', bug_blue: '#3498db', bug_red: '#e74c3c',
+  net_handle: '#8B7355', net_rim: '#dfe6e9', net_web: '#b2bec3',
+  dialog_bg: '#2d3436', dialog_border: '#dfe6e9', dialog_text: '#dfe6e9',
+  ui_bg: '#2d343688', ui_text: '#ffeaa7',
+  shadow: 'rgba(0,0,0,0.25)',
+};
+
+// ===================== 地图数据 =====================
+// 0=草 1=树 2=水 3=路 4=栅栏 5=花
+const MAP = [];
+for (let r = 0; r < ROWS; r++) {
+  MAP[r] = [];
+  for (let c = 0; c < COLS; c++) {
+    MAP[r][c] = 0;
+  }
+}
+
+// 边界树
+for (let c = 0; c < COLS; c++) { MAP[0][c] = 1; MAP[ROWS-1][c] = 1; }
+for (let r = 0; r < ROWS; r++) { MAP[r][0] = 1; MAP[r][COLS-1] = 1; }
+
+// 额外树木
+const treePos = [[2,3],[2,4],[4,8],[3,12],[2,15],[2,16],[5,18],[4,20],
+  [7,3],[6,4],[9,9],[8,10],[7,15],[6,20],[6,21],
+  [10,3],[11,4],[13,13],[14,14],[12,18],[13,20],
+  [16,2],[17,3],[15,8],[16,16],[17,17],[15,21]];
+treePos.forEach(([r,c]) => { if(r<ROWS && c<COLS) MAP[r][c] = 1; });
+
+// 水池
+for (let r = 2; r <= 4; r++)
+  for (let c = 21; c <= 23; c++) MAP[r][c] = 2;
+MAP[1][22] = 2;
+
+// 小路(十字)
+for (let c = 1; c < COLS-1; c++) { if(MAP[9][c]===0) MAP[9][c] = 3; if(MAP[10][c]===0) MAP[10][c] = 3; }
+for (let r = 1; r < ROWS-1; r++) { if(MAP[r][12]===0) MAP[r][12] = 3; if(MAP[r][13]===0) MAP[r][13] = 3; }
+
+// 栅栏围栏
+for (let c = 14; c <= 18; c++) MAP[14][c] = 4;
+
+// 花朵
+const flowerPos = [[3,6],[5,10],[8,2],[11,8],[14,5],[16,10],[3,19],[15,7],[12,22],[17,12]];
+flowerPos.forEach(([r,c]) => { if(MAP[r][c]===0) MAP[r][c] = 5; });
+
+// ===================== 可行走检测 =====================
+function isWalkable(px, py, w, h) {
+  const corners = [
+    [px + 4, py + 10], [px + w - 4, py + 10],
+    [px + 4, py + h - 2], [px + w - 4, py + h - 2]
+  ];
+  for (const [cx, cy] of corners) {
+    const col = Math.floor(cx / TILE);
+    const row = Math.floor(cy / TILE);
+    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
+    const t = MAP[row][col];
+    if (t === 1 || t === 2 || t === 4) return false;
+  }
+  return true;
+}
+
+// ===================== NPC 对话数据 =====================
+const NPC_DATA = [
+  {
+    name: '小兰',
+    x: 6 * TILE, y: 6 * TILE, color: 'npc1',
+    dialogs: [
+      '你好呀！今天天气真好，\n适合出来捕虫呢！',
+      '你听说过金色的虫子吗？\n据说非常稀有哦！',
+      '加油！我看好你！'
+    ]
+  },
+  {
+    name: '老张',
+    x: 18 * TILE, y: 7 * TILE, color: 'npc2',
+    dialogs: [
+      '嘿，年轻人！捕虫可是\n需要耐心的技术活。',
+      '提示：按空格键挥动捕虫网，\n靠近虫子再出手！',
+      '我年轻时可是捕虫冠军……'
+    ]
+  },
+  {
+    name: '阿明',
+    x: 8 * TILE, y: 15 * TILE, color: 'npc3',
+    dialogs: [
+      '嗨！我正在研究这里的昆虫。\n这片草地上有很多种类！',
+      '蓝色虫子比绿色虫子\n更难捕捉，要注意哦！',
+      '记得多看看花丛附近，\n虫子喜欢待在那里。'
+    ]
+  }
+];
+
+// ===================== 游戏状态 =====================
+const keys = {};
+let frameCount = 0;
+
+const player = {
+  x: 12 * TILE, y: 10 * TILE,
+  w: 24, h: 28,
+  dir: DIR.DOWN, frame: 0, frameTimer: 0,
+  speed: 2.5, moving: false,
+  swingNet: false, netTimer: 0
+};
+
+const npcs = NPC_DATA.map(d => ({
+  ...d, dialogIdx: 0, facing: DIR.DOWN, frame: 0
+}));
+
+const bugs = [];
+let bugSpawnTimer = 0;
+const MAX_BUGS = 8;
+
+const dialog = {
+  active: false, text: '', speaker: '', timer: 0, alpha: 0
+};
+
+let catchCount = 0;
+let catchAnim = null; // {x, y, timer}
+let particles = [];
+
+// ===================== 绘制辅助函数 =====================
+function drawPixelRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x), Math.round(y), w, h);
+}
+
+// ===================== 地图绘制 =====================
+function drawTile(r, c, tile) {
+  const x = c * TILE, y = r * TILE;
+  switch(tile) {
+    case 0: // 草地
+      drawPixelRect(x, y, TILE, TILE, PAL.grass1);
+      // 草地纹理
+      if ((r + c) % 3 === 0) drawPixelRect(x + 8, y + 8, 2, 4, PAL.grass2);
+      if ((r + c) % 5 === 0) drawPixelRect(x + 20, y + 18, 2, 3, PAL.grass3);
+      if ((r * 7 + c * 13) % 11 === 0) drawPixelRect(x + 14, y + 4, 2, 3, PAL.grass2);
+      break;
+    case 1: // 树
+      drawPixelRect(x, y, TILE, TILE, PAL.grass1);
+      drawPixelRect(x + 10, y + 16, 12, 16, PAL.tree_trunk);
+      drawPixelRect(x + 2, y, 28, 20, PAL.tree_leaves);
+      drawPixelRect(x + 4, y + 2, 24, 16, PAL.tree_leaves2);
+      drawPixelRect(x + 6, y + 1, 20, 6, PAL.tree_leaves);
+      // 高光
+      drawPixelRect(x + 8, y + 3, 4, 4, '#3a993a');
+      break;
+    case 2: // 水
+      const waterC = (frameCount + r * 3 + c * 7) % 60 < 30 ? PAL.water : PAL.water2;
+      drawPixelRect(x, y, TILE, TILE, waterC);
+      // 波纹
+      const waveOffset = Math.sin(frameCount * 0.05 + r + c) * 3;
+      drawPixelRect(x + 6 + waveOffset, y + 10, 12, 2, '#ffffff22');
+      drawPixelRect(x + 14 + waveOffset, y + 22, 10, 2, '#ffffff22');
+      break;
+    case 3: // 路
+      drawPixelRect(x, y, TILE, TILE, PAL.path);
+      if ((r + c) % 4 === 0) drawPixelRect(x + 4, y + 4, 3, 3, PAL.path2);
+      if ((r * 3 + c * 7) % 6 === 0) drawPixelRect(x + 20, y + 16, 2, 2, PAL.path2);
+      break;
+    case 4: // 栅栏
+      drawPixelRect(x, y, TILE, TILE, PAL.grass1);
+      drawPixelRect(x + 4, y + 8, 6, 24, PAL.fence);
+      drawPixelRect(x + 22, y + 8, 6, 24, PAL.fence);
+      drawPixelRect(x + 2, y + 10, 28, 4, PAL.fence2);
+      drawPixelRect(x + 2, y + 24, 28, 4, PAL.fence2);
+      break;
+    case 5: // 花
+      drawPixelRect(x, y, TILE, TILE, PAL.grass1);
+      if ((r + c) % 3 === 0) drawPixelRect(x + 12, y + 14, 2, 3, PAL.grass2);
+      // 茎
+      drawPixelRect(x + 15, y + 18, 2, 10, '#27ae60');
+      // 花瓣
+      const fc = [(r+c)%3===0, (r+c)%3===1, (r+c)%3===2];
+      const petalC = fc[0] ? PAL.flower1 : fc[1] ? PAL.flower2 : PAL.flower3;
+      drawPixelRect(x + 11, y + 14, 3, 3, petalC);
+      drawPixelRect(x + 17, y + 14, 3, 3, petalC);
+      drawPixelRect(x + 14, y + 11, 3, 3, petalC);
+      drawPixelRect(x + 14, y + 17, 3, 3, petalC);
+      drawPixelRect(x + 13, y + 14, 5, 5, '#f1c40f');
+      break;
+  }
+}
+
+function drawMap() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      drawTile(r, c, MAP[r][c]);
+}
+
+// ===================== 角色绘制 =====================
+function drawCharacter(x, y, dir, frame, colors, isMoving, isPlayer) {
+  const cx = Math.round(x);
+  const cy = Math.round(y);
+
+  // 影子
+  ctx.fillStyle = PAL.shadow;
+  ctx.beginPath();
+  ctx.ellipse(cx + 12, cy + 28, 10, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const legOffset = isMoving ? Math.sin(frame * 0.8) * 3 : 0;
+
+  // 鞋子
+  drawPixelRect(cx + 4, cy + 22 + legOffset, 6, 4, colors.shoes || PAL.player_shoes);
+  drawPixelRect(cx + 14, cy + 22 - legOffset, 6, 4, colors.shoes || PAL.player_shoes);
+
+  // 裤子
+  drawPixelRect(cx + 4, cy + 18, 8, 6, colors.pants);
+  drawPixelRect(cx + 12, cy + 18, 8, 6, colors.pants);
+
+  // 身体/衣服
+  drawPixelRect(cx + 3, cy + 8, 18, 12, colors.shirt);
+
+  // 胳膊
+  const armSwing = isMoving ? Math.sin(frame * 0.8) * 2 : 0;
+  drawPixelRect(cx, cy + 10 + armSwing, 4, 8, colors.shirt);
+  drawPixelRect(cx + 20, cy + 10 - armSwing, 4, 8, colors.shirt);
+
+  // 手
+  drawPixelRect(cx, cy + 17 + armSwing, 4, 3, colors.skin);
+
+  // 头
+  drawPixelRect(cx + 4, cy, 16, 12, colors.skin);
+  // 头发/帽子
+  if (colors.hat) {
+    drawPixelRect(cx + 2, cy - 2, 20, 6, colors.hat);
+    drawPixelRect(cx + 4, cy + 2, 16, 4, colors.hat);
+  } else {
+    drawPixelRect(cx + 3, cy - 1, 18, 6, colors.hair);
+  }
+  // 眼睛(根据方向)
+  if (dir !== DIR.UP) {
+    if (dir === DIR.LEFT) {
+      drawPixelRect(cx + 6, cy + 5, 3, 2, '#1a1a1a');
+      drawPixelRect(cx + 14, cy + 5, 1, 2, '#1a1a1a');
+    } else if (dir === DIR.RIGHT) {
+      drawPixelRect(cx + 17, cy + 5, 3, 2, '#1a1a1a');
+      drawPixelRect(cx + 9, cy + 5, 1, 2, '#1a1a1a');
+    } else {
+      drawPixelRect(cx + 6, cy + 5, 3, 2, '#1a1a1a');
+      drawPixelRect(cx + 15, cy + 5, 3, 2, '#1a1a1a');
+    }
+  }
+  drawPixelRect(cx + 20, cy + 17 - armSwing, 4, 3, colors.skin);
+}
+
+function drawPlayer() {
+  const colors = {
+    hair: PAL.player_hair, skin: PAL.player_skin,
+    shirt: PAL.player_shirt, pants: PAL.player_pants,
+    shoes: PAL.player_shoes
+  };
+  drawCharacter(player.x, player.y, player.dir, player.frame, colors, player.moving, true);
+
+  // 捕虫网(不挥动时在身后)
+  if (!player.swingNet) {
+    const ndx = player.x + 20;
+    const ndy = player.y + 12;
+    drawPixelRect(ndx, ndy, 2, 14, PAL.net_handle);
+    drawPixelRect(ndx - 4, ndy - 2, 12, 2, PAL.net_rim);
+    drawPixelRect(ndx - 3, ndy - 6, 10, 6, PAL.net_web);
+    drawPixelRect(ndx - 1, ndy - 4, 6, 2, '#fff3');
+  }
+}
+
+function drawNPC(npc) {
+  const colorMap = {
+    npc1: { hair: PAL.npc1_hair, shirt: PAL.npc1_dress, pants: PAL.npc1_dress, skin: PAL.npc1_skin, shoes: '#6c3483', hat: null },
+    npc2: { hair: null, shirt: PAL.npc2_shirt, pants: '#1e8449', skin: PAL.npc2_skin, shoes: '#1a1a1a', hat: PAL.npc2_hat },
+    npc3: { hair: PAL.npc3_hair, shirt: PAL.npc3_robe, pants: PAL.npc3_robe, skin: PAL.npc3_skin, shoes: '#1a1a1a', hat: null }
+  };
+  drawCharacter(npc.x, npc.y, npc.facing, npc.frame, colorMap[npc.color], false, false);
+
+  // NPC 名字标签
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(npc.name, npc.x + 12, npc.y - 5);
+}
+
+// ===================== 虫子系统 =====================
+const BUG_TYPES = [
+  { name: '绿虫', color: PAL.bug_green, color2: '#27ae60', speed: 0.8, size: 6, points: 1 },
+  { name: '蓝蝶', color: PAL.bug_blue, color2: '#2980b9', speed: 1.2, size: 7, points: 2 },
+  { name: '红虫', color: PAL.bug_red, color2: '#c0392b', speed: 1.5, size: 5, points: 3 }
+];
+
+function spawnBug() {
+  if (bugs.length >= MAX_BUGS) return;
+  // 在可行走的随机位置生成
+  let attempts = 0;
+  while (attempts < 50) {
+    const col = 2 + Math.floor(Math.random() * (COLS - 4));
+    const row = 2 + Math.floor(Math.random() * (ROWS - 4));
+    if (MAP[row][col] === 0 || MAP[row][col] === 5) {
+      // 离玩家远一些
+      const dx = col * TILE - player.x;
+      const dy = row * TILE - player.y;
+      if (Math.sqrt(dx*dx + dy*dy) > 120) {
+        const typeIdx = Math.random() < 0.5 ? 0 : Math.random() < 0.7 ? 1 : 2;
+        bugs.push({
+          x: col * TILE + 8,
+          y: row * TILE + 8,
+          type: typeIdx,
+          dir: Math.random() * Math.PI * 2,
+          moveTimer: 0,
+          changeTimer: 60 + Math.random() * 120,
+          alive: true
+        });
+        return;
+      }
+    }
+    attempts++;
+  }
+}
+
+function updateBugs() {
+  for (const bug of bugs) {
+    bug.moveTimer++;
+    bug.changeTimer--;
+
+    if (bug.changeTimer <= 0) {
+      bug.dir = Math.random() * Math.PI * 2;
+      bug.changeTimer = 40 + Math.random() * 100;
+    }
+
+    const type = BUG_TYPES[bug.type];
+    const speed = type.speed;
+
+    if (bug.moveTimer < 60) {
+      const nx = bug.x + Math.cos(bug.dir) * speed;
+      const ny = bug.y + Math.sin(bug.dir) * speed;
+      const col = Math.floor((nx + 4) / TILE);
+      const row = Math.floor((ny + 4) / TILE);
+      if (col >= 0 && col < COLS && row >= 0 && row < ROWS && MAP[row][col] !== 1 && MAP[row][col] !== 2 && MAP[row][col] !== 4) {
+        bug.x = nx;
+        bug.y = ny;
+      } else {
+        bug.dir += Math.PI * 0.5 + Math.random();
+      }
+    } else if (bug.moveTimer > 90) {
+      bug.moveTimer = 0;
+    }
+  }
+}
+
+function drawBug(bug) {
+  const type = BUG_TYPES[bug.type];
+  const x = Math.round(bug.x);
+  const y = Math.round(bug.y);
+  const s = type.size;
+
+  // 影子
+  ctx.fillStyle = PAL.shadow;
+  ctx.beginPath();
+  ctx.ellipse(x + 4, y + s + 2, 4, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (bug.type === 1) {
+    // 蝴蝶 - 翅膀扇动
+    const wingW = Math.abs(Math.sin(frameCount * 0.2)) * 4 + 2;
+    drawPixelRect(x - wingW, y, wingW, s - 1, type.color);
+    drawPixelRect(x + s, y, wingW, s - 1, type.color);
+    drawPixelRect(x + 1, y, s - 2, s, type.color2);
+  } else {
+    // 甲虫/虫子
+    drawPixelRect(x, y, s, s, type.color);
+    drawPixelRect(x + 1, y, s - 2, s - 2, type.color2);
+    // 腿
+    const legOff = Math.sin(frameCount * 0.3) * 1.5;
+    drawPixelRect(x - 1, y + 1 + legOff, 1, 2, type.color);
+    drawPixelRect(x + s, y + 1 - legOff, 1, 2, type.color);
+    drawPixelRect(x - 1, y + 4 - legOff, 1, 2, type.color);
+    drawPixelRect(x + s, y + 4 + legOff, 1, 2, type.color);
+    // 眼睛
+    drawPixelRect(x + 1, y + 1, 1, 1, '#fff');
+    drawPixelRect(x + s - 2, y + 1, 1, 1, '#fff');
+  }
+}
+
+// ===================== 捕虫网挥动 =====================
+function drawNetSwing() {
+  if (!player.swingNet) return;
+
+  const t = player.netTimer;
+  const maxT = 15;
+
+  // 网的位置根据方向
+  let nx = player.x, ny = player.y;
+  let angle = 0;
+
+  switch (player.dir) {
+    case DIR.UP:    ny -= 20; angle = Math.PI; break;
+    case DIR.DOWN:  ny += 10; angle = 0; break;
+    case DIR.LEFT:  nx -= 24; angle = Math.PI * 0.5; break;
+    case DIR.RIGHT: nx += 24; angle = -Math.PI * 0.5; break;
+  }
+
+  const swing = Math.sin(t / maxT * Math.PI) * 0.6;
+
+  ctx.save();
+  ctx.translate(nx + 12, ny + 14);
+  ctx.rotate(angle + swing);
+
+  // 手柄
+  drawPixelRect(-2, 8, 3, 18, PAL.net_handle);
+  // 网框
+  ctx.strokeStyle = PAL.net_rim;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // 网面
+  ctx.fillStyle = '#ffffff33';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 13, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // 网格
+  ctx.strokeStyle = '#ffffff22';
+  ctx.lineWidth = 1;
+  for (let i = -8; i <= 8; i += 4) {
+    ctx.beginPath(); ctx.moveTo(i, -8); ctx.lineTo(i, 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-10, i * 0.8); ctx.lineTo(10, i * 0.8); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function tryCatchBug() {
+  // 检测网覆盖区域
+  let nx = player.x + 12, ny = player.y + 14;
+  switch (player.dir) {
+    case DIR.UP:    ny -= 26; break;
+    case DIR.DOWN:  ny += 16; break;
+    case DIR.LEFT:  nx -= 26; break;
+    case DIR.RIGHT: nx += 26; break;
+  }
+
+  const catchRadius = 22;
+
+  for (let i = bugs.length - 1; i >= 0; i--) {
+    const bug = bugs[i];
+    const dx = (bug.x + 3) - nx;
+    const dy = (bug.y + 3) - ny;
+    if (Math.sqrt(dx * dx + dy * dy) < catchRadius) {
+      const type = BUG_TYPES[bug.type];
+      catchCount += type.points;
+      // 捕捉特效粒子
+      for (let p = 0; p < 8; p++) {
+        particles.push({
+          x: bug.x + 3, y: bug.y + 3,
+          vx: (Math.random() - 0.5) * 3,
+          vy: (Math.random() - 0.5) * 3,
+          life: 30, color: type.color,
+          size: 2 + Math.random() * 3
+        });
+      }
+      catchAnim = { x: bug.x, y: bug.y - 10, timer: 40, text: `+${type.points}` };
+      bugs.splice(i, 1);
+      return;
+    }
+  }
+}
+
+// ===================== 对话系统 =====================
+function showDialog(npc) {
+  dialog.active = true;
+  dialog.speaker = npc.name;
+  dialog.text = npc.dialogs[npc.dialogIdx];
+  dialog.timer = 0;
+  dialog.alpha = 0;
+  npc.dialogIdx = (npc.dialogIdx + 1) % npc.dialogs.length;
+}
+
+function drawDialog() {
+  if (!dialog.active) return;
+
+  dialog.alpha = Math.min(1, dialog.alpha + 0.08);
+
+  const boxW = 500, boxH = 100;
+  const boxX = (canvas.width - boxW) / 2;
+  const boxY = canvas.height - boxH - 20;
+
+  ctx.globalAlpha = dialog.alpha;
+
+  // 背景
+  ctx.fillStyle = PAL.dialog_bg;
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  // 边框
+  ctx.strokeStyle = PAL.dialog_border;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+  // 内边框
+  ctx.strokeStyle = '#ffffff22';
+  ctx.strokeRect(boxX + 4, boxY + 4, boxW - 8, boxH - 8);
+
+  // 说话者名字
+  ctx.fillStyle = PAL.ui_text;
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(dialog.speaker, boxX + 16, boxY + 22);
+
+  // 对话文字(逐字显示)
+  const showLen = Math.min(dialog.text.length, Math.floor(dialog.timer / 2));
+  const visibleText = dialog.text.substring(0, showLen);
+  ctx.fillStyle = PAL.dialog_text;
+  ctx.font = '13px monospace';
+  const lines = visibleText.split('\n');
+  lines.forEach((line, i) => {
+    ctx.fillText(line, boxX + 16, boxY + 44 + i * 20);
+  });
+
+  // 继续提示
+  if (showLen >= dialog.text.length) {
+    ctx.fillStyle = (frameCount % 40 < 20) ? '#fff' : '#fff8';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('▼ E/Enter 关闭', boxX + boxW - 12, boxY + boxH - 10);
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+}
+
+// ===================== UI 绘制 =====================
+function drawUI() {
+  // 虫子计数面板
+  ctx.fillStyle = PAL.ui_bg;
+  roundRect(10, 10, 180, 60, 6);
+
+  ctx.strokeStyle = '#ffeaa7';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  roundRectPath(10, 10, 180, 60, 6);
+  ctx.stroke();
+
+  // 虫子图标
+  ctx.font = '20px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#2ecc71';
+  drawPixelRect(24, 24, 8, 8, PAL.bug_green);
+  drawPixelRect(26, 26, 4, 4, '#27ae60');
+
+  ctx.fillStyle = PAL.ui_text;
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText(`x ${catchCount}`, 40, 36);
+
+  ctx.fillStyle = '#ccc';
+  ctx.font = '11px monospace';
+  ctx.fillText(`虫子: ${bugs.length}/${MAX_BUGS}`, 24, 56);
+
+  // 操作提示
+  ctx.fillStyle = '#ffffff44';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('方向键移动 | E对话 | 空格捕虫', canvas.width - 10, canvas.height - 6);
+
+  ctx.textAlign = 'left';
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  roundRectPath(x, y, w, h, r);
+  ctx.fill();
+}
+
+function roundRectPath(x, y, w, h, r) {
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+}
+
+// ===================== 粒子系统 =====================
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 30;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(Math.round(p.x), Math.round(p.y), Math.round(p.size), Math.round(p.size));
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ===================== 捕捉动画 =====================
+function drawCatchAnim() {
+  if (!catchAnim) return;
+  catchAnim.timer--;
+  const alpha = catchAnim.timer / 40;
+  const yOff = (40 - catchAnim.timer) * 0.8;
+
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#ffeaa7';
+  ctx.font = 'bold 18px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(catchAnim.text, catchAnim.x + 12, catchAnim.y - yOff);
+  ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
+
+  if (catchAnim.timer <= 0) catchAnim = null;
+}
+
+// ===================== 玩家更新 =====================
+function updatePlayer() {
+  if (dialog.active) return;
+
+  let dx = 0, dy = 0;
+  player.moving = false;
+
+  if (keys['ArrowUp'] || keys['KeyW']) { dy = -player.speed; player.dir = DIR.UP; player.moving = true; }
+  if (keys['ArrowDown'] || keys['KeyS']) { dy = player.speed; player.dir = DIR.DOWN; player.moving = true; }
+  if (keys['ArrowLeft'] || keys['KeyA']) { dx = -player.speed; player.dir = DIR.LEFT; player.moving = true; }
+  if (keys['ArrowRight'] || keys['KeyD']) { dx = player.speed; player.dir = DIR.RIGHT; player.moving = true; }
+
+  // NPC碰撞
+  function collidesNPC(px, py) {
+    for (const npc of npcs) {
+      if (px + player.w > npc.x + 2 && px < npc.x + 22 &&
+          py + player.h > npc.y + 4 && py < npc.y + 28) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 分别处理X和Y移动以实现滑动
+  if (dx !== 0) {
+    const nx = player.x + dx;
+    if (isWalkable(nx, player.y, player.w, player.h) && !collidesNPC(nx, player.y)) {
+      player.x = nx;
+    }
+  }
+  if (dy !== 0) {
+    const ny = player.y + dy;
+    if (isWalkable(player.x, ny, player.w, player.h) && !collidesNPC(player.x, ny)) {
+      player.y = ny;
+    }
+  }
+
+  // 行走动画帧
+  if (player.moving) {
+    player.frameTimer++;
+    if (player.frameTimer >= 8) {
+      player.frameTimer = 0;
+      player.frame++;
+    }
+  } else {
+    player.frame = 0;
+    player.frameTimer = 0;
+  }
+
+  // 捕虫网挥动
+  if (player.swingNet) {
+    player.netTimer--;
+    if (player.netTimer <= 0) {
+      player.swingNet = false;
+    }
+  }
+}
+
+// ===================== 输入处理 =====================
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+
+  if (e.code === 'Space' && !dialog.active) {
+    e.preventDefault();
+    if (!player.swingNet) {
+      player.swingNet = true;
+      player.netTimer = 15;
+      tryCatchBug();
+    }
+  }
+
+  if (e.code === 'KeyE' || e.code === 'Enter') {
+    if (dialog.active) {
+      dialog.active = false;
+    } else {
+      // 检测附近NPC
+      for (const npc of npcs) {
+        const dx = (player.x + 12) - (npc.x + 12);
+        const dy = (player.y + 14) - (npc.y + 14);
+        if (Math.sqrt(dx * dx + dy * dy) < 48) {
+          // NPC面向玩家
+          if (Math.abs(dx) > Math.abs(dy)) {
+            npc.facing = dx > 0 ? DIR.LEFT : DIR.RIGHT;
+          } else {
+            npc.facing = dy > 0 ? DIR.UP : DIR.DOWN;
+          }
+          showDialog(npc);
+          break;
+        }
+      }
+    }
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+});
+
+// ===================== 主循环 =====================
+function gameLoop() {
+  frameCount++;
+
+  // 更新
+  updatePlayer();
+  updateBugs();
+  updateParticles();
+
+  // 虫子生成
+  bugSpawnTimer++;
+  if (bugSpawnTimer > 180) {
+    bugSpawnTimer = 0;
+    spawnBug();
+  }
+
+  // 对话计时器(逐字显示)
+  if (dialog.active) dialog.timer++;
+
+  // NPC小动画
+  if (frameCount % 120 < 60) {
+    npcs.forEach(n => n.frame = 1);
+  } else {
+    npcs.forEach(n => n.frame = 0);
+  }
+
+  // ===== 绘制 =====
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 地图
+  drawMap();
+
+  // 收集所有需要排序的实体(Y排序实现遮挡)
+  const entities = [];
+
+  // NPC
+  npcs.forEach(n => entities.push({ y: n.y + 28, type: 'npc', data: n }));
+
+  // 玩家
+  entities.push({ y: player.y + 28, type: 'player' });
+
+  // 虫子
+  bugs.forEach(b => entities.push({ y: b.y + 10, type: 'bug', data: b }));
+
+  // Y排序
+  entities.sort((a, b) => a.y - b.y);
+
+  // 绘制
+  for (const ent of entities) {
+    switch (ent.type) {
+      case 'player':
+        drawPlayer();
+        drawNetSwing();
+        break;
+      case 'npc':
+        drawNPC(ent.data);
+        break;
+      case 'bug':
+        drawBug(ent.data);
+        break;
+    }
+  }
+
+  // 粒子
+  drawParticles();
+  drawCatchAnim();
+
+  // UI
+  drawUI();
+  drawDialog();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// 初始生成几只虫子
+spawnBug(); spawnBug(); spawnBug();
+
+// NPC闪烁标记(显示可互动)
+const npcHints = true;
+
+// 覆盖NPC绘制添加互动提示箭头
+const origDrawNPC = drawNPC;
+drawNPC = function(npc) {
+  origDrawNPC(npc);
+  // 如果玩家靠近，显示提示
+  const dx = (player.x + 12) - (npc.x + 12);
+  const dy = (player.y + 14) - (npc.y + 14);
+  if (Math.sqrt(dx * dx + dy * dy) < 60) {
+    const bounce = Math.sin(frameCount * 0.1) * 3;
+    ctx.fillStyle = '#ffeaa7';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('E', npc.x + 12, npc.y - 12 + bounce);
+    ctx.textAlign = 'left';
+  }
+};
+
+// 启动游戏
+gameLoop();
+</script>
+</body>
+</html>
