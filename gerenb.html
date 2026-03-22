@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人学习数据统计仪表盘</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--text-secondary:#6b7280;
+  --border:#e5e7eb;--accent:#6366f1;--accent-light:#e0e7ff;
+  --green:#10b981;--red:#ef4444;--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg:0 10px 15px rgba(0,0,0,.07),0 4px 6px rgba(0,0,0,.05);
+  --radius:12px;--transition:all .3s ease;
+  --skeleton-base:#e5e7eb;--skeleton-shine:#f0f0f0;
+  --chart-grid:rgba(0,0,0,.06);--chart-text:#6b7280;
+}
+[data-theme="dark"]{
+  --bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--text-secondary:#94a3b8;
+  --border:#334155;--accent:#818cf8;--accent-light:#312e81;
+  --green:#34d399;--red:#f87171;
+  --shadow:0 1px 3px rgba(0,0,0,.3);--shadow-lg:0 10px 15px rgba(0,0,0,.4);
+  --skeleton-base:#1e293b;--skeleton-shine:#334155;
+  --chart-grid:rgba(255,255,255,.06);--chart-text:#94a3b8;
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC',sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  transition:background .3s,color .3s;
+}
+.header{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:16px 32px;display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:100;
+  box-shadow:var(--shadow);transition:var(--transition);
+}
+.header h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
+.header h1 svg{width:24px;height:24px;color:var(--accent)}
+.header-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.date-filter{display:flex;gap:4px;background:var(--bg);border-radius:8px;padding:3px;border:1px solid var(--border)}
+.date-filter button{
+  padding:6px 14px;border:none;border-radius:6px;cursor:pointer;
+  background:transparent;color:var(--text-secondary);font-size:13px;
+  transition:var(--transition);white-space:nowrap;
+}
+.date-filter button.active{background:var(--accent);color:#fff}
+.date-filter button:hover:not(.active){background:var(--border)}
+.custom-date{display:flex;align-items:center;gap:6px}
+.custom-date input[type="date"]{
+  padding:6px 10px;border:1px solid var(--border);border-radius:6px;
+  background:var(--card);color:var(--text);font-size:13px;
+}
+.theme-toggle{
+  width:40px;height:22px;border-radius:11px;border:none;cursor:pointer;
+  background:var(--border);position:relative;transition:var(--transition);
+}
+.theme-toggle::after{
+  content:'';position:absolute;width:18px;height:18px;border-radius:50%;
+  top:2px;left:2px;background:var(--accent);transition:var(--transition);
+}
+[data-theme="dark"] .theme-toggle::after{left:20px}
+.btn-export{
+  padding:7px 16px;border:1px solid var(--border);border-radius:8px;
+  background:var(--card);color:var(--text);font-size:13px;cursor:pointer;
+  display:flex;align-items:center;gap:6px;transition:var(--transition);
+}
+.btn-export:hover{border-color:var(--accent);color:var(--accent)}
+.main{padding:24px 32px;max-width:1440px;margin:0 auto}
+.stats-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;
+}
+.stat-card{
+  background:var(--card);border-radius:var(--radius);padding:20px;
+  box-shadow:var(--shadow);transition:var(--transition);
+  border:1px solid var(--border);opacity:0;transform:translateY(16px);
+}
+.stat-card.show{opacity:1;transform:translateY(0);transition:opacity .5s ease,transform .5s ease}
+.stat-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.stat-card.show:hover{transform:translateY(-2px)}
+.stat-label{font-size:13px;color:var(--text-secondary);margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:700;margin-bottom:6px}
+.stat-trend{font-size:12px;display:flex;align-items:center;gap:4px}
+.stat-trend.up{color:var(--green)}
+.stat-trend.down{color:var(--red)}
+.stat-icon{
+  width:44px;height:44px;border-radius:10px;display:flex;
+  align-items:center;justify-content:center;margin-bottom:12px;
+}
+.stat-icon.purple{background:#e0e7ff;color:#6366f1}
+.stat-icon.green{background:#d1fae5;color:#10b981}
+.stat-icon.orange{background:#ffedd5;color:#f97316}
+.stat-icon.blue{background:#dbeafe;color:#3b82f6}
+[data-theme="dark"] .stat-icon.purple{background:#312e81;color:#a5b4fc}
+[data-theme="dark"] .stat-icon.green{background:#064e3b;color:#6ee7b7}
+[data-theme="dark"] .stat-icon.orange{background:#431407;color:#fdba74}
+[data-theme="dark"] .stat-icon.blue{background:#1e3a5f;color:#93c5fd}
+.charts-grid{
+  display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:24px;
+}
+.charts-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chart-card{
+  background:var(--card);border-radius:var(--radius);padding:20px;
+  box-shadow:var(--shadow);border:1px solid var(--border);transition:var(--transition);
+}
+.chart-card:hover{box-shadow:var(--shadow-lg)}
+.chart-title{font-size:15px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.ring-container{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%}
+.ring-wrapper{position:relative;width:200px;height:200px}
+.ring-wrapper canvas{position:absolute;top:0;left:0}
+.ring-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;
+}
+.ring-center .ring-value{font-size:36px;font-weight:700}
+.ring-center .ring-label{font-size:13px;color:var(--text-secondary)}
+.custom-range{display:none;align-items:center;gap:6px}
+.custom-range.show{display:flex}
+/* Skeleton */
+.skeleton{position:relative;overflow:hidden;background:var(--skeleton-base);border-radius:var(--radius)}
+.skeleton-shimmer{position:relative;overflow:hidden}
+.skeleton-shimmer::after{
+  content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--skeleton-shine) 50%,transparent);
+  animation:shimmer 1.5s infinite;
+}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.skeleton-card{height:120px;border-radius:var(--radius);margin-bottom:16px}
+.skeleton-chart{height:300px;border-radius:var(--radius);margin-bottom:16px}
+.skeleton-chart-sm{height:300px;border-radius:var(--radius)}
+.loading-overlay{
+  position:absolute;inset:0;background:var(--card);z-index:10;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:var(--radius);
+}
+/* Toast */
+.toast{
+  position:fixed;bottom:24px;right:24px;background:var(--card);
+  border:1px solid var(--border);border-radius:8px;padding:12px 20px;
+  box-shadow:var(--shadow-lg);font-size:14px;z-index:999;
+  opacity:0;transform:translateY(20px);transition:var(--transition);
+}
+.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:1024px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-grid,.charts-grid-2{grid-template-columns:1fr}
+  .header{padding:12px 16px}
+  .main{padding:16px}
+}
+@media(max-width:640px){
+  .stats-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+    学习数据统计仪表盘
+  </h1>
+  <div class="header-controls">
+    <div class="date-filter">
+      <button data-range="7" onclick="setRange(7)">7天</button>
+      <button data-range="14" onclick="setRange(14)">14天</button>
+      <button data-range="30" class="active" onclick="setRange(30)">30天</button>
+      <button data-range="custom" onclick="toggleCustomRange()">自定义</button>
+    </div>
+    <div class="custom-date" id="customRange" style="display:none">
+      <input type="date" id="startDate">
+      <span style="color:var(--text-secondary)">至</span>
+      <input type="date" id="endDate">
+      <button class="btn-export" onclick="applyCustomRange()">应用</button>
+    </div>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="切换深色模式"></button>
+    <button class="btn-export" onclick="exportAll()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      导出图表
+    </button>
+  </div>
+</header>
+<main class="main" id="mainContent">
+  <!-- Skeleton Loading -->
+  <div id="skeleton">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+      <div class="skeleton-card skeleton-shimmer"></div>
+      <div class="skeleton-card skeleton-shimmer"></div>
+      <div class="skeleton-card skeleton-shimmer"></div>
+      <div class="skeleton-card skeleton-shimmer"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:24px">
+      <div class="skeleton-chart skeleton-shimmer"></div>
+      <div class="skeleton-chart-sm skeleton-shimmer"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="skeleton-chart skeleton-shimmer"></div>
+      <div class="skeleton-chart skeleton-shimmer"></div>
+    </div>
+  </div>
+  <!-- Real Content -->
+  <div id="realContent" style="display:none">
+    <div class="stats-grid">
+      <div class="stat-card" id="card-duration">
+        <div class="stat-icon purple">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="stat-label">总学习时长</div>
+        <div class="stat-value" id="totalDuration">--</div>
+        <div class="stat-trend up" id="durationTrend">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          --
+        </div>
+      </div>
+      <div class="stat-card" id="card-completion">
+        <div class="stat-icon green">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="stat-label">任务完成率</div>
+        <div class="stat-value" id="totalCompletion">--</div>
+        <div class="stat-trend up" id="completionTrend">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          --
+        </div>
+      </div>
+      <div class="stat-card" id="card-subjects">
+        <div class="stat-icon orange">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        </div>
+        <div class="stat-label">学习科目数</div>
+        <div class="stat-value" id="totalSubjects">--</div>
+        <div class="stat-trend" id="subjectsTrend">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          --
+        </div>
+      </div>
+      <div class="stat-card" id="card-streak">
+        <div class="stat-icon blue">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </div>
+        <div class="stat-label">连续打卡天数</div>
+        <div class="stat-value" id="totalStreak">--</div>
+        <div class="stat-trend up" id="streakTrend">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          --
+        </div>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">每日学习时长趋势 <span style="font-size:12px;color:var(--text-secondary);font-weight:400">（折线图）</span></div>
+        <canvas id="lineChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">任务完成率</div>
+        <div class="ring-container">
+          <div class="ring-wrapper">
+            <canvas id="ringChart" width="200" height="200"></canvas>
+            <div class="ring-center">
+              <div class="ring-value" id="ringValue">--</div>
+              <div class="ring-label">完成率</div>
+            </div>
+          </div>
+          <div style="margin-top:20px;font-size:13px;color:var(--text-secondary)" id="ringDetail">已完成 0 / 0 项任务</div>
+        </div>
+      </div>
+    </div>
+    <div class="charts-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">每日学习 & 任务详情 <span style="font-size:12px;color:var(--text-secondary);font-weight:400">（柱状图·双轴）</span></div>
+        <canvas id="barChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">科目时长分布 <span style="font-size:12px;color:var(--text-secondary);font-weight:400">（点击筛选）</span></div>
+        <canvas id="pieChart"></canvas>
+      </div>
+    </div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== Data Generation ==========
+const SUBJECTS = ['数学','英语','物理','编程','历史'];
+const SUBJECT_COLORS = ['#6366f1','#10b981','#f97316','#3b82f6','#ec4899'];
+const SUBJECT_COLORS_LIGHT = ['#818cf8','#34d399','#fb923c','#60a5fa','#f472b6'];
+
+function generateData() {
+  const data = [];
+  const end = new Date(); end.setHours(0,0,0,0);
+  const start = new Date(end); start.setDate(start.getDate() - 59);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dayData = { date: new Date(d), subjects: {}, tasks: [] };
+    const numSubjects = 1 + Math.floor(Math.random() * 4);
+    const chosen = [...SUBJECTS].sort(() => Math.random() - 0.5).slice(0, numSubjects);
+    let totalMinutes = 0;
+    chosen.forEach(sub => {
+      const mins = (0.5 + Math.random() * 2.5) * 30;
+      dayData.subjects[sub] = Math.round(mins);
+      totalMinutes += Math.round(mins);
+    });
+    const numTasks = 1 + Math.floor(Math.random() * 5);
+    const completedTasks = Math.floor(numTasks * (0.4 + Math.random() * 0.6));
+    for (let t = 0; t < numTasks; t++) {
+      const subj = chosen[t % chosen.length];
+      dayData.tasks.push({
+        subject: subj,
+        name: `${subj}练习${t + 1}`,
+        completed: t < completedTasks,
+        minutes: Math.round(15 + Math.random() * 45)
+      });
+    }
+    dayData.totalMinutes = totalMinutes;
+    dayData.totalTasks = numTasks;
+    dayData.completedTasks = completedTasks;
+    data.push(dayData);
+    if (Math.random() < 0.15) { /* skip days */ }
+  }
+  return data;
+}
+
+const allData = generateData();
+let currentRange = 30;
+let currentSubject = null;
+let filteredData = [];
+
+// ========== Theme ==========
+function initTheme() {
+  const saved = localStorage.getItem('dashboard-theme');
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+}
+initTheme();
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('dashboard-theme', isDark ? 'light' : 'dark');
+  updateChartsTheme();
+  drawRing();
+}
+
+// ========== Date Filter ==========
+function formatDate(d) {
+  return d.toISOString().split('T')[0];
+}
+function setRange(days) {
+  currentRange = days;
+  document.querySelectorAll('.date-filter button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-range="${days}"]`).classList.add('active');
+  document.getElementById('customRange').style.display = 'none';
+  filterAndUpdate();
+}
+function toggleCustomRange() {
+  document.querySelectorAll('.date-filter button').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-range="custom"]').classList.add('active');
+  const el = document.getElementById('customRange');
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+function applyCustomRange() {
+  const s = document.getElementById('startDate').value;
+  const e = document.getElementById('endDate').value;
+  if (!s || !e) { showToast('请选择完整日期范围'); return; }
+  const startDate = new Date(s); const endDate = new Date(e);
+  if (startDate > endDate) { showToast('开始日期不能晚于结束日期'); return; }
+  currentRange = 'custom';
+  filterAndUpdate();
+}
+function filterData() {
+  const end = new Date(); end.setHours(23,59,59,999);
+  let start;
+  if (currentRange === 'custom') {
+    start = new Date(document.getElementById('startDate').value);
+    end.setTime(new Date(document.getElementById('endDate').value).getTime());
+    end.setHours(23,59,59,999);
+  } else {
+    start = new Date(end); start.setHours(0,0,0,0);
+    start.setDate(start.getDate() - currentRange + 1);
+  }
+  filteredData = allData.filter(d => d.date >= start && d.date <= end);
+}
+function filterAndUpdate() {
+  filterData();
+  updateStats();
+  updateLineChart();
+  updateBarChart();
+  updatePieChart();
+  drawRing();
+}
+
+// ========== Stats ==========
+function updateStats() {
+  const data = filteredData;
+  const prevLen = Math.min(currentRange === 'custom' ? data.length : currentRange, 30);
+  const prevData = allData.slice(allData.length - prevLen - prevLen, allData.length - prevLen);
+  let totalDur = 0, totalComp = 0, totalTasks = 0;
+  const subjSet = new Set();
+  let streak = 0, maxStreak = 0, currentStreak = 0;
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i].totalMinutes > 0) { streak++; } else { break; }
+  }
+  data.forEach(d => {
+    totalDur += d.totalMinutes;
+    totalComp += d.completedTasks;
+    totalTasks += d.totalTasks;
+    Object.keys(d.subjects).forEach(s => subjSet.add(s));
+  });
+  let prevDur = 0, prevComp = 0, prevT = 0;
+  prevData.forEach(d => { prevDur += d.totalMinutes; prevComp += d.completedTasks; prevT += d.totalTasks; });
+
+  const prevSubjSet = new Set();
+  prevData.forEach(d => Object.keys(d.subjects).forEach(s => prevSubjSet.add(s)));
+
+  animateValue('totalDuration', totalDur, v => `${Math.round(v/60)}h ${Math.round(v%60)}m`);
+  animateValue('totalCompletion', totalTasks > 0 ? (totalComp/totalTasks*100) : 0, v => `${Math.round(v)}%`);
+  animateValue('totalSubjects', subjSet.size, v => `${Math.round(v)} 个`);
+  animateValue('totalStreak', streak, v => `${Math.round(v)} 天`, true);
+
+  setTrend('durationTrend', prevDur, totalDur, 'h');
+  setTrend('completionTrend', prevT > 0 ? prevComp/prevT*100 : 0, totalTasks > 0 ? totalComp/totalTasks*100 : 0, '%');
+  setTrend('subjectsTrend', prevSubjSet.size, subjSet.size, '', true);
+  setTrend('streakTrend', null, streak, '天');
+
+  document.getElementById('ringDetail').textContent = `已完成 ${totalComp} / ${totalTasks} 项任务`;
+  document.getElementById('ringValue').textContent = totalTasks > 0 ? Math.round(totalComp/totalTasks*100) + '%' : '0%';
+}
+function animateValue(id, target, formatter, isInt) {
+  const el = document.getElementById(id);
+  const start = parseFloat(el.textContent) || 0;
+  const duration = 600; const startTime = performance.now();
+  function tick(now) {
+    const p = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const val = start + (target - start) * ease;
+    el.textContent = formatter(val);
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+function setTrend(id, prev, curr, unit, noTrend) {
+  const el = document.getElementById(id);
+  if (noTrend || prev === null || prev === undefined) {
+    const arrow = curr >= 30 ? '↑' : '↓';
+    el.className = 'stat-trend ' + (curr >= 30 ? 'up' : 'down');
+    el.innerHTML = `${arrow} 保持${unit || '良好'}`;
+    return;
+  }
+  if (prev === 0 && curr === 0) {
+    el.className = 'stat-trend';
+    el.textContent = '-- 无变化';
+    return;
+  }
+  const change = prev !== 0 ? ((curr - prev) / prev * 100).toFixed(1) : '∞';
+  const up = parseFloat(change) >= 0;
+  el.className = 'stat-trend ' + (up ? 'up' : 'down');
+  el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="${up ? '23 6 13.5 15.5 8.5 10.5 1 18' : '23 18 13.5 8.5 8.5 13.5 1 6'}"/></svg> ${up ? '+' : ''}${change}% 环比`;
+}
+
+// ========== Charts ==========
+let lineChart, barChart, pieChart;
+const chartTextColor = () => getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() || '#6b7280';
+const chartGridColor = () => getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || 'rgba(0,0,0,.06)';
+
+function chartDefaults() {
+  return {
+    responsive: true,
+    maintainAspectRatio: true,
+    animation: { duration: 600, easing: 'easeOutQuart' },
+    plugins: { legend: { labels: { color: chartTextColor(), usePointStyle: true, padding: 16, font: { size: 12 } } } },
+    scales: {
+      x: { ticks: { color: chartTextColor(), font: { size: 11 }, maxRotation: 45 }, grid: { color: chartGridColor() } },
+      y: { ticks: { color: chartTextColor(), font: { size: 11 } }, grid: { color: chartGridColor() } }
+    }
+  };
+}
+
+function updateLineChart() {
+  const labels = filteredData.map(d => `${d.date.getMonth()+1}/${d.date.getDate()}`);
+  const datasets = currentSubject
+    ? [{
+        label: `${currentSubject} 学习时长(min)`,
+        data: filteredData.map(d => d.subjects[currentSubject] || 0),
+        borderColor: SUBJECT_COLORS[SUBJECTS.indexOf(currentSubject)] || '#6366f1',
+        backgroundColor: (SUBJECT_COLORS_LIGHT[SUBJECTS.indexOf(currentSubject)] || '#818cf8') + '20',
+        borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, fill: true, tension: 0.4
+      }]
+    : SUBJECTS.map((sub, i) => ({
+        label: sub,
+        data: filteredData.map(d => d.subjects[sub] || 0),
+        borderColor: SUBJECT_COLORS[i],
+        backgroundColor: SUBJECT_COLORS_LIGHT[i] + '20',
+        borderWidth: 2, pointRadius: 2, pointHoverRadius: 5, fill: false, tension: 0.4
+      }));
+
+  const cfg = {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      ...chartDefaults(),
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        ...chartDefaults().plugins,
+        tooltip: {
+          backgroundColor: 'rgba(0,0,0,.8)', titleFont: { size: 13 }, bodyFont: { size: 12 }, padding: 10,
+          callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} min` }
+        }
+      },
+      onClick: () => {}
+    }
+  };
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('lineChart'), cfg);
+}
+
+function updateBarChart() {
+  const labels = filteredData.map(d => `${d.date.getMonth()+1}/${d.date.getDate()}`);
+  const durationData = currentSubject
+    ? filteredData.map(d => d.subjects[currentSubject] || 0)
+    : filteredData.map(d => d.totalMinutes);
+  const taskData = filteredData.map(d => currentSubject
+    ? d.tasks.filter(t => t.subject === currentSubject && t.completed).length
+    : d.completedTasks
+  );
+
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const cfg = {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: currentSubject ? `${currentSubject} 时长(min)` : '学习时长(min)',
+          data: durationData, backgroundColor: accent + '80', borderColor: accent,
+          borderWidth: 1, borderRadius: 4, yAxisID: 'y'
+        },
+        {
+          label: '任务完成数', data: taskData,
+          backgroundColor: '#10b98180', borderColor: '#10b981',
+          borderWidth: 1, borderRadius: 4, yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      ...chartDefaults(),
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        ...chartDefaults().plugins,
+        tooltip: {
+          backgroundColor: 'rgba(0,0,0,.8)', titleFont: { size: 13 }, bodyFont: { size: 12 }, padding: 10
+        }
+      },
+      scales: {
+        ...chartDefaults().scales,
+        y: { ...chartDefaults().scales.y, position: 'left', title: { display: true, text: '时长(min)', color: chartTextColor(), font: { size: 11 } } },
+        y1: { ...chartDefaults().scales.y, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '任务数', color: chartTextColor(), font: { size: 11 } } }
+      },
+      onClick: (e, elements) => {
+        if (elements.length > 0 && lineChart) {
+          const idx = elements[0].index;
+          lineChart.setActiveElements([{ datasetIndex: 0, index: idx }]);
+          lineChart.tooltip.setActiveElements([{ datasetIndex: 0, index: idx }], { x: 0, y: 0 });
+          lineChart.update();
+        }
+      }
+    }
+  };
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), cfg);
+}
+
+function updatePieChart() {
+  const subjectTotals = {};
+  filteredData.forEach(d => {
+    Object.entries(d.subjects).forEach(([sub, mins]) => {
+      if (!currentSubject || sub === currentSubject) {
+        subjectTotals[sub] = (subjectTotals[sub] || 0) + mins;
+      }
+    });
+  });
+  const entries = Object.entries(subjectTotals).sort((a, b) => b[1] - a[1]);
+  const cfg = {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(e => e[0]),
+      datasets: [{
+        data: entries.map(e => e[1]),
+        backgroundColor: entries.map(e => SUBJECT_COLORS[SUBJECTS.indexOf(e[0])] || '#6b7280'),
+        borderWidth: 2, borderColor: getComputedStyle(document.documentElement).getPropertyValue('--card').trim(),
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      cutout: '55%',
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: chartTextColor(), usePointStyle: true, padding: 12, font: { size: 12 } } },
+        tooltip: {
+          backgroundColor: 'rgba(0,0,0,.8)', padding: 10,
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : 0;
+              return ` ${ctx.label}: ${ctx.parsed} min (${pct}%)`;
+            }
+          }
+        }
+      },
+      onClick: (e, elements) => {
+        if (elements.length > 0) {
+          const idx = elements[0].index;
+          const clickedSubj = entries[idx][0];
+          if (currentSubject === clickedSubj) {
+            currentSubject = null; showToast('已取消科目筛选');
+          } else {
+            currentSubject = clickedSubj; showToast(`已筛选: ${clickedSubj}`);
+          }
+          updateLineChart();
+          updateBarChart();
+          drawRing();
+        }
+      }
+    }
+  };
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart'), cfg);
+}
+
+// ========== Ring Chart (Canvas) ==========
+function drawRing() {
+  const canvas = document.getElementById('ringChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = 200 * dpr; canvas.height = 200 * dpr;
+  ctx.scale(dpr, dpr);
+  const cx = 100, cy = 100, radius = Math.max(1, 78), lineWidth = 12;
+  const data = filteredData;
+  let totalComp = 0, totalTasks = 0;
+  data.forEach(d => {
+    d.tasks.forEach(t => {
+      if (!currentSubject || t.subject === currentSubject) {
+        totalTasks++;
+        if (t.completed) totalComp++;
+      }
+    });
+  });
+  const pct = totalTasks > 0 ? totalComp / totalTasks : 0;
+
+  ctx.clearRect(0, 0, 200, 200);
+
+  // Background ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Progress ring with animation
+  const targetAngle = pct * Math.PI * 2;
+  let currentAngle = 0;
+  const startAngle = -Math.PI / 2;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const green = getComputedStyle(document.documentElement).getPropertyValue('--green').trim();
+
+  function animateRing() {
+    currentAngle += (targetAngle - currentAngle) * 0.08;
+    if (Math.abs(currentAngle - targetAngle) < 0.005) currentAngle = targetAngle;
+
+    ctx.clearRect(0, 0, 200, 200);
+    // Background
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    // Progress
+    if (currentAngle > 0.01) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, startAngle, startAngle + currentAngle);
+      ctx.strokeStyle = pct >= 0.7 ? green : accent;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+    // Update center text
+    document.getElementById('ringValue').textContent = Math.round(pct * 100) + '%';
+    document.getElementById('ringDetail').textContent = `已完成 ${totalComp} / ${totalTasks} 项任务`;
+
+    if (Math.abs(currentAngle - targetAngle) > 0.003) requestAnimationFrame(animateRing);
+  }
+  animateRing();
+}
+
+// ========== Theme Update ==========
+function updateChartsTheme() {
+  if (lineChart) { lineChart.destroy(); lineChart = null; }
+  if (barChart) { barChart.destroy(); barChart = null; }
+  if (pieChart) { pieChart.destroy(); pieChart = null; }
+  updateLineChart();
+  updateBarChart();
+  updatePieChart();
+}
+
+// ========== Export ==========
+function exportAll() {
+  const charts = [
+    { chart: lineChart, name: '折线图-每日学习时长趋势' },
+    { chart: barChart, name: '柱状图-学习任务详情' },
+    { chart: pieChart, name: '饼图-科目时长分布' }
+  ];
+  if (currentSubject) charts.push({ chart: null, name: `筛选科目: ${currentSubject}` });
+
+  charts.forEach((item, i) => {
+    if (item.chart) {
+      const link = document.createElement('a');
+      link.download = item.name + '.png';
+      link.href = item.chart.toBase64Image();
+      link.click();
+    }
+  });
+  // Export ring
+  setTimeout(() => {
+    const ringCanvas = document.getElementById('ringChart');
+    const link = document.createElement('a');
+    link.download = '环形进度-任务完成率.png';
+    link.href = ringCanvas.toDataURL('image/png');
+    link.click();
+  }, 200);
+  showToast('图表已导出为 PNG');
+}
+
+// ========== Toast ==========
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ========== Init ==========
+function init() {
+  // Show skeleton, hide real content
+  document.getElementById('skeleton').style.display = 'block';
+  document.getElementById('realContent').style.display = 'none';
+
+  // Set default dates for custom range
+  const now = new Date();
+  document.getElementById('endDate').value = formatDate(now);
+  const start30 = new Date(now); start30.setDate(start30.getDate() - 29);
+  document.getElementById('startDate').value = formatDate(start30);
+
+  setTimeout(() => {
+    filterAndUpdate();
+
+    // Hide skeleton, show real content
+    document.getElementById('skeleton').style.display = 'none';
+    document.getElementById('realContent').style.display = 'block';
+
+    // Animate stat cards with stagger
+    const cards = document.querySelectorAll('.stat-card');
+    cards.forEach((card, i) => {
+      setTimeout(() => card.classList.add('show'), i * 120);
+    });
+  }, 800);
+}
+
+// System theme change listener
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  if (!localStorage.getItem('dashboard-theme')) {
+    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    updateChartsTheme();
+    drawRing();
+  }
+});
+
+init();
+</script>
+</body>
+</html>
