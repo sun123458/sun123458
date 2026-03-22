@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 虚拟试衣间</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>加载 3D 场景中...</p>
+    </div>
+
+    <div id="app">
+        <canvas id="viewport"></canvas>
+
+        <header>
+            <h1>3D 虚拟试衣间</h1>
+        </header>
+
+        <div id="clothing-panel">
+            <h2>选择服装</h2>
+            <div id="clothing-list">
+                <button class="clothing-item active" data-outfit="0">
+                    <div class="outfit-preview" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">T</div>
+                    <span>经典T恤</span>
+                </button>
+                <button class="clothing-item" data-outfit="1">
+                    <div class="outfit-preview" style="background: linear-gradient(135deg, #3498db, #2980b9);">S</div>
+                    <span>休闲衬衫</span>
+                </button>
+                <button class="clothing-item" data-outfit="2">
+                    <div class="outfit-preview" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">D</div>
+                    <span>连衣裙</span>
+                </button>
+                <button class="clothing-item" data-outfit="3">
+                    <div class="outfit-preview" style="background: linear-gradient(135deg, #2ecc71, #27ae60);">H</div>
+                    <span>运动卫衣</span>
+                </button>
+                <button class="clothing-item" data-outfit="4">
+                    <div class="outfit-preview" style="background: linear-gradient(135deg, #2c3e50, #1a252f);">B</div>
+                    <span>正式西装</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="control-panel">
+            <div class="control-group">
+                <label>服装颜色</label>
+                <input type="color" id="color-picker" value="#e74c3c">
+            </div>
+            <div class="control-group">
+                <label>物理模拟</label>
+                <button id="physics-toggle" class="toggle-btn active">开启</button>
+            </div>
+            <div class="control-group">
+                <label>自动旋转</label>
+                <button id="auto-rotate-toggle" class="toggle-btn">关闭</button>
+            </div>
+        </div>
+
+        <div id="outfit-info">
+            <span id="outfit-name">经典T恤</span>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

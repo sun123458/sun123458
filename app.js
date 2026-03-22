@@ -1,545 +1,1220 @@
-// ========== 用户数据 ==========
-const USERS = [
-  {
-    id: 1, name: '小雨', age: 23,
-    location: '北京 · 朝阳区',
-    img: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&h=800&fit=crop&crop=face',
-    bio: '喜欢摄影和旅行，周末经常在咖啡馆看书。希望你也是一个热爱生活的人~',
-    tags: ['摄影', '咖啡控', '旅行'],
-    photos: 8, distance: 3, mutual: 5
-  },
-  {
-    id: 2, name: '思远', age: 26,
-    location: '上海 · 静安区',
-    img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=800&fit=crop&crop=face',
-    bio: '互联网产品经理，喜欢探索新事物。工作之余会打篮球和弹吉他。',
-    tags: ['运动', '音乐', '互联网'],
-    photos: 12, distance: 5, mutual: 3
-  },
-  {
-    id: 3, name: '暖暖', age: 24,
-    location: '杭州 · 西湖区',
-    img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop&crop=face',
-    bio: '设计师一枚，对美的东西没有抵抗力。养了一只叫年糕的猫🐱',
-    tags: ['设计', '撸猫', '美食'],
-    photos: 15, distance: 2, mutual: 8
-  },
-  {
-    id: 4, name: '阿泽', age: 28,
-    location: '深圳 · 南山区',
-    img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop&crop=face',
-    bio: '健身教练，自律让我快乐。喜欢户外徒步，想找一个一起看日出的人。',
-    tags: ['健身', '徒步', '自律'],
-    photos: 6, distance: 8, mutual: 2
-  },
-  {
-    id: 5, name: '诗涵', age: 22,
-    location: '成都 · 锦江区',
-    img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop&crop=face',
-    bio: '音乐学院学生，会弹钢琴和古筝。喜欢在雨天听音乐，晴天看展。',
-    tags: ['音乐', '文艺', '看展'],
-    photos: 10, distance: 4, mutual: 6
-  },
-  {
-    id: 6, name: '子涵', age: 25,
-    location: '广州 · 天河区',
-    img: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&h=800&fit=crop&crop=face',
-    bio: '美食博主，带你吃遍大街小巷。会做甜品，可以一起下厨哦~',
-    tags: ['美食', '烘焙', '探店'],
-    photos: 20, distance: 6, mutual: 4
-  },
-  {
-    id: 7, name: '浩然', age: 27,
-    location: '南京 · 鼓楼区',
-    img: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&h=800&fit=crop&crop=face',
-    bio: '建筑设计师，喜欢老房子和有故事的地方。偶尔画画水彩。',
-    tags: ['建筑', '艺术', '水彩'],
-    photos: 9, distance: 7, mutual: 1
-  },
-  {
-    id: 8, name: '悠悠', age: 21,
-    location: '武汉 · 武昌区',
-    img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&h=800&fit=crop&crop=face',
-    bio: '大学生一枚，喜欢追剧和打switch。梦想是环游世界！',
-    tags: ['追剧', '游戏', '旅行'],
-    photos: 7, distance: 1, mutual: 9
-  }
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================================
+// Constants & Config
+// ============================================================
+const GRAVITY = new THREE.Vector3(0, -9.8, 0);
+const WIND = new THREE.Vector3(0.3, 0, 0.15);
+const SUB_STEPS = 4;
+const CONSTRAINT_ITERATIONS = 8;
+const CLOTH_RES_W = 30;
+const CLOTH_RES_H = 30;
+const DAMPING = 0.97;
+const SKIN_COLOR = 0xf5c5a3;
+const HAIR_COLOR = 0x2c1810;
+
+// ============================================================
+// Outfit Definitions
+// ============================================================
+const OUTFIT_DEFS = [
+    {
+        name: '经典T恤',
+        defaultColor: '#e74c3c',
+        stiffness: 0.8,
+        gravityScale: 1.0,
+        // cloth mesh dimensions and offsets
+        clothWidth: 1.2,
+        clothHeight: 0.9,
+        offsetY: 1.15,
+        sleeveLen: 0.18,
+        sleeveWidth: 0.35,
+        type: 'tshirt'
+    },
+    {
+        name: '休闲衬衫',
+        defaultColor: '#3498db',
+        stiffness: 0.7,
+        gravityScale: 0.9,
+        clothWidth: 1.3,
+        clothHeight: 1.1,
+        offsetY: 1.25,
+        sleeveLen: 0.55,
+        sleeveWidth: 0.25,
+        type: 'shirt'
+    },
+    {
+        name: '连衣裙',
+        defaultColor: '#9b59b6',
+        stiffness: 0.5,
+        gravityScale: 1.2,
+        clothWidth: 1.0,
+        clothHeight: 1.8,
+        offsetY: 1.0,
+        sleeveLen: 0.02,
+        sleeveWidth: 0.15,
+        type: 'dress'
+    },
+    {
+        name: '运动卫衣',
+        defaultColor: '#2ecc71',
+        stiffness: 0.6,
+        gravityScale: 0.8,
+        clothWidth: 1.5,
+        clothHeight: 1.15,
+        offsetY: 1.2,
+        sleeveLen: 0.45,
+        sleeveWidth: 0.35,
+        type: 'hoodie'
+    },
+    {
+        name: '正式西装',
+        defaultColor: '#2c3e50',
+        stiffness: 0.95,
+        gravityScale: 0.7,
+        clothWidth: 1.35,
+        clothHeight: 1.2,
+        offsetY: 1.25,
+        sleeveLen: 0.55,
+        sleeveWidth: 0.22,
+        type: 'blazer'
+    }
 ];
 
-// 会匹配的用户 ID
-const MATCH_IDS = [3, 5, 8];
+// ============================================================
+// Scene Setup
+// ============================================================
+const canvas = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
 
-// ========== 状态 ==========
-let cardQueue = [];
-let currentIndex = 0;
-let topCard = null;
-let startX = 0, startY = 0;
-let currentX = 0, currentY = 0;
-let isDragging = false;
-let isAnimating = false;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12121a);
+scene.fog = new THREE.Fog(0x12121a, 8, 18);
 
-// ========== DOM ==========
-const cardArea = document.getElementById('cardArea');
-const emptyState = document.getElementById('emptyState');
-const btnLike = document.getElementById('btnLike');
-const btnSkip = document.getElementById('btnSkip');
-const btnInfo = document.getElementById('btnInfo');
-const btnRefresh = document.getElementById('btnRefresh');
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 1.2, 4);
 
-// 简介
-const profileOverlay = document.getElementById('profileOverlay');
-const profileModal = document.getElementById('profileModal');
-const modalClose = document.getElementById('modalClose');
-const profileSkip = document.getElementById('profileSkip');
-const profileLike = document.getElementById('profileLike');
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 2;
+controls.maxDistance = 8;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.minPolarAngle = Math.PI * 0.15;
+controls.update();
 
-// 匹配
-const matchOverlay = document.getElementById('matchOverlay');
-const matchAvatar = document.getElementById('matchAvatar');
-const matchText = document.getElementById('matchText');
-const matchChat = document.getElementById('matchChat');
-const matchLater = document.getElementById('matchLater');
-const confettiCanvas = document.getElementById('confettiCanvas');
+// ============================================================
+// Lighting
+// ============================================================
+const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+scene.add(ambientLight);
 
-// ========== 初始化 ==========
-function init() {
-  cardQueue = [...USERS];
-  currentIndex = 0;
-  emptyState.classList.remove('show');
-  renderCards();
-  bindEvents();
-}
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444466, 0.8);
+scene.add(hemiLight);
 
-function renderCards() {
-  // 清除旧卡片
-  cardArea.querySelectorAll('.swipe-card').forEach(c => c.remove());
+const keyLight = new THREE.DirectionalLight(0xfff0e0, 1.5);
+keyLight.position.set(3, 5, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(1024, 1024);
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 15;
+keyLight.shadow.camera.left = -3;
+keyLight.shadow.camera.right = 3;
+keyLight.shadow.camera.top = 3;
+keyLight.shadow.camera.bottom = -1;
+keyLight.shadow.bias = -0.001;
+scene.add(keyLight);
 
-  const remaining = cardQueue.length - currentIndex;
-  if (remaining <= 0) {
-    emptyState.classList.add('show');
-    topCard = null;
-    return;
-  }
+const fillLight = new THREE.DirectionalLight(0xe0e8ff, 0.5);
+fillLight.position.set(-3, 3, -2);
+scene.add(fillLight);
 
-  // 渲染最多3张（叠层效果）
-  const count = Math.min(remaining, 3);
-  for (let i = count - 1; i >= 0; i--) {
-    const user = cardQueue[currentIndex + i];
-    if (!user) continue;
-    const card = createCardElement(user, i);
-    cardArea.appendChild(card);
-  }
+const rimLight = new THREE.PointLight(0xffffff, 0.3, 10);
+rimLight.position.set(-1, 3, -3);
+scene.add(rimLight);
 
-  topCard = cardArea.querySelector('.swipe-card[data-index="0"]');
-  if (topCard) updateCardStack();
-}
+// ============================================================
+// Ground
+// ============================================================
+const groundGeo = new THREE.CircleGeometry(5, 64);
+const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x18181f,
+    roughness: 0.8,
+    metalness: 0.2
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
 
-function createCardElement(user, stackIndex) {
-  const card = document.createElement('div');
-  card.className = 'swipe-card';
-  card.dataset.index = stackIndex;
-  card.dataset.userId = user.id;
+// Platform ring
+const ringGeo = new THREE.RingGeometry(0.8, 0.85, 64);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0x333344, side: THREE.DoubleSide });
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = -Math.PI / 2;
+ring.position.y = 0.001;
+scene.add(ring);
 
-  card.innerHTML = `
-    <div class="stamp stamp-like">LIKE</div>
-    <div class="stamp stamp-skip">NOPE</div>
-    <img class="card-img" src="${user.img}" alt="${user.name}" draggable="false">
-    <div class="card-info">
-      <div class="card-name">${user.name} <span>${user.age}</span></div>
-      <div class="card-location">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" opacity="0.8">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
-        </svg>
-        ${user.location}
-      </div>
-      <div class="card-bio-preview">${user.bio}</div>
-    </div>
-  `;
-
-  // 堆叠偏移和缩放
-  const scale = 1 - stackIndex * 0.04;
-  const translateY = stackIndex * 10;
-  card.style.transform = `translateY(${translateY}px) scale(${scale})`;
-  card.style.zIndex = 10 - stackIndex;
-  card.style.opacity = stackIndex === 0 ? 1 : (0.7 - stackIndex * 0.15);
-
-  if (stackIndex === 0) {
-    card.style.boxShadow = 'var(--shadow-lg)';
-    attachDragEvents(card);
-  }
-
-  return card;
-}
-
-function updateCardStack() {
-  const cards = cardArea.querySelectorAll('.swipe-card');
-  cards.forEach(card => {
-    const idx = parseInt(card.dataset.index);
-    const scale = 1 - idx * 0.04;
-    const ty = idx * 10;
-    card.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    card.style.transform = `translateY(${ty}px) scale(${scale})`;
-    card.style.zIndex = 10 - idx;
-    card.style.opacity = idx === 0 ? 1 : (0.7 - idx * 0.15);
-    card.style.boxShadow = idx === 0 ? 'var(--shadow-lg)' : 'var(--shadow-sm)';
-  });
-}
-
-// ========== 拖拽 ==========
-function attachDragEvents(card) {
-  card.addEventListener('pointerdown', onPointerDown);
-}
-
-function onPointerDown(e) {
-  if (isAnimating) return;
-  const card = e.currentTarget;
-  topCard = card;
-
-  startX = e.clientX;
-  startY = e.clientY;
-  currentX = 0;
-  currentY = 0;
-  isDragging = false;
-
-  card.style.transition = 'none';
-  card.classList.remove('fly-right', 'fly-left');
-  card.setPointerCapture(e.pointerId);
-
-  card.addEventListener('pointermove', onPointerMove);
-  card.addEventListener('pointerup', onPointerUp);
-  card.addEventListener('pointercancel', onPointerUp);
-}
-
-function onPointerMove(e) {
-  if (!topCard) return;
-  currentX = e.clientX - startX;
-  currentY = e.clientY - startY;
-
-  if (!isDragging && Math.abs(currentX) > 5) {
-    isDragging = true;
-  }
-
-  const rotate = currentX * 0.08;
-  const maxOpacity = Math.min(Math.abs(currentX) / 120, 1);
-
-  topCard.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg)`;
-
-  // 水印和边框
-  const stampLike = topCard.querySelector('.stamp-like');
-  const stampSkip = topCard.querySelector('.stamp-skip');
-  if (currentX > 0) {
-    stampLike.style.opacity = maxOpacity;
-    stampSkip.style.opacity = 0;
-    topCard.classList.add('like-active');
-    topCard.classList.remove('skip-active');
-  } else {
-    stampSkip.style.opacity = maxOpacity;
-    stampLike.style.opacity = 0;
-    topCard.classList.add('skip-active');
-    topCard.classList.remove('like-active');
-  }
-}
-
-function onPointerUp(e) {
-  if (!topCard) return;
-  topCard.removeEventListener('pointermove', onPointerMove);
-  topCard.removeEventListener('pointerup', onPointerUp);
-  topCard.removeEventListener('pointercancel', onPointerUp);
-
-  const threshold = 100;
-
-  if (currentX > threshold) {
-    animateSwipe('right');
-  } else if (currentX < -threshold) {
-    animateSwipe('left');
-  } else {
-    bounceBack();
-  }
-
-  isDragging = false;
-}
-
-function bounceBack() {
-  if (!topCard) return;
-  topCard.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
-  topCard.style.transform = 'translateY(0) scale(1)';
-  topCard.querySelector('.stamp-like').style.opacity = 0;
-  topCard.querySelector('.stamp-skip').style.opacity = 0;
-  topCard.classList.remove('like-active', 'skip-active');
-}
-
-function animateSwipe(direction) {
-  if (!topCard || isAnimating) return;
-  isAnimating = true;
-
-  const rotate = currentX * 0.08;
-  topCard.style.setProperty('--tx', `${currentX}px`);
-  topCard.style.setProperty('--ty', `${currentY}px`);
-  topCard.style.setProperty('--rot', `${rotate}deg`);
-  topCard.classList.add(direction === 'right' ? 'fly-right' : 'fly-left');
-
-  const userId = parseInt(topCard.dataset.userId);
-  const isLike = direction === 'right';
-
-  topCard.addEventListener('animationend', () => {
-    topCard.remove();
-    currentIndex++;
-
-    // 更新剩余卡片
-    const remaining = cardArea.querySelectorAll('.swipe-card');
-    remaining.forEach(c => {
-      const idx = parseInt(c.dataset.index);
-      c.dataset.index = idx - 1;
+// ============================================================
+// Procedural Human Model
+// ============================================================
+function createHumanModel() {
+    const group = new THREE.Group();
+    const skinMat = new THREE.MeshStandardMaterial({
+        color: SKIN_COLOR,
+        roughness: 0.7,
+        metalness: 0.05
+    });
+    const hairMat = new THREE.MeshStandardMaterial({
+        color: HAIR_COLOR,
+        roughness: 0.9,
+        metalness: 0.0
+    });
+    const shoeMat = new THREE.MeshStandardMaterial({
+        color: 0x222222,
+        roughness: 0.5,
+        metalness: 0.1
+    });
+    const pantsMat = new THREE.MeshStandardMaterial({
+        color: 0x1a1a2e,
+        roughness: 0.8,
+        metalness: 0.05
     });
 
-    updateCardStack();
-    topCard = cardArea.querySelector('.swipe-card[data-index="0"]');
-
-    if (topCard) {
-      topCard.style.boxShadow = 'var(--shadow-lg)';
-      attachDragEvents(topCard);
-    } else if (cardQueue.length - currentIndex <= 0) {
-      emptyState.classList.add('show');
+    function makeLimb(radiusTop, radiusBot, height, pos, rotZ = 0) {
+        const geo = new THREE.CylinderGeometry(radiusTop, radiusBot, height, 12);
+        const mesh = new THREE.Mesh(geo, skinMat);
+        mesh.position.set(pos[0], pos[1], pos[2]);
+        mesh.rotation.z = rotZ;
+        mesh.castShadow = true;
+        return mesh;
     }
 
-    isAnimating = false;
-
-    // 判断是否匹配
-    if (isLike && MATCH_IDS.includes(userId)) {
-      const matchedUser = USERS.find(u => u.id === userId);
-      if (matchedUser) showMatch(matchedUser);
+    function makeCapsule(radius, height, pos) {
+        const group = new THREE.Group();
+        const cylGeo = new THREE.CylinderGeometry(radius, radius, height, 16);
+        const cyl = new THREE.Mesh(cylGeo, skinMat);
+        cyl.castShadow = true;
+        group.add(cyl);
+        const sphereGeo = new THREE.SphereGeometry(radius, 16, 12);
+        const top = new THREE.Mesh(sphereGeo, skinMat);
+        top.position.y = height / 2;
+        top.castShadow = true;
+        group.add(top);
+        const bot = new THREE.Mesh(sphereGeo, skinMat);
+        bot.position.y = -height / 2;
+        bot.castShadow = true;
+        group.add(bot);
+        group.position.set(pos[0], pos[1], pos[2]);
+        return group;
     }
-  }, { once: true });
+
+    // Torso using LatheGeometry
+    const torsoPoints = [];
+    const torsoSegs = 20;
+    for (let i = 0; i <= torsoSegs; i++) {
+        const t = i / torsoSegs;
+        let r;
+        if (t < 0.15) {
+            r = 0.12 + t * 2.0; // waist to rib
+        } else if (t < 0.5) {
+            r = 0.42 - (t - 0.15) * 0.3; // chest
+        } else if (t < 0.7) {
+            r = 0.315 + (t - 0.5) * 0.2; // shoulder area
+        } else {
+            r = 0.355; // neck base
+        }
+        const y = t * 0.9 + 0.45; // from hip to neck
+        torsoPoints.push(new THREE.Vector2(r, y));
+    }
+    const torsoGeo = new THREE.LatheGeometry(torsoPoints, 24);
+    const torso = new THREE.Mesh(torsoGeo, skinMat);
+    torso.castShadow = true;
+    group.add(torso);
+
+    // Neck
+    const neckGeo = new THREE.CylinderGeometry(0.06, 0.09, 0.15, 12);
+    const neck = new THREE.Mesh(neckGeo, skinMat);
+    neck.position.set(0, 1.42, 0);
+    neck.castShadow = true;
+    group.add(neck);
+
+    // Head
+    const headGeo = new THREE.SphereGeometry(0.14, 20, 16);
+    const head = new THREE.Mesh(headGeo, skinMat);
+    head.position.set(0, 1.62, 0);
+    head.scale.set(1, 1.15, 1);
+    head.castShadow = true;
+    group.add(head);
+
+    // Hair
+    const hairGeo = new THREE.SphereGeometry(0.155, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const hair = new THREE.Mesh(hairGeo, hairMat);
+    hair.position.set(0, 1.64, 0);
+    hair.scale.set(1.02, 1.1, 1.02);
+    group.add(hair);
+
+    // Left upper arm
+    const lUpperArm = makeCapsule(0.055, 0.28, [-0.45, 1.15, 0]);
+    lUpperArm.rotation.z = 0.15;
+    group.add(lUpperArm);
+
+    // Right upper arm
+    const rUpperArm = makeCapsule(0.055, 0.28, [0.45, 1.15, 0]);
+    rUpperArm.rotation.z = -0.15;
+    group.add(rUpperArm);
+
+    // Left forearm
+    const lForearm = makeCapsule(0.045, 0.26, [-0.52, 0.85, 0]);
+    lForearm.rotation.z = 0.08;
+    group.add(lForearm);
+
+    // Right forearm
+    const rForearm = makeCapsule(0.045, 0.26, [0.52, 0.85, 0]);
+    rForearm.rotation.z = -0.08;
+    group.add(rForearm);
+
+    // Left hand
+    const handGeo = new THREE.SphereGeometry(0.04, 10, 8);
+    const lHand = new THREE.Mesh(handGeo, skinMat);
+    lHand.position.set(-0.54, 0.68, 0);
+    group.add(lHand);
+
+    // Right hand
+    const rHand = new THREE.Mesh(handGeo, skinMat);
+    rHand.position.set(0.54, 0.68, 0);
+    group.add(rHand);
+
+    // Upper legs (pants)
+    const lThighGeo = new THREE.CylinderGeometry(0.085, 0.08, 0.42, 12);
+    const lThigh = new THREE.Mesh(lThighGeo, pantsMat);
+    lThigh.position.set(-0.13, 0.37, 0);
+    lThigh.castShadow = true;
+    group.add(lThigh);
+
+    const rThighGeo = new THREE.CylinderGeometry(0.085, 0.08, 0.42, 12);
+    const rThigh = new THREE.Mesh(rThighGeo, pantsMat);
+    rThigh.position.set(0.13, 0.37, 0);
+    rThigh.castShadow = true;
+    group.add(rThigh);
+
+    // Lower legs
+    const lShinGeo = new THREE.CylinderGeometry(0.07, 0.055, 0.4, 12);
+    const lShin = new THREE.Mesh(lShinGeo, pantsMat);
+    lShin.position.set(-0.13, 0.0, 0);
+    lShin.castShadow = true;
+    group.add(lShin);
+
+    const rShinGeo = new THREE.CylinderGeometry(0.07, 0.055, 0.4, 12);
+    const rShin = new THREE.Mesh(rShinGeo, pantsMat);
+    rShin.position.set(0.13, 0.0, 0);
+    rShin.castShadow = true;
+    group.add(rShin);
+
+    // Shoes
+    const shoeGeo = new THREE.BoxGeometry(0.1, 0.06, 0.18);
+    const lShoe = new THREE.Mesh(shoeGeo, shoeMat);
+    lShoe.position.set(-0.13, -0.21, 0.02);
+    lShoe.castShadow = true;
+    group.add(lShoe);
+
+    const rShoe = new THREE.Mesh(shoeGeo, shoeMat);
+    rShoe.position.set(0.13, -0.21, 0.02);
+    rShoe.castShadow = true;
+    group.add(rShoe);
+
+    return group;
 }
 
-function triggerSwipe(direction) {
-  if (isAnimating || !topCard) return;
-
-  // 模拟拖拽位移
-  currentX = direction === 'right' ? 200 : -200;
-  currentY = 0;
-
-  topCard.querySelector('.stamp-like').style.opacity = direction === 'right' ? 1 : 0;
-  topCard.querySelector('.stamp-skip').style.opacity = direction === 'left' ? 1 : 0;
-
-  // 按钮动画
-  const btn = direction === 'right' ? btnLike : btnSkip;
-  btn.classList.add('pulse');
-  setTimeout(() => btn.classList.remove('pulse'), 300);
-
-  animateSwipe(direction);
+// ============================================================
+// Human Collision Bodies (spheres for cloth collision)
+// ============================================================
+function createCollisionBodies() {
+    // Each: { center: Vector3, radius: number }
+    return [
+        // Torso main
+        { center: new THREE.Vector3(0, 0.85, 0), radius: 0.38 },
+        { center: new THREE.Vector3(0, 1.0, 0), radius: 0.36 },
+        { center: new THREE.Vector3(0, 1.15, 0), radius: 0.32 },
+        // Shoulders
+        { center: new THREE.Vector3(-0.38, 1.28, 0), radius: 0.1 },
+        { center: new THREE.Vector3(0.38, 1.28, 0), radius: 0.1 },
+        // Upper arms
+        { center: new THREE.Vector3(-0.45, 1.15, 0), radius: 0.08 },
+        { center: new THREE.Vector3(0.45, 1.15, 0), radius: 0.08 },
+        { center: new THREE.Vector3(-0.48, 1.02, 0), radius: 0.07 },
+        { center: new THREE.Vector3(0.48, 1.02, 0), radius: 0.07 },
+        // Forearms
+        { center: new THREE.Vector3(-0.52, 0.85, 0), radius: 0.06 },
+        { center: new THREE.Vector3(0.52, 0.85, 0), radius: 0.06 },
+        { center: new THREE.Vector3(-0.53, 0.73, 0), radius: 0.055 },
+        { center: new THREE.Vector3(0.53, 0.73, 0), radius: 0.055 },
+        // Neck
+        { center: new THREE.Vector3(0, 1.38, 0), radius: 0.08 },
+        // Head
+        { center: new THREE.Vector3(0, 1.62, 0), radius: 0.16 },
+        // Hips
+        { center: new THREE.Vector3(-0.12, 0.48, 0), radius: 0.1 },
+        { center: new THREE.Vector3(0.12, 0.48, 0), radius: 0.1 },
+        // Thighs
+        { center: new THREE.Vector3(-0.13, 0.35, 0), radius: 0.09 },
+        { center: new THREE.Vector3(0.13, 0.35, 0), radius: 0.09 },
+    ];
 }
 
-// ========== 用户简介 ========== =
-function showProfile() {
-  if (!topCard || isAnimating) return;
-  const user = cardQueue[currentIndex];
-  if (!user) return;
+// ============================================================
+// Verlet Cloth Physics Engine
+// ============================================================
+class ClothParticle {
+    constructor(x, y, z, mass = 1.0) {
+        this.pos = new THREE.Vector3(x, y, z);
+        this.prev = new THREE.Vector3(x, y, z);
+        this.accel = new THREE.Vector3(0, 0, 0);
+        this.mass = mass;
+        this.pinned = false;
+    }
 
-  document.getElementById('profileImg').src = user.img;
-  document.getElementById('profileName').textContent = `${user.name}，${user.age}`;
-  document.getElementById('profileAgeLoc').textContent = `${user.location}`;
-  document.getElementById('profileBio').textContent = user.bio;
-  document.getElementById('statPhotos').textContent = user.photos;
-  document.getElementById('statDist').textContent = user.distance;
-  document.getElementById('statMatches').textContent = user.mutual;
+    addForce(f) {
+        this.accel.addScaledVector(f, 1.0 / this.mass);
+    }
 
-  const tagsEl = document.getElementById('profileTags');
-  tagsEl.innerHTML = user.tags.map(t => `<span class="tag">${t}</span>`).join('');
-
-  profileOverlay.classList.add('show');
+    integrate(dt) {
+        if (this.pinned) return;
+        const vel = new THREE.Vector3().subVectors(this.pos, this.prev).multiplyScalar(DAMPING);
+        this.prev.copy(this.pos);
+        this.pos.add(vel);
+        this.pos.addScaledVector(this.accel, dt * dt);
+        this.accel.set(0, 0, 0);
+    }
 }
 
-function closeProfile() {
-  profileOverlay.classList.remove('show');
+class ClothConstraint {
+    constructor(p1, p2, restLength, stiffness = 1.0) {
+        this.p1 = p1;
+        this.p2 = p2;
+        this.restLength = restLength;
+        this.stiffness = stiffness;
+    }
+
+    solve() {
+        const diff = new THREE.Vector3().subVectors(this.p2.pos, this.p1.pos);
+        const dist = Math.max(diff.length(), 0.0001);
+        const correction = diff.multiplyScalar((1.0 - this.restLength / dist) * 0.5 * this.stiffness);
+        if (!this.p1.pinned) this.p1.pos.add(correction);
+        if (!this.p2.pinned) this.p2.pos.sub(correction);
+    }
 }
 
-// ========== 匹配弹窗 ========== =
-let confettiAnimation = null;
+class ClothSimulation {
+    constructor() {
+        this.particles = [];
+        this.constraints = [];
+        this.collisionBodies = [];
+        this.stiffness = 0.8;
+        this.gravityScale = 1.0;
+        this.windStrength = 1.0;
+    }
 
-function showMatch(user) {
-  matchAvatar.src = user.img;
-  matchText.textContent = `你和 ${user.name} 互相喜欢了对方！`;
-  matchOverlay.classList.add('show');
-  startConfetti();
+    createFlatCloth(width, height, resW, resH, originX, originY, originZ) {
+        this.particles = [];
+        this.constraints = [];
+
+        // Create particles
+        for (let j = 0; j <= resH; j++) {
+            for (let i = 0; i <= resW; i++) {
+                const u = i / resW;
+                const v = j / resH;
+                const x = (u - 0.5) * width + originX;
+                const y = (1.0 - v) * height + originY;
+                const z = originZ;
+                const p = new ClothParticle(x, y, z);
+                this.particles.push(p);
+            }
+        }
+
+        const addSpring = (idx1, idx2, stiff) => {
+            if (idx2 >= 0 && idx2 < this.particles.length) {
+                const dist = this.particles[idx1].pos.distanceTo(this.particles[idx2].pos);
+                this.constraints.push(new ClothConstraint(
+                    this.particles[idx1], this.particles[idx2], dist, stiff
+                ));
+            }
+        };
+
+        // Create constraints: structural, shear, bend
+        for (let j = 0; j <= resH; j++) {
+            for (let i = 0; i <= resW; i++) {
+                const idx = j * (resW + 1) + i;
+                // Structural
+                if (i < resW) addSpring(idx, idx + 1, this.stiffness);
+                if (j < resH) addSpring(idx, idx + resW + 1, this.stiffness);
+                // Shear
+                if (i < resW && j < resH) {
+                    addSpring(idx, idx + resW + 2, this.stiffness * 0.6);
+                    addSpring(idx + 1, idx + resW + 1, this.stiffness * 0.6);
+                }
+                // Bend
+                if (i < resW - 1) addSpring(idx, idx + 2, this.stiffness * 0.2);
+                if (j < resH - 1) addSpring(idx, idx + (resW + 1) * 2, this.stiffness * 0.2);
+            }
+        }
+
+        return { resW, resH };
+    }
+
+    wrapClothAroundBody(stiffness, startWrapY, endWrapY) {
+        // Make particles wrap around body: pin top row, apply position constraints
+        const cols = CLOTH_RES_W + 1;
+        const rows = CLOTH_RES_H + 1;
+
+        for (let j = 0; j < rows; j++) {
+            for (let i = 0; i < cols; i++) {
+                const idx = j * cols + i;
+                const p = this.particles[idx];
+                const v = j / (rows - 1);
+
+                // Top row (shoulder area) — pin the edges
+                if (j === 0) {
+                    if (i === 0 || i === CLOTH_RES_W) {
+                        p.pinned = true;
+                    }
+                }
+            }
+        }
+    }
+
+    setCollisionBodies(bodies) {
+        this.collisionBodies = bodies;
+    }
+
+    simulate(dt) {
+        const subDt = dt / SUB_STEPS;
+
+        for (let step = 0; step < SUB_STEPS; step++) {
+            // Apply forces
+            for (const p of this.particles) {
+                if (p.pinned) continue;
+                p.addForce(GRAVITY.clone().multiplyScalar(this.gravityScale));
+                // Wind
+                const wind = WIND.clone().multiplyScalar(this.windStrength);
+                wind.y += Math.sin(Date.now() * 0.001 + p.pos.x * 3) * 0.5;
+                wind.z += Math.cos(Date.now() * 0.0013 + p.pos.y * 2) * 0.4;
+                p.addForce(wind);
+            }
+
+            // Integrate
+            for (const p of this.particles) {
+                p.integrate(subDt);
+            }
+
+            // Solve constraints
+            for (let iter = 0; iter < CONSTRAINT_ITERATIONS; iter++) {
+                for (const c of this.constraints) {
+                    c.solve();
+                }
+                // Collision
+                this.resolveCollisions();
+            }
+        }
+    }
+
+    resolveCollisions() {
+        for (const p of this.particles) {
+            if (p.pinned) continue;
+            for (const body of this.collisionBodies) {
+                const diff = new THREE.Vector3().subVectors(p.pos, body.center);
+                const dist = diff.length();
+                const minDist = body.radius + 0.02;
+                if (dist < minDist && dist > 0.0001) {
+                    diff.normalize().multiplyScalar(minDist);
+                    p.pos.copy(body.center).add(diff);
+                }
+            }
+            // Floor collision
+            if (p.pos.y < 0.0) {
+                p.pos.y = 0.0;
+            }
+
+            // Keep cloth from going too far inward (fix clipping)
+            if (p.pos.y > 0.2 && p.pos.y < 1.7) {
+                const bodyCenterDist = Math.sqrt(p.pos.x * p.pos.x + p.pos.z * p.pos.z);
+                // Find appropriate body radius at this height
+                let bodyR = 0.0;
+                for (const body of this.collisionBodies) {
+                    const dy = Math.abs(p.pos.y - body.center.y);
+                    if (dy < body.radius * 1.5) {
+                        bodyR = Math.max(bodyR, body.radius * (1 - dy / (body.radius * 1.5)));
+                    }
+                }
+                const applicableR = bodyR + 0.015;
+                if (bodyCenterDist < applicableR && bodyCenterDist > 0.001) {
+                    const angle = Math.atan2(p.pos.z, p.pos.x);
+                    p.pos.x = Math.cos(angle) * applicableR;
+                    p.pos.z = Math.sin(angle) * applicableR;
+                }
+            }
+        }
+    }
 }
 
-function closeMatch() {
-  matchOverlay.classList.remove('show');
-  stopConfetti();
-}
+// ============================================================
+// Cloth Mesh Builder
+// ============================================================
+function createClothMesh(simulation, resW, resH, color) {
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array((resW + 1) * (resH + 1) * 3);
+    const indices = [];
 
-function startConfetti() {
-  const canvas = confettiCanvas;
-  const ctx = canvas.getContext('2d');
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width * 2;
-  canvas.height = rect.height * 2;
-  canvas.style.width = rect.width + 'px';
-  canvas.style.height = rect.height + 'px';
-  ctx.scale(2, 2);
+    // Build indices
+    for (let j = 0; j < resH; j++) {
+        for (let i = 0; i < resW; i++) {
+            const a = j * (resW + 1) + i;
+            const b = j * (resW + 1) + i + 1;
+            const c = (j + 1) * (resW + 1) + i;
+            const d = (j + 1) * (resW + 1) + i + 1;
+            indices.push(a, b, d);
+            indices.push(a, d, c);
+        }
+    }
 
-  const w = rect.width;
-  const h = rect.height;
-  const particles = [];
-  const colors = ['#FF6B6B', '#FFE66D', '#A29BFE', '#55E6C1', '#F8A5C2', '#FFA07A'];
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
 
-  // 预生成
-  for (let i = 0; i < 80; i++) {
-    particles.push({
-      x: Math.random() * w,
-      y: Math.random() * h - h,
-      vx: (Math.random() - 0.5) * 4,
-      vy: Math.random() * 3 + 2,
-      size: Math.random() * 8 + 4,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      rotation: Math.random() * 360,
-      rotSpeed: (Math.random() - 0.5) * 10,
-      shape: Math.random() > 0.5 ? 'rect' : 'circle',
-      opacity: 1,
+    const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color),
+        roughness: 0.7,
+        metalness: 0.05,
+        side: THREE.DoubleSide
     });
-  }
 
-  let frame = 0;
-  function draw() {
-    ctx.clearRect(0, 0, w, h);
-    let alive = false;
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
 
-    particles.forEach(p => {
-      p.x += p.vx;
-      p.vy += 0.05;
-      p.y += p.vy;
-      p.rotation += p.rotSpeed;
-      if (frame > 60) p.opacity -= 0.01;
-      p.opacity = Math.max(0, p.opacity);
+    return { mesh, geo };
+}
 
-      if (p.opacity <= 0) return;
-      alive = true;
+function updateClothMesh(geo, particles) {
+    const posAttr = geo.getAttribute('position');
+    for (let i = 0; i < particles.length; i++) {
+        posAttr.setXYZ(i, particles[i].pos.x, particles[i].pos.y, particles[i].pos.z);
+    }
+    posAttr.needsUpdate = true;
+    geo.computeVertexNormals();
+}
 
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rotation * Math.PI / 180);
-      ctx.globalAlpha = p.opacity;
-      ctx.fillStyle = p.color;
+// ============================================================
+// Outfit Shape Generators
+// ============================================================
+function createOutfitCloth(simulation, def) {
+    const resW = CLOTH_RES_W;
+    const resH = CLOTH_RES_H;
 
-      if (p.shape === 'rect') {
-        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
-      } else {
-        ctx.beginPath();
-        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
+    switch (def.type) {
+        case 'tshirt':
+            return createTorsoCloth(simulation, def, resW, resH, 0.5, 0.95);
+        case 'shirt':
+            return createTorsoCloth(simulation, def, resW, resH, 0.45, 1.2);
+        case 'dress':
+            return createDressCloth(simulation, def, resW, resH);
+        case 'hoodie':
+            return createTorsoCloth(simulation, def, resW, resH, 0.4, 0.85);
+        case 'blazer':
+            return createTorsoCloth(simulation, def, resW, resH, 0.45, 1.0);
+        default:
+            return createTorsoCloth(simulation, def, resW, resH, 0.5, 0.95);
+    }
+}
+
+function createTorsoCloth(simulation, def, resW, resH, shrink, dropAmount) {
+    // Create a cylindrical cloth that wraps around the torso top area.
+    // We'll place particles on a cylinder around the body.
+    simulation.particles = [];
+    simulation.constraints = [];
+
+    const startAngle = 0;
+    const totalAngle = Math.PI * 2;
+
+    // Create particles on cylinder surface
+    for (let j = 0; j <= resH; j++) {
+        for (let i = 0; i <= resW; i++) {
+            const u = i / resW;
+            const v = j / resH;
+            const angle = startAngle + u * totalAngle;
+            const y = def.offsetY - v * def.clothHeight;
+
+            // Find body radius at this height, start slightly outside
+            const bodyR = getBodyRadiusAtHeight(y);
+            const r = (bodyR + 0.04) * (1 + shrink * 0.1);
+
+            const x = Math.cos(angle) * r;
+            const z = Math.sin(angle) * r;
+            const p = new ClothParticle(x, y, z);
+            simulation.particles.push(p);
+        }
+    }
+
+    // Close the cylinder (connect last column to first)
+    const addSpring = (idx1, idx2, stiff) => {
+        if (idx2 >= 0 && idx2 < simulation.particles.length) {
+            const dist = simulation.particles[idx1].pos.distanceTo(simulation.particles[idx2].pos);
+            simulation.constraints.push(new ClothConstraint(
+                simulation.particles[idx1], simulation.particles[idx2], dist, stiff
+            ));
+        }
+    };
+
+    for (let j = 0; j <= resH; j++) {
+        for (let i = 0; i <= resW; i++) {
+            const idx = j * (resW + 1) + i;
+            const nextI = (i === resW) ? j * (resW + 1) : idx + 1;
+
+            if (i < resW) addSpring(idx, idx + 1, def.stiffness);
+            else addSpring(idx, j * (resW + 1), def.stiffness); // wrap around
+
+            if (j < resH) addSpring(idx, idx + resW + 1, def.stiffness);
+
+            // Shear
+            if (i < resW && j < resH) {
+                const shearNextI = (i + 1 === resW) ? j * (resW + 1) : idx + 1;
+                addSpring(idx, shearNextI + resW + 1, def.stiffness * 0.5);
+                addSpring(idx + 1, idx + resW + 1, def.stiffness * 0.5);
+            }
+            // Bend
+            if (i < resW - 1) addSpring(idx, idx + 2, def.stiffness * 0.2);
+            if (j < resH - 1) addSpring(idx, idx + (resW + 1) * 2, def.stiffness * 0.2);
+        }
+    }
+
+    // Pin top row slightly
+    for (let i = 0; i <= resW; i++) {
+        // Don't pin all — let cloth settle naturally but keep top edge fixed relative position
+    }
+    simulation.stiffness = def.stiffness;
+    simulation.gravityScale = def.gravityScale;
+
+    // Create mesh
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(simulation.particles.length * 3);
+    const indices = [];
+
+    // Adjust indices for cylinder (leave a gap at the back for now, or connect)
+    for (let j = 0; j < resH; j++) {
+        for (let i = 0; i < resW; i++) {
+            // Leave a small gap at the back seam
+            const a = j * (resW + 1) + i;
+            const b = j * (resW + 1) + i + 1;
+            const c = (j + 1) * (resW + 1) + i;
+            const d = (j + 1) * (resW + 1) + i + 1;
+            indices.push(a, b, d);
+            indices.push(a, d, c);
+        }
+        // Close the back seam
+        const a = j * (resW + 1) + resW;
+        const b = j * (resW + 1) + 0;
+        const c = (j + 1) * (resW + 1) + resW;
+        const d = (j + 1) * (resW + 1) + 0;
+        indices.push(a, b, d);
+        indices.push(a, d, c);
+    }
+
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+
+    return { resW, resH };
+}
+
+function createDressCloth(simulation, def, resW, resH) {
+    // A-line dress: narrow at top, wider at bottom
+    simulation.particles = [];
+    simulation.constraints = [];
+
+    for (let j = 0; j <= resH; j++) {
+        for (let i = 0; i <= resW; i++) {
+            const u = i / resW;
+            const v = j / resH;
+            const angle = u * Math.PI * 2;
+            const y = def.offsetY - v * def.clothHeight;
+
+            // A-line: gets wider toward bottom
+            const narrowR = 0.38;
+            const wideR = 0.55;
+            const r = narrowR + v * (wideR - narrowR) + (0.03 + v * 0.03);
+
+            const x = Math.cos(angle) * r;
+            const z = Math.sin(angle) * r;
+            const p = new ClothParticle(x, y, z);
+            simulation.particles.push(p);
+        }
+    }
+
+    const addSpring = (idx1, idx2, stiff) => {
+        if (idx2 >= 0 && idx2 < simulation.particles.length) {
+            const dist = simulation.particles[idx1].pos.distanceTo(simulation.particles[idx2].pos);
+            simulation.constraints.push(new ClothConstraint(
+                simulation.particles[idx1], simulation.particles[idx2], dist, stiff
+            ));
+        }
+    };
+
+    for (let j = 0; j <= resH; j++) {
+        for (let i = 0; i <= resW; i++) {
+            const idx = j * (resW + 1) + i;
+            if (i < resW) addSpring(idx, idx + 1, def.stiffness);
+            else addSpring(idx, j * (resW + 1), def.stiffness);
+            if (j < resH) addSpring(idx, idx + resW + 1, def.stiffness);
+            if (i < resW - 1) addSpring(idx, idx + 2, def.stiffness * 0.2);
+            if (j < resH - 1) addSpring(idx, idx + (resW + 1) * 2, def.stiffness * 0.2);
+        }
+    }
+
+    simulation.stiffness = def.stiffness;
+    simulation.gravityScale = def.gravityScale;
+
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(simulation.particles.length * 3);
+    const indices = [];
+
+    for (let j = 0; j < resH; j++) {
+        for (let i = 0; i < resW; i++) {
+            const a = j * (resW + 1) + i;
+            const b = j * (resW + 1) + i + 1;
+            const c = (j + 1) * (resW + 1) + i;
+            const d = (j + 1) * (resW + 1) + i + 1;
+            indices.push(a, b, d);
+            indices.push(a, d, c);
+        }
+        const a = j * (resW + 1) + resW;
+        const b = j * (resW + 1) + 0;
+        const c = (j + 1) * (resW + 1) + resW;
+        const d = (j + 1) * (resW + 1) + 0;
+        indices.push(a, b, d);
+        indices.push(a, d, c);
+    }
+
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+
+    return { resW, resH };
+}
+
+// Helper: approximate body radius at a given height
+function getBodyRadiusAtHeight(y) {
+    if (y < 0.5) return 0.12;
+    if (y < 0.8) return 0.32;
+    if (y < 1.1) return 0.36;
+    if (y < 1.3) return 0.30;
+    if (y < 1.5) return 0.1;
+    return 0.08;
+}
+
+// ============================================================
+// Sleeve Generator
+// ============================================================
+function createSleeveMesh(def, side) {
+    // side: -1 for left, 1 for right
+    const group = new THREE.Group();
+    const len = def.sleeveLen;
+    const width = def.sleeveWidth;
+
+    if (len < 0.05) return group; // no sleeve (dress)
+
+    // Simple cylinder as sleeve
+    const segments = 8;
+    const ringCount = 6;
+    const positions = [];
+    const indices = [];
+
+    for (let j = 0; j <= ringCount; j++) {
+        for (let i = 0; i <= segments; i++) {
+            const angle = (i / segments) * Math.PI * 2;
+            const t = j / ringCount;
+            const r = width * 0.5 * (1 - t * 0.15);
+            const x = Math.cos(angle) * r;
+            const y = -t * len;
+            const z = Math.sin(angle) * r;
+            positions.push(x, y, z);
+        }
+    }
+
+    for (let j = 0; j < ringCount; j++) {
+        for (let i = 0; i < segments; i++) {
+            const a = j * (segments + 1) + i;
+            const b = a + 1;
+            const c = a + segments + 1;
+            const d = c + 1;
+            indices.push(a, b, d, a, d, c);
+        }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32ArrayAttribute(positions, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+
+    const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(def.defaultColor),
+        roughness: 0.7,
+        metalness: 0.05,
+        side: THREE.DoubleSide
     });
 
-    frame++;
-    if (alive && frame < 200) {
-      confettiAnimation = requestAnimationFrame(draw);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    group.add(mesh);
+
+    // Position at shoulder
+    const shoulderX = side * 0.42;
+    const shoulderY = def.offsetY - 0.05;
+    group.position.set(shoulderX, shoulderY, 0);
+    group.rotation.z = side * 0.75;
+
+    return group;
+}
+
+// ============================================================
+// Hoodie Hood / Blazer Lapels / Shirt Details
+// ============================================================
+function createOutfitDetails(def, color) {
+    const group = new THREE.Group();
+
+    const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color),
+        roughness: 0.7,
+        metalness: 0.05,
+        side: THREE.DoubleSide
+    });
+
+    if (def.type === 'hoodie') {
+        // Hood
+        const hoodGeo = new THREE.SphereGeometry(0.2, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+        const hood = new THREE.Mesh(hoodGeo, mat);
+        hood.position.set(0, def.offsetY + 0.08, -0.12);
+        hood.scale.set(1.1, 0.8, 1.2);
+        hood.castShadow = true;
+        group.add(hood);
+
+        // Kangaroo pocket
+        const pocketGeo = new THREE.BoxGeometry(0.4, 0.15, 0.06);
+        const pocket = new THREE.Mesh(pocketGeo, mat);
+        pocket.position.set(0, def.offsetY - def.clothHeight * 0.45, 0.32);
+        group.add(pocket);
     }
-  }
 
-  draw();
-}
+    if (def.type === 'blazer') {
+        // Left lapel
+        const lapelShape = new THREE.Shape();
+        lapelShape.moveTo(0, 0);
+        lapelShape.lineTo(-0.08, 0.25);
+        lapelShape.lineTo(-0.02, 0.28);
+        lapelShape.lineTo(0.04, 0.0);
+        const lapelGeo = new THREE.ShapeGeometry(lapelShape);
+        const lLapel = new THREE.Mesh(lapelGeo, mat);
+        lLapel.position.set(-0.08, def.offsetY + 0.1, 0.28);
+        lLapel.rotation.x = -0.15;
+        group.add(lLapel);
 
-function stopConfetti() {
-  if (confettiAnimation) {
-    cancelAnimationFrame(confettiAnimation);
-    confettiAnimation = null;
-  }
-}
+        // Right lapel
+        const rLapel = new THREE.Mesh(lapelGeo.clone(), mat);
+        rLapel.position.set(0.08, def.offsetY + 0.1, 0.28);
+        rLapel.rotation.x = -0.15;
+        rLapel.scale.x = -1;
+        group.add(rLapel);
 
-// ========== 事件绑定 ==========
-function bindEvents() {
-  btnLike.addEventListener('click', () => triggerSwipe('right'));
-  btnSkip.addEventListener('click', () => triggerSwipe('left'));
-  btnInfo.addEventListener('click', showProfile);
-
-  modalClose.addEventListener('click', closeProfile);
-  profileOverlay.addEventListener('click', e => {
-    if (e.target === profileOverlay) closeProfile();
-  });
-
-  profileSkip.addEventListener('click', () => { closeProfile(); triggerSwipe('left'); });
-  profileLike.addEventListener('click', () => { closeProfile(); triggerSwipe('right'); });
-
-  matchChat.addEventListener('click', () => {
-    closeMatch();
-    // Toast 提示
-    showToast('💬 即将开启聊天功能...');
-  });
-  matchLater.addEventListener('click', closeMatch);
-
-  btnRefresh.addEventListener('click', () => {
-    // 打乱数组并重新渲染
-    cardQueue = [...USERS].sort(() => Math.random() - 0.5);
-    currentIndex = 0;
-    init();
-  });
-
-  btnBack.addEventListener('click', () => {
-    showToast('🔙 当前已是首页');
-  });
-
-  btnSettings.addEventListener('click', () => {
-    showToast('⚙️ 设置功能开发中...');
-  });
-
-  // 键盘操作
-  document.addEventListener('keydown', e => {
-    if (profileOverlay.classList.contains('show')) {
-      if (e.key === 'Escape') closeProfile();
-      return;
+        // Pocket squares
+        const squareMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff, roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide
+        });
+        const sGeo = new THREE.PlaneGeometry(0.08, 0.08);
+        const sq = new THREE.Mesh(sGeo, squareMat);
+        sq.position.set(0.18, def.offsetY - 0.08, 0.28);
+        group.add(sq);
     }
-    if (matchOverlay.classList.contains('show')) {
-      if (e.key === 'Escape') closeMatch();
-      return;
+
+    if (def.type === 'shirt') {
+        // Buttons
+        const btnMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3, metalness: 0.3 });
+        const btnGeo = new THREE.SphereGeometry(0.012, 8, 6);
+        for (let i = 0; i < 5; i++) {
+            const btn = new THREE.Mesh(btnGeo, btnMat);
+            btn.position.set(0, def.offsetY - i * 0.2, 0.32);
+            group.add(btn);
+        }
+
+        // Collar
+        const collarMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff, roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide
+        });
+        const collarGeo = new THREE.PlaneGeometry(0.15, 0.08);
+        const lCollar = new THREE.Mesh(collarGeo, collarMat);
+        lCollar.position.set(-0.1, def.offsetY + 0.03, 0.22);
+        lCollar.rotation.y = 0.4;
+        lCollar.rotation.x = -0.2;
+        group.add(lCollar);
+        const rCollar = new THREE.Mesh(collarGeo.clone(), collarMat);
+        rCollar.position.set(0.1, def.offsetY + 0.03, 0.22);
+        rCollar.rotation.y = -0.4;
+        rCollar.rotation.x = -0.2;
+        group.add(rCollar);
     }
-    if (e.key === 'ArrowRight' || e.key === 'l') triggerSwipe('right');
-    if (e.key === 'ArrowLeft' || e.key === 's') triggerSwipe('left');
-    if (e.key === 'ArrowUp' || e.key === 'i') showProfile();
-    if (e.key === 'ArrowDown' || e.key === 'n') triggerSwipe('left');
-  });
+
+    if (def.type === 'dress') {
+        // Straps
+        const strapGeo = new THREE.BoxGeometry(0.04, 0.12, 0.02);
+        const lStrap = new THREE.Mesh(strapGeo, mat);
+        lStrap.position.set(-0.18, def.offsetY + 0.15, 0.06);
+        lStrap.rotation.z = 0.2;
+        group.add(lStrap);
+
+        const rStrap = new THREE.Mesh(strapGeo.clone(), mat);
+        rStrap.position.set(0.18, def.offsetY + 0.15, 0.06);
+        rStrap.rotation.z = -0.2;
+        group.add(rStrap);
+    }
+
+    return group;
 }
 
-// ========== Toast ==========
-function showToast(msg) {
-  const existing = document.querySelector('.toast');
-  if (existing) existing.remove();
+// ============================================================
+// Main Application
+// ============================================================
+class VirtualFittingRoom {
+    constructor() {
+        this.outfits = OUTFIT_DEFS;
+        this.currentOutfitIndex = 0;
+        this.autoRotate = false;
+        this.physicsEnabled = true;
 
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = msg;
-  Object.assign(toast.style, {
-    position: 'fixed',
-    top: '80px',
-    left: '50%',
-    transform: 'translateX(-50%) translateY(-20px)',
-    background: 'rgba(45, 52, 54, 0.88)',
-    color: '#fff',
-    padding: '10px 24px',
-    borderRadius: '50px',
-    fontSize: '14px',
-    fontWeight: '600',
-    fontFamily: 'inherit',
-    zIndex: '999',
-    opacity: '0',
-    transition: 'all 0.3s ease',
-    backdropFilter: 'blur(10px)',
-    whiteSpace: 'nowrap',
-  });
-  document.body.appendChild(toast);
+        // Create human model
+        this.humanModel = createHumanModel();
+        scene.add(this.humanModel);
 
-  requestAnimationFrame(() => {
-    toast.style.opacity = '1';
-    toast.style.transform = 'translateX(-50%) translateY(0)';
-  });
+        // Collision bodies
+        this.collisionBodies = createCollisionBodies();
 
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(-50%) translateY(-20px)';
-    setTimeout(() => toast.remove(), 300);
-  }, 2000);
+        // Outfit state
+        this.currentMesh = null;
+        this.currentGeo = null;
+        this.currentSimulation = new ClothSimulation();
+        this.currentDetails = null;
+        this.currentSleeves = [];
+        this.clothData = null;
+
+        // Initialize first outfit
+        this.switchOutfit(0, true);
+
+        // UI
+        this.setupUI();
+
+        // Resize
+        window.addEventListener('resize', () => this.onResize());
+
+        // Start animation loop
+        this.clock = new THREE.Clock();
+        this.animate();
+    }
+
+    setupUI() {
+        const clothingItems = document.querySelectorAll('.clothing-item');
+        clothingItems.forEach(item => {
+            item.addEventListener('click', () => {
+                clothingItems.forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                const outfitIdx = parseInt(item.dataset.outfit);
+                this.switchOutfit(outfitIdx);
+            });
+        });
+
+        const colorPicker = document.getElementById('color-picker');
+        colorPicker.value = this.outfits[this.currentOutfitIndex].defaultColor;
+        colorPicker.addEventListener('input', (e) => {
+            this.updateOutfitColor(e.target.value);
+        });
+
+        const physicsToggle = document.getElementById('physics-toggle');
+        physicsToggle.addEventListener('click', () => {
+            this.physicsEnabled = !this.physicsEnabled;
+            physicsToggle.textContent = this.physicsEnabled ? '开启' : '关闭';
+            physicsToggle.classList.toggle('active', this.physicsEnabled);
+        });
+
+        const autoRotToggle = document.getElementById('auto-rotate-toggle');
+        autoRotToggle.addEventListener('click', () => {
+            this.autoRotate = !this.autoRotate;
+            autoRotToggle.textContent = this.autoRotate ? '开启' : '关闭';
+            autoRotToggle.classList.toggle('active', this.autoRotate);
+            controls.autoRotate = this.autoRotate;
+            controls.autoRotateSpeed = 1.5;
+        });
+
+        const outfitName = document.getElementById('outfit-name');
+        outfitName.textContent = this.outfits[this.currentOutfitIndex].name;
+    }
+
+    switchOutfit(idx, initial = false) {
+        this.currentOutfitIndex = idx;
+        const def = this.outfits[idx];
+
+        // Remove old outfit
+        if (this.currentMesh) {
+            scene.remove(this.currentMesh);
+            this.currentMesh.geometry.dispose();
+            this.currentMesh.material.dispose();
+        }
+        if (this.currentDetails) {
+            scene.remove(this.currentDetails);
+        }
+        this.currentSleeves.forEach(s => scene.remove(s));
+        this.currentSleeves = [];
+
+        // Create new cloth simulation
+        this.currentSimulation = new ClothSimulation();
+        this.currentSimulation.setCollisionBodies(this.collisionBodies);
+        this.clothData = createOutfitCloth(this.currentSimulation, def);
+
+        // Create mesh
+        const { mesh, geo } = createClothMesh(
+            this.currentSimulation, this.clothData.resW, this.clothData.resH, def.defaultColor
+        );
+        this.currentMesh = mesh;
+        this.currentGeo = geo;
+
+        if (initial) {
+            // Position already set in cloth creation
+            updateClothMesh(geo, this.currentSimulation.particles);
+        } else {
+            // Drop animation: move all particles up, let them fall
+            const dropHeight = 2.5;
+            for (const p of this.currentSimulation.particles) {
+                if (!p.pinned) {
+                    p.pos.y += dropHeight;
+                    p.prev.y += dropHeight;
+                }
+            }
+        }
+
+        scene.add(mesh);
+
+        // Sleeves
+        const lSleeve = createSleeveMesh(def, -1);
+        const rSleeve = createSleeveMesh(def, 1);
+        // Update sleeve color
+        const sleeveColor = this.getCurrentColor();
+        lSleeve.traverse(child => {
+            if (child.isMesh && child.material.color) {
+                child.material.color.set(sleeveColor);
+            }
+        });
+        rSleeve.traverse(child => {
+            if (child.isMesh && child.material.color) {
+                child.material.color.set(sleeveColor);
+            }
+        });
+        this.currentSleeves = [lSleeve, rSleeve];
+        scene.add(lSleeve);
+        scene.add(rSleeve);
+
+        // Detail elements
+        if (def.type === 'hoodie' || def.type === 'blazer' || def.type === 'shirt' || def.type === 'dress') {
+            this.currentDetails = createOutfitDetails(def, def.defaultColor);
+            scene.add(this.currentDetails);
+        } else {
+            this.currentDetails = null;
+        }
+
+        // Update UI
+        document.getElementById('color-picker').value = def.defaultColor;
+        document.getElementById('outfit-name').textContent = def.name;
+    }
+
+    getCurrentColor() {
+        const colorPicker = document.getElementById('color-picker');
+        return colorPicker ? colorPicker.value : this.outfits[this.currentOutfitIndex].defaultColor;
+    }
+
+    updateOutfitColor(color) {
+        if (this.currentMesh) {
+            this.currentMesh.material.color.set(color);
+        }
+        this.currentSleeves.forEach(s => {
+            s.traverse(child => {
+                if (child.isMesh && child.material.color) {
+                    // Skip non-clothing materials (buttons, pocket squares, collar)
+                    const currentHex = '#' + child.material.color.getHexString();
+                    const outfitHex = this.outfits[this.currentOutfitIndex].defaultColor;
+                    if (currentHex === outfitHex || child.material._isCloth) {
+                        child.material.color.set(color);
+                    }
+                    child.material._isCloth = true;
+                }
+            });
+        });
+
+        if (this.currentDetails) {
+            this.currentDetails.traverse(child => {
+                if (child.isMesh && child.material.color) {
+                    const c = '#' + child.material.color.getHexString();
+                    const outfitHex = this.outfits[this.currentOutfitIndex].defaultColor;
+                    if (c === outfitHex) {
+                        child.material.color.set(color);
+                    }
+                }
+            });
+        }
+    }
+
+    onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    animate() {
+        requestAnimationFrame(() => this.animate());
+
+        const dt = Math.min(this.clock.getDelta(), 0.033); // cap at ~30fps
+
+        // Physics
+        if (this.physicsEnabled && this.currentSimulation) {
+            this.currentSimulation.simulate(dt);
+
+            // Update mesh
+            if (this.currentGeo) {
+                updateClothMesh(this.currentGeo, this.currentSimulation.particles);
+            }
+        }
+
+        // Sync sleeve attachment to body
+        const def = this.outfits[this.currentOutfitIndex];
+        this.currentSleeves.forEach(s => {
+            // Keep sleeves at shoulder position
+        });
+
+        // Controls
+        controls.update();
+
+        renderer.render(scene, camera);
+    }
 }
 
-// ========== 启动 ==========
-init();
+// ============================================================
+// Initialize
+// ============================================================
+const app = new VirtualFittingRoom();
+
+// Hide loading screen
+setTimeout(() => {
+    const loading = document.getElementById('loading');
+    loading.classList.add('hidden');
+    setTimeout(() => loading.remove(), 600);
+}, 500);
