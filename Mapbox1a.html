@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>简易地图 - Leaflet</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+    #map { width: 100vw; height: 100vh; }
+
+    /* ---- 底图切换面板 ---- */
+    .basemap-panel {
+      position: absolute; top: 12px; right: 12px; z-index: 1000;
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.18); padding: 6px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .basemap-panel .label {
+      font-size: 12px; color: #666; text-align: center; padding: 2px 0;
+    }
+    .basemap-btn {
+      width: 72px; height: 56px; border-radius: 8px;
+      border: 2px solid transparent; cursor: pointer;
+      background-size: cover; background-position: center;
+      position: relative; overflow: hidden;
+    }
+    .basemap-btn.active { border-color: #1890ff; }
+    .basemap-btn span {
+      position: absolute; bottom: 2px; left: 0; right: 0;
+      text-align: center; font-size: 11px; color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,.7);
+    }
+    .bm-standard { background-image: url('https://tile.openstreetmap.org/12/3268/1781.png'); }
+    .bm-dark     { background-image: url('https://a.basemaps.cartocdn.com/dark_all/12/3268/1781.png'); }
+    .bm-topo     { background-image: url('https://c.tile.opentopomap.org/12/3268/1781.png'); }
+    .bm-satellite { background: linear-gradient(135deg,#2d4a22,#5a7a4a); }
+    .bm-satellite span { color: #cfe8c5; }
+
+    /* ---- 定位按钮 ---- */
+    .locate-btn {
+      position: absolute; bottom: 28px; right: 12px; z-index: 1000;
+      width: 44px; height: 44px; border-radius: 50%;
+      border: none; background: #fff; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,.22);
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s;
+    }
+    .locate-btn:hover { background: #e6f7ff; }
+    .locate-btn svg { width: 22px; height: 22px; }
+    .locate-btn.locating svg { animation: pulse .8s infinite alternate; }
+    @keyframes pulse { to { transform: scale(1.25); opacity: .5; } }
+
+    /* ---- 自定义弹窗 ---- */
+    .popup-card { min-width: 220px; }
+    .popup-card h3 { margin: 0 0 6px; font-size: 15px; color: #1890ff; }
+    .popup-card p  { margin: 0 0 4px; font-size: 13px; color: #555; line-height: 1.5; }
+    .popup-card .tag {
+      display: inline-block; margin-top: 6px; padding: 2px 8px;
+      font-size: 11px; border-radius: 4px;
+      background: #e6f7ff; color: #1890ff;
+    }
+
+    /* ---- Toast ---- */
+    .toast {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      z-index: 2000; background: rgba(0,0,0,.72); color: #fff;
+      padding: 10px 22px; border-radius: 8px; font-size: 14px;
+      pointer-events: none; opacity: 0; transition: opacity .3s;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- 底图切换 -->
+<div class="basemap-panel" id="basemapPanel">
+  <div class="label">切换底图</div>
+</div>
+
+<!-- 定位按钮 -->
+<button class="locate-btn" id="locateBtn" title="定位到当前位置">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#1890ff" stroke-width="2">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+  </svg>
+</button>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ 底图图层定义 ============
+const basemaps = [
+  {
+    id: 'standard',
+    label: '标准',
+    cls: 'bm-standard',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attr: '&copy; OpenStreetMap'
+  },
+  {
+    id: 'dark',
+    label: '暗色',
+    cls: 'bm-dark',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attr: '&copy; CARTO'
+  },
+  {
+    id: 'topo',
+    label: '地形',
+    cls: 'bm-topo',
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attr: '&copy; OpenTopoMap'
+  },
+  {
+    id: 'satellite',
+    label: '卫星',
+    cls: 'bm-satellite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attr: '&copy; Esri'
+  }
+];
+
+// ============ 示例标记数据 ============
+const markers = [
+  {
+    lat: 39.9042, lng: 116.4074,
+    title: '北京天安门',
+    desc: '中华人民共和国的象征，位于北京市中心。',
+    tags: ['地标', '历史']
+  },
+  {
+    lat: 31.2304, lng: 121.4737,
+    title: '上海外滩',
+    desc: '上海标志性景点，可一览浦东天际线。',
+    tags: ['景点', '城市']
+  },
+  {
+    lat: 22.5431, lng: 114.0579,
+    title: '深圳市民中心',
+    desc: '深圳市政府所在地，莲花山脚下。',
+    tags: ['城市', '现代']
+  },
+  {
+    lat: 30.5728, lng: 104.0668,
+    title: '成都天府广场',
+    desc: '成都市中心，四川的文化地标。',
+    tags: ['文化', '美食']
+  },
+  {
+    lat: 23.1291, lng: 113.2644,
+    title: '广州塔（小蛮腰）',
+    desc: '广州地标建筑，高 600 米，夜景迷人。',
+    tags: ['地标', '夜景']
+  },
+  {
+    lat: 34.2610, lng: 108.9425,
+    title: '西安钟楼',
+    desc: '始建于明洪武年间，中国现存最大的钟楼。',
+    tags: ['历史', '古建']
+  },
+  {
+    lat: 29.5630, lng: 106.5516,
+    title: '重庆解放碑',
+    desc: '重庆的城市名片，繁华的步行街中心。',
+    tags: ['购物', '美食']
+  },
+  {
+    lat: 25.0389, lng: 102.7183,
+    title: '昆明翠湖',
+    desc: '春城昆明的城市绿洲，冬日红嘴鸥成群。',
+    tags: ['自然', '休闲']
+  }
+];
+
+// ============ 初始化地图 ============
+const map = L.map('map', {
+  center: [35.8, 105.6],
+  zoom: 5,
+  zoomControl: false
+});
+
+// 缩放控件放左下角
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+// 默认加载第一个底图
+let currentLayer = L.tileLayer(basemaps[0].url, { attribution: basemaps[0].attr }).addTo(map);
+
+// ============ 生成底图切换按钮 ============
+const panel = document.getElementById('basemapPanel');
+basemaps.forEach((bm, i) => {
+  const btn = document.createElement('button');
+  btn.className = `basemap-btn ${bm.cls}${i === 0 ? ' active' : ''}`;
+  btn.innerHTML = `<span>${bm.label}</span>`;
+  btn.title = bm.label;
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.basemap-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    map.removeLayer(currentLayer);
+    currentLayer = L.tileLayer(bm.url, { attribution: bm.attr }).addTo(map);
+  });
+  panel.appendChild(btn);
+});
+
+// ============ 添加标记 & 弹窗 ============
+const blueIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+markers.forEach(m => {
+  const tagsHtml = m.tags.map(t => `<span class="tag">${t}</span>`).join(' ');
+  L.marker([m.lat, m.lng], { icon: blueIcon })
+    .addTo(map)
+    .bindPopup(
+      `<div class="popup-card">
+        <h3>${m.title}</h3>
+        <p>${m.desc}</p>
+        ${tagsHtml}
+      </div>`,
+      { maxWidth: 280 }
+    );
+});
+
+// ============ 浏览器定位 ============
+const locateBtn = document.getElementById('locateBtn');
+const toastEl  = document.getElementById('toast');
+
+function showToast(msg, duration = 1800) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(() => toastEl.classList.remove('show'), duration);
+}
+
+let locMarker = null;
+let locCircle = null;
+
+locateBtn.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    showToast('浏览器不支持定位');
+    return;
+  }
+  locateBtn.classList.add('locating');
+  showToast('正在定位…');
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      locateBtn.classList.remove('locating');
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      showToast(`定位成功 ±${Math.round(accuracy)}m`);
+
+      if (locMarker) map.removeLayer(locMarker);
+      if (locCircle) map.removeLayer(locCircle);
+
+      locCircle = L.circle([lat, lng], { radius: accuracy, color: '#1890ff', fillOpacity: .12, weight: 1 }).addTo(map);
+
+      locMarker = L.circleMarker([lat, lng], {
+        radius: 8, fillColor: '#1890ff', fillOpacity: 1,
+        color: '#fff', weight: 3
+      }).addTo(map).bindPopup(`<div class="popup-card"><h3>我的位置</h3><p>经度: ${lng.toFixed(4)}<br>纬度: ${lat.toFixed(4)}<br>精度: ±${Math.round(accuracy)}m</p></div>`);
+
+      map.flyTo([lat, lng], 13, { duration: 1.2 });
+    },
+    err => {
+      locateBtn.classList.remove('locating');
+      const msgs = {
+        1: '定位权限被拒绝，请在浏览器设置中允许',
+        2: '无法获取位置信息',
+        3: '定位超时，请重试'
+      };
+      showToast(msgs[err.code] || '定位失败', 3000);
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
+</script>
+</body>
+</html>
