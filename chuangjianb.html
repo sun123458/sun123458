@@ -1,0 +1,1864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绿植智能助手 - AI Plant Care</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0a1a0f;
+            --bg-secondary: #0f2518;
+            --bg-card: rgba(20, 60, 35, 0.45);
+            --bg-card-hover: rgba(25, 75, 45, 0.55);
+            --accent: #3ddc84;
+            --accent-dim: rgba(61, 220, 132, 0.15);
+            --accent-glow: rgba(61, 220, 132, 0.3);
+            --text-primary: #e8f5e9;
+            --text-secondary: #a5d6a7;
+            --text-muted: #66bb6a;
+            --border: rgba(61, 220, 132, 0.12);
+            --danger: #ef5350;
+            --warning: #ffa726;
+            --info: #42a5f5;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background atmosphere */
+        .bg-atmosphere {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .bg-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.3;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-blob:nth-child(1) {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(61, 220, 132, 0.25), transparent);
+            top: -10%;
+            right: -5%;
+            animation-delay: 0s;
+        }
+
+        .bg-blob:nth-child(2) {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(27, 94, 32, 0.35), transparent);
+            bottom: -10%;
+            left: -5%;
+            animation-delay: -7s;
+        }
+
+        .bg-blob:nth-child(3) {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(129, 199, 132, 0.2), transparent);
+            top: 40%;
+            left: 30%;
+            animation-delay: -14s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -20px) scale(1.05); }
+            66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+
+        /* Floating leaves animation */
+        .leaf-particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.15;
+            font-size: 20px;
+            animation: leafFall linear infinite;
+        }
+
+        @keyframes leafFall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.15; }
+            90% { opacity: 0.15; }
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* Layout */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 340px;
+            min-width: 340px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(20px);
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #2e7d32, #4caf50, #81c784);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 20px rgba(61, 220, 132, 0.25);
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(61, 220, 132, 0.25); }
+            50% { box-shadow: 0 4px 30px rgba(61, 220, 132, 0.4); }
+        }
+
+        .logo-text h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #81c784, #3ddc84);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.5px;
+        }
+
+        .logo-text span {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Chat history */
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .chat-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-list::-webkit-scrollbar-thumb {
+            background: var(--accent-dim);
+            border-radius: 4px;
+        }
+
+        .chat-item {
+            padding: 14px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 6px;
+            border: 1px solid transparent;
+        }
+
+        .chat-item:hover {
+            background: var(--bg-card);
+            border-color: var(--border);
+        }
+
+        .chat-item.active {
+            background: var(--accent-dim);
+            border-color: rgba(61, 220, 132, 0.25);
+        }
+
+        .chat-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chat-item-preview {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-item-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.6;
+            margin-left: auto;
+        }
+
+        /* New chat button */
+        .new-chat-btn {
+            width: calc(100% - 32px);
+            margin: 0 16px 16px;
+            padding: 12px;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--accent);
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .new-chat-btn:hover {
+            background: var(--accent-dim);
+            border-style: solid;
+            border-color: rgba(61, 220, 132, 0.3);
+        }
+
+        /* Quick actions */
+        .quick-actions {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .quick-actions-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .quick-action-btn {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-action-btn:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(61, 220, 132, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .quick-action-btn i {
+            color: var(--accent);
+            font-size: 14px;
+            width: 18px;
+            text-align: center;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Top bar */
+        .top-bar {
+            padding: 16px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(20px);
+            background: rgba(10, 26, 15, 0.8);
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .top-bar-title {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .top-bar-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid rgba(61, 220, 132, 0.2);
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .top-bar-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-size: 15px;
+        }
+
+        .top-bar-btn:hover {
+            background: var(--bg-card);
+            color: var(--accent);
+            border-color: rgba(61, 220, 132, 0.25);
+        }
+
+        /* Chat area */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .chat-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-area::-webkit-scrollbar-thumb {
+            background: var(--accent-dim);
+            border-radius: 4px;
+        }
+
+        /* Messages */
+        .message {
+            display: flex;
+            gap: 14px;
+            max-width: 780px;
+            animation: messageIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+            align-self: flex-end;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .message.ai .message-avatar {
+            background: linear-gradient(135deg, #2e7d32, #4caf50);
+            box-shadow: 0 2px 12px rgba(61, 220, 132, 0.2);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #1565c0, #42a5f5);
+            box-shadow: 0 2px 12px rgba(66, 165, 245, 0.2);
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-bubble {
+            padding: 16px 20px;
+            border-radius: var(--radius);
+            line-height: 1.7;
+            font-size: 14.5px;
+        }
+
+        .message.ai .message-bubble {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-top-left-radius: 4px;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, rgba(61, 220, 132, 0.15), rgba(27, 94, 32, 0.25));
+            border: 1px solid rgba(61, 220, 132, 0.2);
+            border-top-right-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.5;
+            margin-top: 6px;
+            padding: 0 4px;
+        }
+
+        .message.user .message-time {
+            text-align: right;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 8px 0;
+        }
+
+        .typing-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            opacity: 0.4;
+            animation: typingBounce 1.4s ease-in-out infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* Care cards in messages */
+        .care-card {
+            margin-top: 14px;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: rgba(10, 26, 15, 0.5);
+        }
+
+        .care-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .care-card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .care-card-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .care-card-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .care-card-item .water-icon { color: #42a5f5; }
+        .care-card-item .sun-icon { color: #ffa726; }
+        .care-card-item .temp-icon { color: #ef5350; }
+        .care-card-item .soil-icon { color: #a1887f; }
+
+        /* Progress bar */
+        .care-progress {
+            margin-top: 12px;
+        }
+
+        .care-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .care-progress-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(61, 220, 132, 0.1);
+            overflow: hidden;
+        }
+
+        .care-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--accent), #81c784);
+            transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Welcome screen */
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .welcome-icon {
+            width: 100px;
+            height: 100px;
+            border-radius: 30px;
+            background: linear-gradient(135deg, rgba(61, 220, 132, 0.15), rgba(27, 94, 32, 0.2));
+            border: 1px solid rgba(61, 220, 132, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            margin-bottom: 28px;
+            animation: welcomeFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes welcomeFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .welcome-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #81c784, #3ddc84, #a5d6a7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .welcome-desc {
+            font-size: 15px;
+            color: var(--text-muted);
+            max-width: 480px;
+            line-height: 1.7;
+            margin-bottom: 40px;
+        }
+
+        .welcome-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            max-width: 640px;
+            width: 100%;
+        }
+
+        .welcome-card {
+            padding: 24px 20px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: left;
+        }
+
+        .welcome-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(61, 220, 132, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .welcome-card-icon {
+            font-size: 24px;
+            margin-bottom: 14px;
+            display: block;
+        }
+
+        .welcome-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .welcome-card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Input area */
+        .input-area {
+            padding: 20px 32px 24px;
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            background: rgba(10, 26, 15, 0.8);
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 8px 8px 8px 20px;
+            transition: var(--transition);
+        }
+
+        .input-wrapper:focus-within {
+            border-color: rgba(61, 220, 132, 0.35);
+            box-shadow: 0 0 0 3px rgba(61, 220, 132, 0.08);
+        }
+
+        .input-extras {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding-bottom: 4px;
+        }
+
+        .input-extra-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-size: 14px;
+        }
+
+        .input-extra-btn:hover {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        #chatInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 14.5px;
+            font-family: inherit;
+            line-height: 1.6;
+            resize: none;
+            min-height: 24px;
+            max-height: 120px;
+            padding: 8px 0;
+        }
+
+        #chatInput::placeholder {
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, #2e7d32, #4caf50);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            background: linear-gradient(135deg, #1b5e20, #388e3c);
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(61, 220, 132, 0.3);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .input-hint {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.4;
+            margin-top: 10px;
+        }
+
+        /* Plant encyclopedia panel */
+        .encyclopedia-panel {
+            position: fixed;
+            right: -420px;
+            top: 0;
+            width: 420px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            z-index: 100;
+            transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(20px);
+        }
+
+        .encyclopedia-panel.open {
+            right: 0;
+        }
+
+        .panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-header h3 i {
+            color: var(--accent);
+        }
+
+        .panel-close-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .panel-close-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .panel-search {
+            padding: 16px 24px;
+        }
+
+        .panel-search input {
+            width: 100%;
+            padding: 10px 16px 10px 38px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .panel-search input:focus {
+            border-color: rgba(61, 220, 132, 0.35);
+        }
+
+        .panel-search {
+            position: relative;
+        }
+
+        .panel-search i {
+            position: absolute;
+            left: 38px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .panel-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 24px 24px;
+        }
+
+        .plant-card {
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-card);
+        }
+
+        .plant-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(61, 220, 132, 0.25);
+        }
+
+        .plant-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .plant-emoji {
+            font-size: 28px;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--accent-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .plant-card-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .plant-card-latin {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .plant-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .plant-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(61, 220, 132, 0.08);
+            color: var(--text-muted);
+            border: 1px solid rgba(61, 220, 132, 0.08);
+        }
+
+        .plant-tag.difficulty-easy { background: rgba(61, 220, 132, 0.1); color: #81c784; }
+        .plant-tag.difficulty-medium { background: rgba(255, 167, 38, 0.1); color: #ffa726; }
+        .plant-tag.difficulty-hard { background: rgba(239, 83, 80, 0.1); color: #ef5350; }
+
+        /* Seasonal tips banner */
+        .season-banner {
+            margin: 12px 24px 24px;
+            padding: 18px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(61, 220, 132, 0.08), rgba(27, 94, 32, 0.12));
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .season-banner-icon {
+            font-size: 28px;
+        }
+
+        .season-banner-text h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .season-banner-text p {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 99;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .sidebar {
+                display: none;
+            }
+            .welcome-cards {
+                grid-template-columns: 1fr;
+            }
+            .encyclopedia-panel {
+                width: 100%;
+                right: -100%;
+            }
+        }
+
+        /* Markdown-like formatting in messages */
+        .message-bubble strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .message-bubble ul, .message-bubble ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .message-bubble li {
+            margin: 4px 0;
+            line-height: 1.6;
+        }
+
+        .message-bubble code {
+            background: rgba(61, 220, 132, 0.08);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .message-bubble blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 12px;
+            margin: 10px 0;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background atmosphere -->
+    <div class="bg-atmosphere">
+        <div class="bg-blob"></div>
+        <div class="bg-blob"></div>
+        <div class="bg-blob"></div>
+    </div>
+
+    <!-- Floating leaves -->
+    <div id="leafContainer"></div>
+
+    <!-- Overlay for panel -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- App Container -->
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-seedling"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>GreenMind</h1>
+                        <span>AI Plant Care</span>
+                    </div>
+                </div>
+                <button class="new-chat-btn" onclick="startNewChat()">
+                    <i class="fas fa-plus"></i>
+                    新对话
+                </button>
+            </div>
+
+            <div class="chat-list" id="chatList">
+                <!-- Chat history items -->
+                <div class="chat-item active">
+                    <div class="chat-item-title">
+                        <i class="fas fa-leaf" style="color: var(--accent); font-size: 12px;"></i>
+                        吊兰养护指南
+                        <span class="chat-item-time">刚刚</span>
+                    </div>
+                    <div class="chat-item-preview">了解吊兰的浇水、施肥和光照需求...</div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-item-title">
+                        <i class="fas fa-droplet" style="color: #42a5f5; font-size: 12px;"></i>
+                        多肉植物浇水频率
+                        <span class="chat-item-time">昨天</span>
+                    </div>
+                    <div class="chat-item-preview">多肉多久浇一次水？不同季节...</div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-item-title">
+                        <i class="fas fa-sun" style="color: #ffa726; font-size: 12px;"></i>
+                        室内植物光照不足
+                        <span class="chat-item-time">3天前</span>
+                    </div>
+                    <div class="chat-item-preview">房间光线不好，推荐一些耐阴植物...</div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-item-title">
+                        <i class="fas fa-bug" style="color: #ef5350; font-size: 12px;"></i>
+                        叶片发黄的原因
+                        <span class="chat-item-time">上周</span>
+                    </div>
+                    <div class="chat-item-preview">绿萝叶子变黄了怎么办？...</div>
+                </div>
+            </div>
+
+            <div class="season-banner">
+                <div class="season-banner-icon" id="seasonIcon">🌸</div>
+                <div class="season-banner-text">
+                    <h4 id="seasonTitle">春季养护提醒</h4>
+                    <p id="seasonTip">春季是换盆换土的好时机，注意逐步增加浇水量。</p>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <div class="quick-actions-title">快捷提问</div>
+                <div class="quick-actions-grid">
+                    <button class="quick-action-btn" onclick="quickAsk('如何判断植物是否需要浇水？')">
+                        <i class="fas fa-hand-holding-droplet"></i>
+                        浇水判断
+                    </button>
+                    <button class="quick-action-btn" onclick="quickAsk('推荐适合新手养的室内植物')">
+                        <i class="fas fa-star"></i>
+                        新手推荐
+                    </button>
+                    <button class="quick-action-btn" onclick="quickAsk('室内植物常见病虫害怎么防治？')">
+                        <i class="fas fa-shield-halved"></i>
+                        病虫防治
+                    </button>
+                    <button class="quick-action-btn" onclick="quickAsk('如何自制有机肥料？')">
+                        <i class="fas fa-recycle"></i>
+                        自制肥料
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-bar">
+                <div class="top-bar-left">
+                    <span class="top-bar-title">吊兰养护指南</span>
+                    <span class="top-bar-badge"><i class="fas fa-circle" style="font-size: 6px; margin-right: 4px;"></i>在线</span>
+                </div>
+                <div class="top-bar-right">
+                    <button class="top-bar-btn" title="植物百科" onclick="toggleEncyclopedia()">
+                        <i class="fas fa-book-open"></i>
+                    </button>
+                    <button class="top-bar-btn" title="养护日历">
+                        <i class="fas fa-calendar-days"></i>
+                    </button>
+                    <button class="top-bar-btn" title="设置">
+                        <i class="fas fa-gear"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat area -->
+            <div class="chat-area" id="chatArea">
+                <!-- AI Welcome -->
+                <div class="message ai">
+                    <div class="message-avatar"><i class="fas fa-seedling" style="color: white;"></i></div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            你好！我是 <strong>GreenMind</strong>，你的 AI 绿植养护助手 🌿<br><br>
+                            我可以帮你：
+                            <ul>
+                                <li>了解各种植物的养护方法</li>
+                                <li>诊断植物健康问题</li>
+                                <li>制定浇水、施肥计划</li>
+                                <li>推荐适合你环境的绿植</li>
+                            </ul>
+                            有任何关于花草养护的问题，随时问我吧！
+                        </div>
+                        <div class="message-time">今天 14:30</div>
+                    </div>
+                </div>
+
+                <!-- User message -->
+                <div class="message user">
+                    <div class="message-avatar"><i class="fas fa-user" style="color: white;"></i></div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            吊兰应该怎么养护？多久浇一次水？需要施肥吗？
+                        </div>
+                        <div class="message-time">今天 14:31</div>
+                    </div>
+                </div>
+
+                <!-- AI Response with care card -->
+                <div class="message ai">
+                    <div class="message-avatar"><i class="fas fa-seedling" style="color: white;"></i></div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            <strong>吊兰（Spider Plant）</strong>是非常适合新手的室内绿植，净化空气能力也很强！以下是详细的养护指南：
+                            <br><br>
+                            <strong>💧 浇水要点：</strong>
+                            <ul>
+                                <li>春夏季：每周 2-3 次，保持土壤微湿</li>
+                                <li>秋冬季：每周 1 次即可，偏干养护更安全</li>
+                                <li>切记：吊兰怕积水，盆底不要有积水残留</li>
+                                <li>小技巧：用手掂量花盆，变轻了再浇水</li>
+                            </ul>
+                            <strong>🌱 施肥建议：</strong>
+                            <ul>
+                                <li>生长季（4-9月）：每半月施一次稀薄液肥</li>
+                                <li>推荐使用氮磷钾均衡的复合肥（15-15-15）</li>
+                                <li>秋冬季停止施肥，让植株休眠</li>
+                            </ul>
+
+                            <div class="care-card">
+                                <div class="care-card-title">
+                                    <i class="fas fa-clipboard-list"></i>
+                                    吊兰养护参数卡
+                                </div>
+                                <div class="care-card-grid">
+                                    <div class="care-card-item">
+                                        <i class="fas fa-droplet water-icon"></i>
+                                        <span>浇水：中等需求</span>
+                                    </div>
+                                    <div class="care-card-item">
+                                        <i class="fas fa-sun sun-icon"></i>
+                                        <span>光照：散射光/半阴</span>
+                                    </div>
+                                    <div class="care-card-item">
+                                        <i class="fas fa-temperature-half temp-icon"></i>
+                                        <span>温度：15-25°C</span>
+                                    </div>
+                                    <div class="care-card-item">
+                                        <i class="fas fa-mountain soil-icon"></i>
+                                        <span>土壤：疏松透气</span>
+                                    </div>
+                                </div>
+                                <div class="care-progress">
+                                    <div class="care-progress-label">
+                                        <span>养护难度</span>
+                                        <span>25 / 100 (非常容易)</span>
+                                    </div>
+                                    <div class="care-progress-bar">
+                                        <div class="care-progress-fill" style="width: 25%"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <blockquote>💡 吊兰叶尖发黄通常是空气太干或浇水过多导致，可以多喷水增加湿度，或检查排水情况。</blockquote>
+                        </div>
+                        <div class="message-time">今天 14:32</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input area -->
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <div class="input-extras">
+                        <button class="input-extra-btn" title="上传植物照片">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <button class="input-extra-btn" title="语音输入" onclick="toggleVoice()">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                    </div>
+                    <textarea id="chatInput" rows="1" placeholder="描述你的植物问题，或询问养护建议..." onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="input-hint">GreenMind AI 助手 · 回答仅供参考，请结合实际情况综合判断</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Encyclopedia Panel -->
+    <div class="encyclopedia-panel" id="encyclopediaPanel">
+        <div class="panel-header">
+            <h3><i class="fas fa-book-open"></i> 绿植百科全书</h3>
+            <button class="panel-close-btn" onclick="toggleEncyclopedia()">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+        <div class="panel-search">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="搜索植物名称..." id="plantSearch" oninput="filterPlants()">
+        </div>
+        <div class="panel-list" id="plantList">
+            <!-- Plant cards will be generated by JS -->
+        </div>
+    </div>
+
+    <script>
+        // ==================== Plant Database ====================
+        const plantDatabase = [
+            {
+                name: '绿萝', latin: 'Epipremnum aureum', emoji: '🌿',
+                tags: ['新手友好', '耐阴', '净化空气'],
+                difficulty: 'easy',
+                water: '每周1-2次', light: '散射光/耐阴', temp: '10-30°C', desc: '最经典的室内绿植之一'
+            },
+            {
+                name: '吊兰', latin: 'Chlorophytum comosum', emoji: '🌱',
+                tags: ['新手友好', '空气清新', '繁殖力强'],
+                difficulty: 'easy',
+                water: '每周2-3次', light: '明亮的散射光', temp: '15-25°C', desc: '净化空气能力极强的经典绿植'
+            },
+            {
+                name: '多肉植物', latin: 'Succulents', emoji: '🌵',
+                tags: ['少浇水', '喜阳', '品种丰富'],
+                difficulty: 'easy',
+                water: '每1-2周一次', light: '充足阳光', temp: '10-28°C', desc: '懒人植物首选，品种多样'
+            },
+            {
+                name: '龟背竹', latin: 'Monstera deliciosa', emoji: '🪴',
+                tags: ['网红植物', '观叶', '大型绿植'],
+                difficulty: 'medium',
+                water: '每周1-2次', light: '明亮的间接光', temp: '18-30°C', desc: '热带风情网红绿植'
+            },
+            {
+                name: '仙人掌', latin: 'Cactaceae', emoji: '🫧',
+                tags: ['极耐旱', '喜阳', '不挑土壤'],
+                difficulty: 'easy',
+                water: '每月2-3次', light: '充足直射光', temp: '15-35°C', desc: '最适合忙碌人群的植物'
+            },
+            {
+                name: '琴叶榕', latin: 'Ficus lyrata', emoji: '🌳',
+                tags: ['造型优美', '中大形', '喜温暖'],
+                difficulty: 'medium',
+                water: '土壤干透再浇', light: '明亮间接光', temp: '18-27°C', desc: '家居美学搭配首选'
+            },
+            {
+                name: '薄荷', latin: 'Mentha', emoji: '🍃',
+                tags: ['可食用', '驱虫', '生长快'],
+                difficulty: 'easy',
+                water: '保持土壤湿润', light: '充足光照', temp: '15-28°C', desc: '阳台香草花园必备'
+            },
+            {
+                name: '兰花', latin: 'Orchidaceae', emoji: '🌸',
+                tags: ['高雅', '开花', '送礼佳品'],
+                difficulty: 'hard',
+                water: '每5-7天一次', light: '明亮散射光', temp: '18-28°C', desc: '优雅高贵的开花植物'
+            },
+            {
+                name: '文竹', latin: 'Asparagus setaceus', emoji: '🎋',
+                tags: ['文雅', '桌面植物', '怕强光'],
+                difficulty: 'medium',
+                water: '保持盆土微润', light: '散射光/半阴', temp: '15-25°C', desc: '书房摆设雅趣之选'
+            },
+            {
+                name: '虎皮兰', latin: 'Sansevieria', emoji: '🗡️',
+                tags: ['净化空气', '耐阴', '极好养'],
+                difficulty: 'easy',
+                water: '每2-3周一次', light: '耐阴至散射光', temp: '15-30°C', desc: '夜间释放氧气的理想卧室植物'
+            },
+            {
+                name: '发财树', latin: 'Pachira aquatica', emoji: '💰',
+                tags: ['寓意好', '耐阴', '办公室植物'],
+                difficulty: 'medium',
+                water: '每月2-3次', light: '明亮散射光', temp: '18-30°C', desc: '寓意财源滚滚的热门绿植'
+            },
+            {
+                name: '芦荟', latin: 'Aloe vera', emoji: '💚',
+                tags: ['药用', '多肉', '净化空气'],
+                difficulty: 'easy',
+                water: '每2周一次', light: '充足阳光', temp: '15-35°C', desc: '居家必备的多功能植物'
+            }
+        ];
+
+        // ==================== Chat Knowledge Base ====================
+        const knowledgeBase = {
+            '浇水': {
+                response: `关于<strong>浇水</strong>，这里有系统的养护建议：<br><br>
+                    <strong>💧 通用浇水原则：</strong>
+                    <ul>
+                        <li><strong>见干见湿</strong>：等土壤表面2-3cm干了再浇，浇则浇透</li>
+                        <li><strong>宁干勿湿</strong>：多数室内植物死于浇水过多而非不足</li>
+                        <li><strong>水质选择</strong>：最好用室温水，自来水晾晒1天后使用</li>
+                        <li><strong>浇水时间</strong>：春夏宜在早晨浇，秋冬宜在中午浇</li>
+                    </ul>
+                    <strong>🔍 判断是否需要浇水的方法：</strong>
+                    <ul>
+                        <li><strong>手指测试法</strong>：将手指插入土中2-3cm，感觉干燥就需要浇水</li>
+                        <li><strong>筷子测试法</strong>：插入土中拔出，筷子干燥则需浇水</li>
+                        <li><strong>掂量法</strong>：抱起花盆掂量，明显变轻说明缺水</li>
+                        <li><strong>观察法</strong>：叶片下垂、失去光泽通常是缺水信号</li>
+                    </ul>
+                    <blockquote>⚠️ 不同植物的需水量差异很大，仙人掌类每月1-2次，蕨类则需要保持常湿润。建议针对具体植物询问哦！</blockquote>`
+            },
+            '施肥': {
+                response: `关于<strong>施肥</strong>，以下是一份实用指南：<br><br>
+                    <strong>🌱 基本施肥原则：</strong>
+                    <ul>
+                        <li><strong>薄肥勤施</strong>：浓度宁可低一些，频率高一些</li>
+                        <li><strong>生长期施，休眠期停</strong>：春夏（4-9月）是主要施肥期</li>
+                        <li><strong>新购/换盆植物</strong>：1个月内不要施肥，让根系先适应</li>
+                        <li><strong>宁缺勿滥</strong>：施肥过多比不足更危险</li>
+                    </ul>
+                    <strong> fertilizer 种类选择：</strong>
+                    <ul>
+                        <li><strong>观叶植物</strong>：以氮肥为主，促进叶片生长</li>
+                        <li><strong>观花植物</strong>：开花前多用磷钾肥，促进花芽分化</li>
+                        <li><strong>多肉植物</strong>：使用多肉专用肥，稀释比例更高</li>
+                        <li><strong>有机肥</strong>：腐熟堆肥、蚯蚓粪肥是温和且安全的选择</li>
+                    </ul>
+                    <strong>🕐 施肥频率参考：</strong>
+                    <ul>
+                        <li>液态肥：生长期每 2-3 周一次</li>
+                        <li>缓释肥：每 3-6 个月施一次</li>
+                        <li>冬季（11月-3月）：一般停止施肥</li>
+                    </ul>
+                    <blockquote>💡 自制堆肥茶是很好的有机肥料：将厨余果皮密封发酵1-2个月，兑水1:20浇灌。</blockquote>`
+            },
+            '新手': {
+                response: `给<strong>植物新手</strong>的入门推荐，这些都是公认最易养活的绿色伙伴：<br><br>
+                    <strong>🏆 新手必备 TOP 5：</strong>
+                    <ul>
+                        <li><strong>1. 虎皮兰</strong> 🗡️ — 极耐旱耐阴，一个月不管它就能活，还能在夜间释放氧气，放卧室最佳</li>
+                        <li><strong>2. 绿萝</strong> 🌿 — 生命力超强，水培土培都能活，繁殖只需剪枝插水</li>
+                        <li><strong>3. 多肉植物</strong> 🌵 — 品种丰富颜值高，浇水频率低，长得慢不需要频繁照顾</li>
+                        <li><strong>4. 芦荟</strong> 💚 — 耐旱好养，还能用来急救皮肤，兼具实用和装饰功能</li>
+                        <li><strong>5. 吊兰</strong> 🌱 — 繁殖力超强，净化空气能力名列前茅，对新居入伙也是好寓意</li>
+                    </ul>
+                    <div class="care-card">
+                        <div class="care-card-title"><i class="fas fa-lightbulb"></i> 新手黄金法则</div>
+                        <div class="care-card-grid">
+                            <div class="care-card-item"><i class="fas fa-ban" style="color:#ef5350"></i><span>不要频繁浇水</span></div>
+                            <div class="care-card-item"><i class="fas fa-sun" style="color:#ffa726"></i><span>了解光照需求</span></div>
+                            <div class="care-card-item"><i class="fas fa-wind" style="color:#81c784"></i><span>保证通风良好</span></div>
+                            <div class="care-card-item"><i class="fas fa-eye" style="color:#42a5f5"></i><span>每天观察植物</span></div>
+                        </div>
+                    </div>
+                    <blockquote>🌱 记住：养死几棵植物完全正常，每一个植物达人都是从"植物杀手"进化来的！</blockquote>`
+            },
+            '病虫害': {
+                response: `关于<strong>病虫害防治</strong>，这里为你整理了常见问题和解决方案：<br><br>
+                    <strong>🐛 常见害虫及处理：</strong>
+                    <ul>
+                        <li><strong>蚜虫</strong>：喷洒稀释肥皂水，或用棉签蘸酒精擦拭</li>
+                        <li><strong>红蜘蛛</strong>：增加空气湿度，严重时用苦楝油喷洒</li>
+                        <li><strong>介壳虫</strong>：用软毛刷蘸酒精刷除，隔离受感染植株</li>
+                        <li><strong>小黑飞</strong>：减少浇水频率，土表面铺一层石英砂，放置黄色粘虫板</li>
+                    </ul>
+                    <strong>🦠 常见病害及处理：</strong>
+                    <ul>
+                        <li><strong>白粉病</strong>：改善通风，喷洒小苏打水（1L水+5g小苏打）</li>
+                        <li><strong>根腐病</strong>：停止浇水，取出植株修剪烂根，换新土重新种植</li>
+                        <li><strong>灰霉病</strong>：去除感染部位，改善通风，避免叶面长时间潮湿</li>
+                    </ul>
+                    <strong>🛡️ 预防措施：</strong>
+                    <ul>
+                        <li>新购植物先隔离观察 1-2 周</li>
+                        <li>定期检查叶片正反面</li>
+                        <li>保持适当的株距和通风</li>
+                        <li>避免叶面长期积水</li>
+                    </ul>
+                    <blockquote>🌿 推荐使用生物防治方法：引入瓢虫防控蚜虫，使用印楝油作为天然杀虫剂。</blockquote>`
+            },
+            '自制肥料': {
+                response: `以下是几种简单实用的<strong>自制有机肥料</strong>方法：<br><br>
+                    <strong>🍌 厨余堆肥（全能型）：</strong>
+                    <ul>
+                        <li>收集果皮菜叶（避免葱蒜、肉类），剪碎放入容器</li>
+                        <li>加一层土壤，喷少量水保持微湿</li>
+                        <li>密封发酵 1-2 个月，兑水 1:20 使用</li>
+                    </ul>
+                    <strong>☕ 咖啡渣肥料（喜酸性植物专用）：</strong>
+                    <ul>
+                        <li>收集咖啡渣晾干，拌入土壤或铺在盆面</li>
+                        <li>适合：蓝莓、杜鹃花、栀子花等喜酸植物</li>
+                        <li>还能改善土壤透气性和排水性</li>
+                    </ul>
+                    <strong>🥚 蛋壳钙肥（促根壮苗）：</strong>
+                    <ul>
+                        <li>蛋壳洗净晒干，碾碎成粉末</li>
+                        <li>混入土壤或撒在盆面，缓慢释放钙质</li>
+                        <li>有助于防止番茄等作物的脐腐病</li>
+                    </ul>
+                    <strong>🐟 鱼缸水 / 淘米水（温和液肥）：</strong>
+                    <ul>
+                        <li>鱼缸换水直接浇花，含有丰富的氮磷</li>
+                        <li>淘米水发酵 3-5 天后兑水使用，营养丰富且温和</li>
+                    </ul>
+                    <blockquote>⚠️ 所有自制肥料都需充分发酵腐熟后再使用，直接使用可能导致烧根和异味。</blockquote>`
+            },
+            '发黄': {
+                response: `<strong>植物叶片发黄</strong>是常见问题，原因多样，需逐一排查：<br><br>
+                    <strong>🔍 诊断清单：</strong>
+                    <ul>
+                        <li><strong>浇水过多</strong>（最常见）→ 叶片整体变黄、发软、下垂。解决：减少浇水，检查排水。</li>
+                        <li><strong>浇水不足</strong> → 叶尖和边缘先干枯变黄。解决：增加浇水频率。</li>
+                        <li><strong>光照不当</strong> → 阳光灼伤呈斑块状发黄；光照不足则叶片整体褪绿。解决：调整位置。</li>
+                        <li><strong>营养缺乏</strong> → 缺氮：老叶先黄；缺铁：新叶发黄但叶脉仍绿。解决：针对性施肥。</li>
+                        <li><strong>温度过低</strong> → 叶缘发黄后变褐。解决：移至温暖处，避免冷风吹。</li>
+                        <li><strong>自然老化</strong> → 底部少量老叶偶尔变黄脱落属于正常现象。</li>
+                    </ul>
+                    <div class="care-card">
+                        <div class="care-card-title"><i class="fas fa-stethoscope"></i> 快速诊断表</div>
+                        <div class="care-card-grid">
+                            <div class="care-card-item"><i class="fas fa-water" style="color:#42a5f5"></i><span>整体发软 → 水多</span></div>
+                            <div class="care-card-item"><i class="fas fa-fire" style="color:#ef5350"></i><span>叶尖焦黄 → 缺水/阳光</span></div>
+                            <div class="care-card-item"><i class="fas fa-vial" style="color:#ab47bc"></i><span>新叶黄 → 缺铁</span></div>
+                            <div class="care-card-item"><i class="fas fa-leaf" style="color:#a1887f"></i><span>老叶黄 → 缺氮</span></div>
+                        </div>
+                    </div>
+                    <blockquote>💡 如果能告诉我具体是什么植物的什么部位发黄，我可以给出更精准的诊断！</blockquote>`
+            }
+        };
+
+        // ==================== General fallback responses ====================
+        const fallbackResponses = [
+            `这是一个很好的问题！让我为你分析一下：<br><br>
+            根据你的描述，我建议你先确认以下几点：
+            <ul>
+                <li>观察植物叶片的状态：是否有斑点、发黄、萎蔫等异常</li>
+                <li>检查土壤湿度：表土下 2-3cm 是否干燥</li>
+                <li>确认光照环境：是否有充足的散射光</li>
+                <li>回想最近的养护操作：是否最近换盆、施肥或移动了位置</li>
+            </ul>
+            <br>如果能提供更多细节（植物名称、具体症状、养护环境），我可以给出更精准的建议！你也可以问我关于<strong>浇水</strong>、<strong>施肥</strong>、<strong>病虫害</strong>等方面的具体问题。`,
+
+            `关于这个问题，我有以下几点建议：<br><br>
+            每种植物都有自己的"个性"，养护方法会有所不同。一般而言：
+            <ul>
+                <li><strong>浇水</strong>：遵循"见干见湿"原则</li>
+                <li><strong>光照</strong>：大多数室内植物喜欢明亮的散射光</li>
+                <li><strong>通风</strong>：良好的空气流通可以预防大部分病害</li>
+                <li><strong>观察</strong>：每天花 1 分钟看看你的植物，及时发现问题</li>
+            </ul>
+            <br>你可以试试问我：<br>
+            · <em>"如何判断植物是否需要浇水？"</em><br>
+            · <em>"推荐适合新手养的植物"</em><br>
+            · <em>"叶片发黄是什么原因？"</em>`,
+
+            `感谢你的提问！🌿<br><br>
+            养护植物是一门需要耐心的学问。我的建议是：
+            <ul>
+                <li>先了解你的植物原产地气候环境，尽量模拟</li>
+                <li>不要过度呵护——大多数植物死于溺爱而非忽视</li>
+                <li>建立养护日志，记录浇水、施肥时间</li>
+                <li>加入植物爱好者社区，交流经验很有帮助</li>
+            </ul>
+            <br>如果你有具体的植物养护问题，随时告诉我，我很乐意帮忙！`
+        ];
+
+        // ==================== Initialize ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            createLeafParticles();
+            renderPlantList();
+            updateSeasonBanner();
+            scrollToBottom();
+        });
+
+        // ==================== Floating Leaves ====================
+        function createLeafParticles() {
+            const container = document.getElementById('leafContainer');
+            const leaves = ['🍃', '🌿', '🍀', '🌱', '☘️'];
+            for (let i = 0; i < 8; i++) {
+                const leaf = document.createElement('div');
+                leaf.className = 'leaf-particle';
+                leaf.textContent = leaves[Math.floor(Math.random() * leaves.length)];
+                leaf.style.left = Math.random() * 100 + '%';
+                leaf.style.animationDuration = (15 + Math.random() * 20) + 's';
+                leaf.style.animationDelay = Math.random() * 20 + 's';
+                leaf.style.fontSize = (14 + Math.random() * 12) + 'px';
+                container.appendChild(leaf);
+            }
+        }
+
+        // ==================== Season Banner ====================
+        function updateSeasonBanner() {
+            const month = new Date().getMonth() + 1;
+            const seasonEl = document.getElementById('seasonIcon');
+            const titleEl = document.getElementById('seasonTitle');
+            const tipEl = document.getElementById('seasonTip');
+
+            if (month >= 3 && month <= 5) {
+                seasonEl.textContent = '🌸';
+                titleEl.textContent = '春季养护提醒';
+                tipEl.textContent = '春季是换盆换土的好时机，逐步增加浇水量，开始施用氮肥促生长。';
+            } else if (month >= 6 && month <= 8) {
+                seasonEl.textContent = '☀️';
+                titleEl.textContent = '夏季养护提醒';
+                tipEl.textContent = '注意遮阴降温，早晚浇水避免高温时段，保持通风防病虫害。';
+            } else if (month >= 9 && month <= 11) {
+                seasonEl.textContent = '🍂';
+                titleEl.textContent = '秋季养护提醒';
+                tipEl.textContent = '减少浇水频率，停止施肥，为入冬做准备，可适当修剪。';
+            } else {
+                seasonEl.textContent = '❄️';
+                titleEl.textContent = '冬季养护提醒';
+                tipEl.textContent = '注意保暖防冻，减少浇水，停止施肥，确保植物有充足光照。';
+            }
+        }
+
+        // ==================== Message Handling ====================
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            // Hide welcome screen if exists
+            const welcome = document.querySelector('.welcome-screen');
+            if (welcome) welcome.remove();
+
+            // Add user message
+            addMessage(text, 'user');
+            input.value = '';
+            autoResize(input);
+
+            // Show typing indicator
+            showTyping();
+
+            // Generate AI response after delay
+            setTimeout(() => {
+                removeTyping();
+                const response = generateResponse(text);
+                addMessage(response, 'ai');
+            }, 1200 + Math.random() * 800);
+        }
+
+        function addMessage(content, type) {
+            const chatArea = document.getElementById('chatArea');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+            const avatarIcon = type === 'ai' ? 'fa-seedling' : 'fa-user';
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.innerHTML = `
+                <div class="message-avatar"><i class="fas ${avatarIcon}" style="color: white;"></i></div>
+                <div class="message-content">
+                    <div class="message-bubble">${type === 'ai' ? content : escapeHtml(content)}</div>
+                    <div class="message-time">今天 ${time}</div>
+                </div>
+            `;
+            chatArea.appendChild(msg);
+            scrollToBottom();
+        }
+
+        function showTyping() {
+            const chatArea = document.getElementById('chatArea');
+            const typing = document.createElement('div');
+            typing.className = 'message ai';
+            typing.id = 'typingIndicator';
+            typing.innerHTML = `
+                <div class="message-avatar"><i class="fas fa-seedling" style="color: white;"></i></div>
+                <div class="message-content">
+                    <div class="message-bubble">
+                        <div class="typing-indicator">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatArea.appendChild(typing);
+            scrollToBottom();
+        }
+
+        function removeTyping() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+        }
+
+        function generateResponse(query) {
+            // Check knowledge base keywords
+            for (const [keyword, data] of Object.entries(knowledgeBase)) {
+                if (query.includes(keyword)) {
+                    return data.response;
+                }
+            }
+
+            // Check plant database
+            const plant = plantDatabase.find(p => query.includes(p.name));
+            if (plant) {
+                return generatePlantResponse(plant);
+            }
+
+            // Fallback
+            return fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+        }
+
+        function generatePlantResponse(plant) {
+            return `<strong>${plant.emoji} ${plant.name}（${plant.latin}）</strong><br><span style="color: var(--text-muted); font-style: italic;">${plant.desc}</span>
+                <div class="care-card">
+                    <div class="care-card-title"><i class="fas fa-clipboard-list"></i> ${plant.name} 养护参数卡</div>
+                    <div class="care-card-grid">
+                        <div class="care-card-item"><i class="fas fa-droplet water-icon"></i><span>浇水：${plant.water}</span></div>
+                        <div class="care-card-item"><i class="fas fa-sun sun-icon"></i><span>光照：${plant.light}</span></div>
+                        <div class="care-card-item"><i class="fas fa-temperature-half temp-icon"></i><span>温度：${plant.temp}</span></div>
+                    </div>
+                    <div class="care-card-tags" style="margin-top: 10px;">
+                        ${plant.tags.map(t => `<span class="plant-tag">${t}</span>`).join('')}
+                    </div>
+                    <div class="care-progress" style="margin-top: 12px;">
+                        <div class="care-progress-label">
+                            <span>养护难度</span>
+                            <span>${plant.difficulty === 'easy' ? '简单' : plant.difficulty === 'medium' ? '中等' : '较难'}</span>
+                        </div>
+                        <div class="care-progress-bar">
+                            <div class="care-progress-fill" style="width: ${plant.difficulty === 'easy' ? '25' : plant.difficulty === 'medium' ? '55' : '80'}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <br>你还想了解关于 ${plant.name} 的哪些方面呢？比如浇水技巧、施肥方案、繁殖方法等。`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+
+        function scrollToBottom() {
+            const chatArea = document.getElementById('chatArea');
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // ==================== Quick Actions ====================
+        function quickAsk(question) {
+            const input = document.getElementById('chatInput');
+            input.value = question;
+            sendMessage();
+        }
+
+        function startNewChat() {
+            const chatArea = document.getElementById('chatArea');
+            chatArea.innerHTML = `
+                <div class="welcome-screen">
+                    <div class="welcome-icon">🌿</div>
+                    <div class="welcome-title">GreenMind</div>
+                    <div class="welcome-desc">你的 AI 绿植养护助手，随时为你解答关于花草浇水、施肥、病虫害防治等养护问题。</div>
+                    <div class="welcome-cards">
+                        <div class="welcome-card" onclick="quickAsk('如何判断植物是否需要浇水？')">
+                            <span class="welcome-card-icon">💧</span>
+                            <div class="welcome-card-title">浇水指南</div>
+                            <div class="welcome-card-desc">学习正确的浇水方法和频率</div>
+                        </div>
+                        <div class="welcome-card" onclick="quickAsk('推荐适合新手养的室内植物')">
+                            <span class="welcome-card-icon">🌱</span>
+                            <div class="welcome-card-title">新手植物推荐</div>
+                            <div class="welcome-card-desc">最易养活的室内绿植精选</div>
+                        </div>
+                        <div class="welcome-card" onclick="quickAsk('我的植物叶片发黄了怎么办？')">
+                            <span class="welcome-card-icon">🔬</span>
+                            <div class="welcome-card-title">问题诊断</div>
+                            <div class="welcome-card-desc">常见植物问题排查与解决</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.querySelector('.top-bar-title').textContent = '新对话';
+
+            // Update sidebar
+            document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
+        }
+
+        // ==================== Encyclopedia Panel ====================
+        function toggleEncyclopedia() {
+            const panel = document.getElementById('encyclopediaPanel');
+            const overlay = document.getElementById('overlay');
+            const isOpen = panel.classList.contains('open');
+
+            panel.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        document.getElementById('overlay').addEventListener('click', toggleEncyclopedia);
+
+        function renderPlantList(filter = '') {
+            const list = document.getElementById('plantList');
+            const filtered = filter
+                ? plantDatabase.filter(p => p.name.includes(filter) || p.latin.toLowerCase().includes(filter.toLowerCase()))
+                : plantDatabase;
+
+            list.innerHTML = filtered.map(plant => `
+                <div class="plant-card" onclick="askAboutPlant('${plant.name}')">
+                    <div class="plant-card-header">
+                        <div class="plant-emoji">${plant.emoji}</div>
+                        <div>
+                            <div class="plant-card-name">${plant.name}</div>
+                            <div class="plant-card-latin">${plant.latin}</div>
+                        </div>
+                    </div>
+                    <div class="plant-card-tags">
+                        ${plant.tags.map(t => `<span class="plant-tag">${t}</span>`).join('')}
+                        <span class="plant-tag difficulty-${plant.difficulty}">
+                            ${plant.difficulty === 'easy' ? '★ 容易' : plant.difficulty === 'medium' ? '★★ 中等' : '★★★ 较难'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterPlants() {
+            const query = document.getElementById('plantSearch').value.trim();
+            renderPlantList(query);
+        }
+
+        function askAboutPlant(name) {
+            toggleEncyclopedia();
+            const input = document.getElementById('chatInput');
+            input.value = `${name}应该怎么养护？`;
+            setTimeout(() => sendMessage(), 400);
+        }
+
+        // ==================== Voice Input ====================
+        let isRecording = false;
+
+        function toggleVoice() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('你的浏览器不支持语音识别功能');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.interimResults = false;
+
+            const btn = document.querySelector('.fa-microphone').parentElement;
+
+            if (!isRecording) {
+                isRecording = true;
+                btn.style.color = '#ef5350';
+                btn.innerHTML = '<i class="fas fa-microphone-lines" style="animation: pulse 1s infinite;"></i>';
+                recognition.start();
+            }
+
+            recognition.onresult = (e) => {
+                const text = e.results[0][0].transcript;
+                document.getElementById('chatInput').value = text;
+                isRecording = false;
+                btn.style.color = '';
+                btn.innerHTML = '<i class="fas fa-microphone"></i>';
+            };
+
+            recognition.onerror = () => {
+                isRecording = false;
+                btn.style.color = '';
+                btn.innerHTML = '<i class="fas fa-microphone"></i>';
+            };
+
+            recognition.onend = () => {
+                if (isRecording) {
+                    isRecording = false;
+                    btn.style.color = '';
+                    btn.innerHTML = '<i class="fas fa-microphone"></i>';
+                }
+            };
+        }
+
+        // Sidebar chat item click
+        document.querySelectorAll('.chat-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+                const title = this.querySelector('.chat-item-title').textContent.trim().replace(/刚刚|昨天|天前|上周/, '').trim();
+                document.querySelector('.top-bar-title').textContent = title;
+            });
+        });
+    </script>
+</body>
+</html>
