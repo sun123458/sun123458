@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>3D 产品展示 AR</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    background: #000;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* AR camera background */
+  #camera-video {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    transform: scaleX(-1);
+  }
+
+  /* Fallback background when no camera */
+  .ar-grid-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse at 50% 30%, rgba(56, 189, 248, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 20% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+      linear-gradient(180deg, #0a0a1a 0%, #111827 100%);
+    display: none;
+  }
+  .ar-grid-bg.show { display: block; }
+  .ar-grid-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridMove 20s linear infinite;
+  }
+  @keyframes gridMove {
+    0% { transform: perspective(500px) rotateX(60deg) translateY(0); opacity: 0.5; }
+    100% { transform: perspective(500px) rotateX(60deg) translateY(40px); opacity: 0.5; }
+  }
+
+  /* Three.js canvas */
+  #canvas-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+  }
+  #canvas-container canvas { display: block; }
+
+  /* AR scan frame */
+  .ar-frame {
+    position: fixed;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .ar-frame-corner {
+    position: fixed;
+    width: 40px; height: 40px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .ar-frame-corner.tl { top: 60px; left: 20px; border-top: 3px solid rgba(56,189,248,0.7); border-left: 3px solid rgba(56,189,248,0.7); border-radius: 8px 0 0 0; }
+  .ar-frame-corner.tr { top: 60px; right: 20px; border-top: 3px solid rgba(56,189,248,0.7); border-right: 3px solid rgba(56,189,248,0.7); border-radius: 0 8px 0 0; }
+  .ar-frame-corner.bl { bottom: 100px; left: 20px; border-bottom: 3px solid rgba(56,189,248,0.7); border-left: 3px solid rgba(56,189,248,0.7); border-radius: 0 0 0 8px; }
+  .ar-frame-corner.br { bottom: 100px; right: 20px; border-bottom: 3px solid rgba(56,189,248,0.7); border-right: 3px solid rgba(56,189,248,0.7); border-radius: 0 0 8px 0; }
+
+  /* HUD top bar */
+  .hud-top {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    padding: 16px 20px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+    pointer-events: none;
+  }
+  .ar-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(56,189,248,0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    pointer-events: auto;
+  }
+  .ar-badge .dot {
+    width: 8px; height: 8px;
+    background: #38bdf8;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .ar-badge .dot.inactive { background: #ef4444; }
+  .ar-badge span { color: #e2e8f0; font-size: 13px; font-weight: 500; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+  .hud-actions { display: flex; gap: 10px; pointer-events: auto; }
+  .hud-btn {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #e2e8f0;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .hud-btn:active { transform: scale(0.92); background: rgba(56,189,248,0.2); }
+
+  /* Bottom product card */
+  .product-card {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 10;
+    padding: 0 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    transform: translateY(0);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .product-card.hidden { transform: translateY(110%); }
+  .card-inner {
+    background: rgba(10, 15, 30, 0.85);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 24px;
+    padding: 20px 24px;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 4px;
+    margin-bottom: 10px;
+  }
+  .card-handle {
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .card-tag {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .card-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 6px;
+  }
+  .card-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+  .card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .card-price {
+    font-size: 24px;
+    font-weight: 800;
+    color: #f1f5f9;
+  }
+  .card-price .currency { font-size: 14px; color: #38bdf8; }
+  .pour-btn {
+    flex-shrink: 0;
+    padding: 12px 28px;
+    border-radius: 16px;
+    border: none;
+    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(56, 189, 248, 0.3);
+    letter-spacing: 1px;
+  }
+  .pour-btn:active { transform: scale(0.95); }
+  .pour-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Interaction hints */
+  .hint {
+    position: fixed;
+    z-index: 10;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 200px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #cbd5e1;
+    font-size: 13px;
+    padding: 8px 20px;
+    border-radius: 20px;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.5s;
+    white-space: nowrap;
+  }
+  .hint.fade { opacity: 0; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    z-index: 100;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: #f1f5f9;
+    padding: 16px 32px;
+    border-radius: 16px;
+    border: 1px solid rgba(56,189,248,0.3);
+    font-size: 15px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  /* Loading overlay */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: #0a0a1a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.6s;
+  }
+  .loading-overlay.done { opacity: 0; pointer-events: none; }
+  .loading-spinner {
+    width: 48px; height: 48px;
+    border: 3px solid rgba(56,189,248,0.15);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text {
+    color: #94a3b8;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+
+  /* Light shaft particles */
+  .light-particle {
+    position: fixed;
+    width: 2px; height: 2px;
+    background: rgba(56,189,248,0.6);
+    border-radius: 50%;
+    z-index: 1;
+    pointer-events: none;
+    animation: floatUp 6s linear infinite;
+  }
+  @keyframes floatUp {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-100vh) scale(0); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Camera background -->
+<video id="camera-video" autoplay playsinline muted></video>
+<div class="ar-grid-bg" id="grid-bg"></div>
+
+<!-- Three.js -->
+<div id="canvas-container"></div>
+
+<!-- AR frame corners -->
+<div class="ar-frame-corner tl"></div>
+<div class="ar-frame-corner tr"></div>
+<div class="ar-frame-corner bl"></div>
+<div class="ar-frame-corner br"></div>
+
+<!-- HUD top bar -->
+<div class="hud-top">
+  <div class="ar-badge">
+    <div class="dot" id="ar-dot"></div>
+    <span id="ar-status">AR 模式</span>
+  </div>
+  <div class="hud-actions">
+    <button class="hud-btn" id="btn-reset" title="重置视角">&#8634;</button>
+    <button class="hud-btn" id="btn-camera" title="切换摄像头">&#128247;</button>
+  </div>
+</div>
+
+<!-- Hint -->
+<div class="hint" id="hint">双指缩放 / 单指旋转 / 点击水杯触发倒水</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Product card -->
+<div class="product-card" id="product-card">
+  <div class="card-inner">
+    <div class="card-handle"></div>
+    <div class="card-header">
+      <span class="card-tag">智能水杯</span>
+    </div>
+    <div class="card-title">AeroCrystal 温感随行杯</div>
+    <div class="card-desc">航空级钛合金内胆 · 智能温感显示 · 360ml 轻量设计</div>
+    <div class="card-row">
+      <div class="card-price"><span class="currency">¥</span>299</div>
+      <button class="pour-btn" id="btn-pour">倒水演示</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">加载 3D 场景...</div>
+</div>
+
+<!-- Three.js via import map -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ===== 常量 =====
+const EPS = 0.0001;
+
+// ===== DOM 元素 =====
+const container = document.getElementById('canvas-container');
+const videoEl = document.getElementById('camera-video');
+const gridBg = document.getElementById('grid-bg');
+const arDot = document.getElementById('ar-dot');
+const arStatus = document.getElementById('ar-status');
+const hintEl = document.getElementById('hint');
+const toastEl = document.getElementById('toast');
+const btnPour = document.getElementById('btn-pour');
+const btnReset = document.getElementById('btn-reset');
+const btnCamera = document.getElementById('btn-camera');
+const loadingEl = document.getElementById('loading');
+
+// ===== 状态 =====
+let isPouring = false;
+let pourProgress = 0; // 0~1
+let cameraActive = false;
+let facingMode = 'environment';
+
+// ===== 场景初始化 =====
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0.5, 4.5);
+camera.lookAt(0, 0.3, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+container.appendChild(renderer.domElement);
+
+// ===== 灯光 =====
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+
+const mainLight = new THREE.DirectionalLight(0xfff5e9, 1.8);
+mainLight.position.set(3, 5, 4);
+mainLight.castShadow = true;
+mainLight.shadow.mapSize.set(1024, 1024);
+mainLight.shadow.camera.near = 0.5;
+mainLight.shadow.camera.far = 20;
+mainLight.shadow.camera.left = -3;
+mainLight.shadow.camera.right = 3;
+mainLight.shadow.camera.top = 3;
+mainLight.shadow.camera.bottom = -3;
+scene.add(mainLight);
+
+const fillLight = new THREE.DirectionalLight(0x8ec5fc, 0.5);
+fillLight.position.set(-3, 2, -2);
+scene.add(fillLight);
+
+const rimLight = new THREE.PointLight(0x38bdf8, 1.2, 10);
+rimLight.position.set(-2, 3, -1);
+scene.add(rimLight);
+
+const bottomLight = new THREE.PointLight(0x818cf8, 0.4, 8);
+bottomLight.position.set(0, -2, 2);
+scene.add(bottomLight);
+
+// ===== 杯子组 =====
+const cupGroup = new THREE.Group();
+scene.add(cupGroup);
+
+// --- 杯身 (使用 LatheGeometry) ---
+function createCupBody() {
+  const points = [];
+  // 从底部到顶部的轮廓
+  points.push(new THREE.Vector2(0.0, -0.8));    // 底部中心
+  points.push(new THREE.Vector2(0.65, -0.8));   // 底部边缘
+  points.push(new THREE.Vector2(0.68, -0.75));  // 底部倒角
+  points.push(new THREE.Vector2(0.70, -0.6));   // 杯壁下部
+  points.push(new THREE.Vector2(0.72, -0.3));   // 杯壁中下
+  points.push(new THREE.Vector2(0.73, 0.0));    // 杯壁中部
+  points.push(new THREE.Vector2(0.74, 0.3));    // 杯壁中上
+  points.push(new THREE.Vector2(0.78, 0.6));    // 杯壁上部（略微外扩）
+  points.push(new THREE.Vector2(0.82, 0.75));   // 杯口外翻
+  points.push(new THREE.Vector2(0.85, 0.82));   // 杯口边缘
+  points.push(new THREE.Vector2(0.83, 0.85));   // 杯口内沿
+  points.push(new THREE.Vector2(0.80, 0.82));   // 杯口内侧
+
+  const geometry = new THREE.LatheGeometry(points, 64);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0xe8eaf0,
+    metalness: 0.85,
+    roughness: 0.15,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.1,
+    reflectivity: 1,
+    envMapIntensity: 1.0,
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  // 倒水时杯身需要旋转
+  mesh.userData.role = 'cupBody';
+  return mesh;
+}
+
+// --- 杯内水面 ---
+function createWaterSurface() {
+  const geometry = new THREE.CircleGeometry(0.75, 64);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0x4fc3f7,
+    metalness: 0.0,
+    roughness: 0.1,
+    transmission: 0.6,
+    thickness: 0.5,
+    transparent: true,
+    opacity: 0.7,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0.5; // 水面高度
+  mesh.userData.role = 'water';
+  mesh.userData.baseY = 0.5;
+  return mesh;
+}
+
+// --- 杯内水体（圆柱） ---
+function createWaterBody() {
+  const geometry = new THREE.CylinderGeometry(0.70, 0.68, 1.3, 64, 1, true);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0x29b6f6,
+    metalness: 0.0,
+    roughness: 0.15,
+    transmission: 0.5,
+    thickness: 1.0,
+    transparent: true,
+    opacity: 0.35,
+    side: THREE.BackSide,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.y = -0.15;
+  mesh.scale.y = 0;
+  mesh.userData.role = 'waterBody';
+  mesh.userData.visible = false;
+  return mesh;
+}
+
+// --- 杯把手 ---
+function createHandle() {
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.78, 0.55, 0),
+    new THREE.Vector3(1.15, 0.5, 0),
+    new THREE.Vector3(1.3, 0.1, 0),
+    new THREE.Vector3(1.2, -0.35, 0),
+    new THREE.Vector3(0.85, -0.55, 0),
+  ]);
+  const geometry = new THREE.TubeGeometry(curve, 32, 0.06, 12, false);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0xd0d0d8,
+    metalness: 0.8,
+    roughness: 0.2,
+    clearcoat: 0.8,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.userData.role = 'handle';
+  return mesh;
+}
+
+// --- 杯底装饰环 ---
+function createBaseRing() {
+  const geometry = new THREE.TorusGeometry(0.66, 0.02, 8, 64);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0x38bdf8,
+    metalness: 0.9,
+    roughness: 0.1,
+    emissive: 0x38bdf8,
+    emissiveIntensity: 0.3,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.y = -0.8;
+  mesh.userData.role = 'baseRing';
+  return mesh;
+}
+
+// --- 指示灯（智能温感LED） ---
+function createIndicatorLED() {
+  const group = new THREE.Group();
+  const glowGeometry = new THREE.SphereGeometry(0.04, 16, 16);
+  const glowMaterial = new THREE.MeshBasicMaterial({
+    color: 0x4ade80,
+    transparent: true,
+    opacity: 0.9,
+  });
+  const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+  glow.position.set(0.85, 0.4, 0);
+  group.add(glow);
+
+  // 光晕
+  const haloGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+  const haloMaterial = new THREE.MeshBasicMaterial({
+    color: 0x4ade80,
+    transparent: true,
+    opacity: 0.2,
+  });
+  const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+  halo.position.copy(glow.position);
+  group.add(halo);
+
+  group.userData.role = 'led';
+  group.userData.glow = glow;
+  group.userData.halo = halo;
+  return group;
+}
+
+// --- 杯子上的 Logo 环 ---
+function createLogoRing() {
+  const geometry = new THREE.TorusGeometry(0.76, 0.008, 8, 64);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0x38bdf8,
+    metalness: 0.6,
+    roughness: 0.3,
+    emissive: 0x38bdf8,
+    emissiveIntensity: 0.15,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.y = -0.1;
+  mesh.userData.role = 'logoRing';
+  return mesh;
+}
+
+// --- 倒影平面 ---
+function createGroundPlane() {
+  const geometry = new THREE.PlaneGeometry(6, 6);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x111827,
+    metalness: 0.8,
+    roughness: 0.4,
+    transparent: true,
+    opacity: cameraActive ? 0.0 : 0.3,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = -0.82;
+  mesh.receiveShadow = true;
+  mesh.userData.role = 'ground';
+  return mesh;
+}
+
+// --- 粒子装饰系统 ---
+function createAmbientParticles() {
+  const count = 60;
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 8;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 4 - 1;
+    sizes[i] = Math.random() * 3 + 1;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+  const material = new THREE.PointsMaterial({
+    color: 0x38bdf8,
+    size: 0.03,
+    transparent: true,
+    opacity: 0.4,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+
+  return new THREE.Points(geometry, material);
+}
+
+// 组装杯子
+const cupBody = createCupBody();
+const waterSurface = createWaterSurface();
+const waterBody = createWaterBody();
+const handle = createHandle();
+const baseRing = createBaseRing();
+const led = createIndicatorLED();
+const logoRing = createLogoRing();
+const groundPlane = createGroundPlane();
+const ambientParticles = createAmbientParticles();
+
+cupGroup.add(cupBody);
+cupGroup.add(waterSurface);
+cupGroup.add(waterBody);
+cupGroup.add(handle);
+cupGroup.add(baseRing);
+cupGroup.add(led);
+cupGroup.add(logoRing);
+cupGroup.add(groundPlane);
+scene.add(ambientParticles);
+
+// ===== 水流粒子系统 =====
+const WATER_PARTICLE_COUNT = 300;
+const waterParticlePositions = new Float32Array(WATER_PARTICLE_COUNT * 3);
+const waterParticleVelocities = [];
+const waterParticleLifetimes = new Float32Array(WATER_PARTICLE_COUNT);
+const waterParticleSizes = new Float32Array(WATER_PARTICLE_COUNT);
+
+for (let i = 0; i < WATER_PARTICLE_COUNT; i++) {
+  waterParticlePositions[i * 3] = 0;
+  waterParticlePositions[i * 3 + 1] = 0;
+  waterParticlePositions[i * 3 + 2] = 0;
+  waterParticleVelocities.push(new THREE.Vector3());
+  waterParticleLifetimes[i] = -1; // inactive
+  waterParticleSizes[i] = Math.random() * 3 + 2;
+}
+
+const waterParticleGeometry = new THREE.BufferGeometry();
+waterParticleGeometry.setAttribute('position', new THREE.BufferAttribute(waterParticlePositions, 3));
+
+const waterParticleMaterial = new THREE.PointsMaterial({
+  color: 0x4fc3f7,
+  size: 0.04,
+  transparent: true,
+  opacity: 0.8,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+
+const waterParticleSystem = new THREE.Points(waterParticleGeometry, waterParticleMaterial);
+waterParticleSystem.visible = false;
+scene.add(waterParticleSystem);
+
+// ===== 飞溅水花 =====
+const SPLASH_COUNT = 50;
+const splashPositions = new Float32Array(SPLASH_COUNT * 3);
+const splashVelocities = [];
+const splashLifetimes = new Float32Array(SPLASH_COUNT);
+
+for (let i = 0; i < SPLASH_COUNT; i++) {
+  splashLifetimes[i] = -1;
+  splashVelocities.push(new THREE.Vector3());
+}
+
+const splashGeometry = new THREE.BufferGeometry();
+splashGeometry.setAttribute('position', new THREE.BufferAttribute(splashPositions, 3));
+
+const splashMaterial = new THREE.PointsMaterial({
+  color: 0x81d4fa,
+  size: 0.03,
+  transparent: true,
+  opacity: 0.9,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+
+const splashSystem = new THREE.Points(splashGeometry, splashMaterial);
+splashSystem.visible = false;
+scene.add(splashSystem);
+
+// ===== 环境贴图 (程序化) =====
+function createEnvMap() {
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  const envScene = new THREE.Scene();
+
+  // 渐变天空
+  const skyGeo = new THREE.SphereGeometry(10, 32, 32);
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: {},
+    vertexShader: `
+      varying vec3 vWorldPos;
+      void main() {
+        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vWorldPos;
+      void main() {
+        float h = normalize(vWorldPos).y;
+        vec3 top = vec3(0.15, 0.25, 0.45);
+        vec3 mid = vec3(0.5, 0.6, 0.7);
+        vec3 bot = vec3(0.8, 0.85, 0.9);
+        vec3 col = h > 0.0 ? mix(mid, top, h) : mix(mid, bot, -h);
+        // 添加一些亮点模拟反射
+        col += 0.15 * vec3(1.0, 0.95, 0.9) * pow(max(0.0, dot(normalize(vWorldPos), normalize(vec3(3.0, 5.0, 4.0)))), 32.0);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+  });
+  envScene.add(new THREE.Mesh(skyGeo, skyMat));
+
+  const envLight = new THREE.AmbientLight(0xffffff, 0.5);
+  envScene.add(envLight);
+
+  const envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
+  pmremGenerator.dispose();
+  return envMap;
+}
+
+const envMap = createEnvMap();
+scene.environment = envMap;
+cupBody.material.envMap = envMap;
+handle.material.envMap = envMap;
+baseRing.material.envMap = envMap;
+
+// ===== 触控交互 =====
+let isDragging = false;
+let previousTouchPosition = { x: 0, y: 0 };
+let previousPinchDistance = 0;
+let targetRotationX = 0;
+let targetRotationY = 0;
+let targetScale = 1;
+let currentRotationX = 0;
+let currentRotationY = 0;
+let currentScale = 1;
+
+function getTouchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function onPointerDown(e) {
+  if (isPouring) return;
+  if (e.touches) {
+    if (e.touches.length === 1) {
+      isDragging = true;
+      previousTouchPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      isDragging = false;
+      previousPinchDistance = getTouchDistance(e.touches);
+    }
+  } else {
+    isDragging = true;
+    previousTouchPosition = { x: e.clientX, y: e.clientY };
+  }
+}
+
+function onPointerMove(e) {
+  if (isPouring) return;
+  e.preventDefault();
+  if (e.touches) {
+    if (e.touches.length === 1 && isDragging) {
+      const dx = e.touches[0].clientX - previousTouchPosition.x;
+      const dy = e.touches[0].clientY - previousTouchPosition.y;
+      targetRotationY += dx * 0.008;
+      targetRotationX += dy * 0.005;
+      targetRotationX = Math.max(-0.5, Math.min(0.8, targetRotationX));
+      previousTouchPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      const dist = getTouchDistance(e.touches);
+      const delta = (dist - previousPinchDistance) * 0.003;
+      targetScale = Math.max(0.5, Math.min(2.5, targetScale + delta));
+      previousPinchDistance = dist;
+    }
+  } else if (isDragging) {
+    const dx = e.clientX - previousTouchPosition.x;
+    const dy = e.clientY - previousTouchPosition.y;
+    targetRotationY += dx * 0.008;
+    targetRotationX += dy * 0.005;
+    targetRotationX = Math.max(-0.5, Math.min(0.8, targetRotationX));
+    previousTouchPosition = { x: e.clientX, y: e.clientY };
+  }
+}
+
+function onPointerUp(e) {
+  // Detect tap (click) for pour
+  if (!isDragging && !isPouring) {
+    if (e.changedTouches && e.changedTouches.length === 1) {
+      const touch = e.changedTouches[0];
+      checkTapOnCup(touch.clientX, touch.clientY);
+    } else if (e.type === 'click' || e.type === 'pointerup') {
+      checkTapOnCup(e.clientX, e.clientY);
+    }
+  }
+  isDragging = false;
+}
+
+function checkTapOnCup(clientX, clientY) {
+  const mouse = new THREE.Vector2(
+    (clientX / window.innerWidth) * 2 - 1,
+    -(clientY / window.innerHeight) * 2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObject(cupGroup, true);
+  if (intersects.length > 0) {
+    startPourAnimation();
+  }
+}
+
+const canvasEl = renderer.domElement;
+canvasEl.addEventListener('touchstart', onPointerDown, { passive: false });
+canvasEl.addEventListener('touchmove', onPointerMove, { passive: false });
+canvasEl.addEventListener('touchend', onPointerUp);
+canvasEl.addEventListener('mousedown', onPointerDown);
+canvasEl.addEventListener('mousemove', onPointerMove);
+canvasEl.addEventListener('mouseup', onPointerUp);
+canvasEl.addEventListener('click', (e) => {
+  checkTapOnCup(e.clientX, e.clientY);
+});
+
+// ===== 倒水动画 =====
+const POUR_DURATION = 3.0; // seconds
+let pourTime = 0;
+let pourPhase = 'idle'; // idle | tilting | pouring | returning
+
+function startPourAnimation() {
+  if (isPouring) return;
+  isPouring = true;
+  pourTime = 0;
+  pourPhase = 'tilting';
+  pourProgress = 0;
+  waterParticleSystem.visible = true;
+  waterBody.userData.visible = true;
+  waterBody.scale.y = 0;
+  btnPour.disabled = true;
+  btnPour.textContent = '倒水中...';
+  showToast('倒水演示');
+
+  // 所有粒子先置为不活跃
+  for (let i = 0; i < WATER_PARTICLE_COUNT; i++) {
+    waterParticleLifetimes[i] = -1;
+  }
+  for (let i = 0; i < SPLASH_COUNT; i++) {
+    splashLifetimes[i] = -1;
+  }
+}
+
+function updatePourAnimation(delta) {
+  if (!isPouring) return;
+
+  pourTime += delta;
+
+  if (pourPhase === 'tilting') {
+    // 倾斜杯子 45度
+    const tiltTarget = Math.PI * 0.28;
+    const tiltProgress = Math.min(pourTime / 0.6, 1);
+    const easeTilt = 1 - Math.pow(1 - tiltProgress, 3);
+    cupGroup.rotation.z = tiltTarget * easeTilt;
+
+    if (tiltProgress >= 1) {
+      pourPhase = 'pouring';
+      pourTime = 0;
+    }
+  } else if (pourPhase === 'pouring') {
+    // 持续倒水
+    const pourDuration = 2.0;
+    pourProgress = Math.min(pourTime / pourDuration, 1);
+
+    // 水面下降
+    const waterY = waterSurface.userData.baseY * (1 - pourProgress * 0.85);
+    waterSurface.position.y = Math.max(waterY, -0.1);
+
+    // 水体显示
+    waterBody.scale.y = (1 - pourProgress) * 0.9;
+
+    // 发射水流粒子
+    emitWaterParticles(delta);
+
+    if (pourProgress >= 1) {
+      pourPhase = 'returning';
+      pourTime = 0;
+      waterParticleSystem.visible = false;
+    }
+  } else if (pourPhase === 'returning') {
+    // 复原杯子
+    const returnProgress = Math.min(pourTime / 1.0, 1);
+    const easeReturn = 1 - Math.pow(1 - returnProgress, 3);
+    cupGroup.rotation.z = Math.PI * 0.28 * (1 - easeReturn);
+
+    // 水面缓慢恢复
+    waterSurface.position.y = waterSurface.userData.baseY * 0.15 +
+      (waterSurface.userData.baseY - waterSurface.userData.baseY * 0.15) * easeReturn;
+    waterBody.scale.y = 0;
+
+    if (returnProgress >= 1) {
+      isPouring = false;
+      pourPhase = 'idle';
+      cupGroup.rotation.z = 0;
+      waterSurface.position.y = waterSurface.userData.baseY;
+      waterBody.scale.y = 0;
+      waterBody.userData.visible = false;
+      splashSystem.visible = false;
+      btnPour.disabled = false;
+      btnPour.textContent = '倒水演示';
+      pourProgress = 0;
+    }
+  }
+
+  // 更新粒子
+  updateWaterParticles(delta);
+  updateSplashParticles(delta);
+}
+
+let nextWaterParticle = 0;
+function emitWaterParticles(delta) {
+  // 杯口位置（世界坐标）
+  const cupTilt = cupGroup.rotation.z;
+  const pourDir = new THREE.Vector3(
+    Math.cos(cupTilt) * 0.82,
+    Math.sin(cupTilt) * 0.82,
+    0
+  );
+  const pourOrigin = new THREE.Vector3().copy(pourDir).multiplyScalar(1.0);
+  pourOrigin.y += 0.82;
+  // 转换到世界坐标
+  const worldPourOrigin = pourOrigin.clone().applyMatrix4(cupGroup.matrixWorld);
+
+  const particlesPerFrame = Math.floor(20 * (1 - pourProgress * 0.5));
+
+  for (let i = 0; i < particlesPerFrame; i++) {
+    const idx = nextWaterParticle;
+    nextWaterParticle = (nextWaterParticle + 1) % WATER_PARTICLE_COUNT;
+
+    waterParticlePositions[idx * 3] = worldPourOrigin.x + (Math.random() - 0.5) * 0.05;
+    waterParticlePositions[idx * 3 + 1] = worldPourOrigin.y + (Math.random() - 0.5) * 0.03;
+    waterParticlePositions[idx * 3 + 2] = worldPourOrigin.z + (Math.random() - 0.5) * 0.05;
+
+    waterParticleVelocities[idx].set(
+      (Math.random() - 0.3) * 0.5,
+      -Math.random() * 2 - 1,
+      (Math.random() - 0.5) * 0.3
+    );
+    waterParticleLifetimes[idx] = 1.5 + Math.random() * 0.5;
+  }
+
+  // 飞溅
+  if (Math.random() < 0.3) {
+    const sIdx = Math.floor(Math.random() * SPLASH_COUNT);
+    splashPositions[sIdx * 3] = worldPourOrigin.x + (Math.random() - 0.5) * 0.8;
+    splashPositions[sIdx * 3 + 1] = -0.8 + Math.random() * 0.1;
+    splashPositions[sIdx * 3 + 2] = worldPourOrigin.z + (Math.random() - 0.5) * 0.4;
+    splashVelocities[sIdx].set(
+      (Math.random() - 0.5) * 1.5,
+      Math.random() * 2 + 1,
+      (Math.random() - 0.5) * 1.0
+    );
+    splashLifetimes[sIdx] = 0.6 + Math.random() * 0.3;
+    splashSystem.visible = true;
+  }
+}
+
+function updateWaterParticles(delta) {
+  const gravity = -6;
+  for (let i = 0; i < WATER_PARTICLE_COUNT; i++) {
+    if (waterParticleLifetimes[i] <= 0) continue;
+    waterParticleLifetimes[i] -= delta;
+
+    const vel = waterParticleVelocities[i];
+    vel.y += gravity * delta;
+
+    waterParticlePositions[i * 3] += vel.x * delta;
+    waterParticlePositions[i * 3 + 1] += vel.y * delta;
+    waterParticlePositions[i * 3 + 2] += vel.z * delta;
+
+    // 地面弹起
+    if (waterParticlePositions[i * 3 + 1] < -0.8) {
+      waterParticlePositions[i * 3 + 1] = -0.8;
+      vel.y *= -0.3;
+      vel.x *= 0.8;
+      vel.z *= 0.8;
+      waterParticleLifetimes[i] -= 0.3;
+    }
+  }
+  waterParticleGeometry.attributes.position.needsUpdate = true;
+}
+
+function updateSplashParticles(delta) {
+  const gravity = -8;
+  for (let i = 0; i < SPLASH_COUNT; i++) {
+    if (splashLifetimes[i] <= 0) continue;
+    splashLifetimes[i] -= delta;
+
+    const vel = splashVelocities[i];
+    vel.y += gravity * delta;
+
+    splashPositions[i * 3] += vel.x * delta;
+    splashPositions[i * 3 + 1] += vel.y * delta;
+    splashPositions[i * 3 + 2] += vel.z * delta;
+  }
+  splashGeometry.attributes.position.needsUpdate = true;
+}
+
+// ===== 按钮事件 =====
+btnPour.addEventListener('click', startPourAnimation);
+
+btnReset.addEventListener('click', () => {
+  targetRotationX = 0;
+  targetRotationY = 0;
+  targetScale = 1;
+});
+
+// ===== 摄像头 =====
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    videoEl.srcObject = stream;
+    cameraActive = true;
+    arDot.className = 'dot';
+    arStatus.textContent = 'AR 模式';
+    videoEl.style.display = 'block';
+    gridBg.classList.remove('show');
+    groundPlane.material.opacity = 0;
+  } catch (err) {
+    console.log('Camera not available:', err);
+    cameraActive = false;
+    arDot.className = 'dot inactive';
+    arStatus.textContent = '3D 预览';
+    videoEl.style.display = 'none';
+    gridBg.classList.add('show');
+    groundPlane.material.opacity = 0.3;
+  }
+}
+
+btnCamera.addEventListener('click', async () => {
+  // Toggle facing mode
+  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  // Stop current
+  if (videoEl.srcObject) {
+    videoEl.srcObject.getTracks().forEach(t => t.stop());
+  }
+  await startCamera();
+});
+
+// ===== Toast =====
+let toastTimer;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.remove('show');
+  }, 1500);
+}
+
+// ===== 窗口resize =====
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ===== 动画循环 =====
+const clock = new THREE.Clock();
+let elapsedTime = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const delta = Math.min(clock.getDelta(), 0.05);
+  elapsedTime += delta;
+
+  // 平滑插值旋转和缩放
+  currentRotationX += (targetRotationX - currentRotationX) * 0.08;
+  currentRotationY += (targetRotationY - currentRotationY) * 0.08;
+  currentScale += (targetScale - currentScale) * 0.08;
+
+  // 应用旋转和缩放（仅在非倒水时应用Y旋转）
+  if (!isPouring) {
+    cupGroup.rotation.set(0, 0, 0);
+  }
+  cupGroup.rotation.x = currentRotationX + (isPouring ? 0 : 0);
+  cupGroup.rotation.y = currentRotationY;
+  cupGroup.scale.setScalar(currentScale);
+
+  // 杯子轻微浮动
+  if (!isPouring) {
+    cupGroup.position.y = Math.sin(elapsedTime * 1.2) * 0.03;
+  }
+
+  // LED呼吸灯效果
+  const ledIntensity = 0.5 + 0.5 * Math.sin(elapsedTime * 2);
+  if (led.userData.glow) {
+    led.userData.glow.material.opacity = 0.6 + 0.4 * ledIntensity;
+    led.userData.halo.material.opacity = 0.1 + 0.15 * ledIntensity;
+    // 倒水时变蓝
+    if (isPouring) {
+      led.userData.glow.material.color.setHex(0x38bdf8);
+      led.userData.halo.material.color.setHex(0x38bdf8);
+    } else {
+      const color = new THREE.Color().setHSL(0.35 + 0.05 * Math.sin(elapsedTime * 0.5), 0.8, 0.6);
+      led.userData.glow.material.color.copy(color);
+      led.userData.halo.material.color.copy(color);
+    }
+  }
+
+  // 底部光环脉冲
+  if (baseRing) {
+    baseRing.material.emissiveIntensity = 0.2 + 0.15 * Math.sin(elapsedTime * 1.5);
+  }
+
+  // Logo环旋转
+  if (logoRing) {
+    logoRing.rotation.z = elapsedTime * 0.3;
+  }
+
+  // 环境粒子浮动
+  const particlePositions = ambientParticles.geometry.attributes.position.array;
+  for (let i = 0; i < particlePositions.length; i += 3) {
+    particlePositions[i + 1] += Math.sin(elapsedTime + i) * 0.001;
+    particlePositions[i] += Math.cos(elapsedTime * 0.5 + i) * 0.0005;
+  }
+  ambientParticles.geometry.attributes.position.needsUpdate = true;
+  ambientParticles.rotation.y = elapsedTime * 0.02;
+
+  // 水面波纹
+  if (waterSurface && !isPouring) {
+    waterSurface.material.opacity = 0.6 + 0.1 * Math.sin(elapsedTime * 3);
+  }
+
+  // 倒水动画
+  updatePourAnimation(delta);
+
+  // 渲染
+  renderer.render(scene, camera);
+}
+
+// ===== 启动 =====
+async function init() {
+  // 启动摄像头
+  await startCamera();
+
+  // 隐藏loading
+  setTimeout(() => {
+    loadingEl.classList.add('done');
+  }, 800);
+
+  // 3秒后隐藏提示
+  setTimeout(() => {
+    hintEl.classList.add('fade');
+  }, 4000);
+
+  // 开始动画
+  animate();
+}
+
+init();
+</script>
+</body>
+</html>
