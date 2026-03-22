@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品详情页</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <!-- 顶部导航 -->
+    <header class="navbar">
+      <button class="nav-back" onclick="history.back()">←</button>
+      <h1>商品详情</h1>
+      <div class="nav-actions">
+        <button class="nav-icon">♡</button>
+        <button class="nav-icon">⋯</button>
+      </div>
+    </header>
+
+    <!-- 图片轮播 -->
+    <div class="carousel" id="carousel">
+      <div class="carousel-track" id="carouselTrack">
+        <div class="carousel-slide" style="background:#f0e6d6;"><span>商品图 1</span></div>
+        <div class="carousel-slide" style="background:#e6dff0;"><span>商品图 2</span></div>
+        <div class="carousel-slide" style="background:#d6f0e6;"><span>商品图 3</span></div>
+        <div class="carousel-slide" style="background:#f0e0d6;"><span>商品图 4</span></div>
+      </div>
+      <div class="carousel-dots" id="carouselDots"></div>
+      <button class="carousel-btn prev" onclick="prevSlide()">❮</button>
+      <button class="carousel-btn next" onclick="nextSlide()">❯</button>
+    </div>
+
+    <!-- 商品基本信息 -->
+    <section class="product-info">
+      <div class="price-row">
+        <div class="price-main">
+          <span class="currency">¥</span>
+          <span class="price-value" id="priceValue">299</span>
+        </div>
+        <div class="price-original">¥<span id="originalPrice">599</span></div>
+        <span class="discount-tag" id="discountTag">5折</span>
+      </div>
+      <h2 class="product-title">2026新款轻薄羽绒服女 中长款修身显瘦 白鸭绒保暖外套</h2>
+      <div class="product-meta">
+        <span class="sales">月销 3.2万+</span>
+        <span class="rating">好评 98%</span>
+        <span class="shipping">包邮</span>
+      </div>
+    </section>
+
+    <!-- 规格选择 -->
+    <section class="spec-section">
+      <h3>颜色</h3>
+      <div class="spec-options" id="colorOptions">
+        <!-- JS 动态渲染 -->
+      </div>
+    </section>
+
+    <section class="spec-section">
+      <h3>尺码</h3>
+      <div class="spec-options" id="sizeOptions">
+        <!-- JS 动态渲染 -->
+      </div>
+    </section>
+
+    <!-- 数量选择与价格计算 -->
+    <section class="quantity-section">
+      <h3>购买数量</h3>
+      <div class="quantity-control">
+        <button class="qty-btn" id="btnMinus" onclick="changeQty(-1)">−</button>
+        <span class="qty-value" id="qtyValue">1</span>
+        <button class="qty-btn" id="btnPlus" onclick="changeQty(1)">+</button>
+      </div>
+      <div class="total-row">
+        <span class="total-label">小计</span>
+        <span class="total-price">¥<span id="totalPrice">299</span></span>
+      </div>
+    </section>
+
+    <!-- 商品详情描述 -->
+    <section class="detail-section">
+      <h3>商品详情</h3>
+      <div class="detail-content">
+        <p>填充物：90%白鸭绒，蓬松度600+</p>
+        <p>面料：高密度防风防水面料</p>
+        <p>版型：中长款修身设计，拉长身材比例</p>
+        <p>保暖：适合 -15°C 至 10°C 穿着</p>
+        <p>洗涤：机洗可洗，不易跑绒</p>
+      </div>
+    </section>
+
+    <!-- 底部操作栏 -->
+    <footer class="action-bar">
+      <button class="action-icon-btn">客服</button>
+      <button class="action-icon-btn">店铺</button>
+      <button class="btn-cart" onclick="addToCart()">加入购物车</button>
+      <button class="btn-buy" onclick="buyNow()">立即购买</button>
+    </footer>
+  </div>
+
+  <!-- 提示弹窗 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
