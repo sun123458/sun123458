@@ -4,75 +4,862 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D 虚拟试衣间</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #0a0a0f;
+            overflow: hidden;
+            color: #fff;
+        }
+        #canvas-container { width: 100vw; height: 100vh; position: relative; }
+        canvas { display: block; }
+
+        .header {
+            position: absolute; top: 0; left: 0; right: 0;
+            padding: 20px 40px; display: flex; justify-content: space-between; align-items: center;
+            z-index: 100; background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+        }
+        .logo {
+            font-size: 22px; font-weight: 700; letter-spacing: 3px;
+            background: linear-gradient(135deg, #f0c674, #e74c3c);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header-hint { font-size: 13px; color: rgba(255,255,255,0.5); }
+
+        .clothing-panel {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 16px; padding: 16px 28px;
+            background: rgba(15,15,25,0.85); border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(20px);
+            z-index: 100;
+        }
+        .clothing-item {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            cursor: pointer; padding: 12px 18px; border-radius: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent; min-width: 90px;
+        }
+        .clothing-item:hover { background: rgba(255,255,255,0.08); transform: translateY(-4px); }
+        .clothing-item.active {
+            background: rgba(240,198,116,0.15); border-color: #f0c674;
+            box-shadow: 0 0 20px rgba(240,198,116,0.2);
+        }
+        .clothing-icon {
+            width: 52px; height: 52px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; font-size: 26px;
+            background: rgba(255,255,255,0.06); transition: all 0.3s;
+        }
+        .clothing-item.active .clothing-icon { background: rgba(240,198,116,0.2); }
+        .clothing-name { font-size: 12px; color: rgba(255,255,255,0.7); white-space: nowrap; }
+        .clothing-item.active .clothing-name { color: #f0c674; font-weight: 600; }
+
+        .side-panel {
+            position: absolute; right: 30px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 12px; z-index: 100;
+        }
+        .panel-btn {
+            width: 44px; height: 44px; border-radius: 12px;
+            background: rgba(15,15,25,0.85); border: 1px solid rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.6); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+            transition: all 0.3s; backdrop-filter: blur(10px);
+        }
+        .panel-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .info-panel {
+            position: absolute; left: 30px; top: 50%; transform: translateY(-50%);
+            padding: 20px; background: rgba(15,15,25,0.85);
+            border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px); z-index: 100; min-width: 180px;
+        }
+        .info-title {
+            font-size: 14px; color: rgba(255,255,255,0.4);
+            margin-bottom: 12px; text-transform: uppercase; letter-spacing: 2px;
+        }
+        .info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+        .info-label { color: rgba(255,255,255,0.5); }
+        .info-value { color: #f0c674; font-weight: 600; }
+
+        .color-section {
+            margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .color-label { font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+        .color-options { display: flex; gap: 8px; flex-wrap: wrap; }
+        .color-swatch {
+            width: 28px; height: 28px; border-radius: 8px; cursor: pointer;
+            border: 2px solid transparent; transition: all 0.2s;
+        }
+        .color-swatch:hover { transform: scale(1.15); }
+        .color-swatch.active { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+
+        .loading-screen {
+            position: fixed; inset: 0; background: #0a0a0f;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; transition: opacity 0.8s;
+        }
+        .loading-screen.hidden { opacity: 0; pointer-events: none; }
+        .loading-spinner {
+            width: 60px; height: 60px; border: 3px solid rgba(240,198,116,0.1);
+            border-top-color: #f0c674; border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        .loading-text { margin-top: 20px; font-size: 14px; color: rgba(255,255,255,0.5); letter-spacing: 2px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在加载试衣间...</div>
+    </div>
+    <div id="canvas-container"></div>
+
+    <div class="header">
+        <div class="logo">3D VIRTUAL FITTING ROOM</div>
+        <div class="header-hint">拖拽旋转 / 滚轮缩放 / 点击服装试穿</div>
+    </div>
+
+    <div class="clothing-panel" id="clothingPanel"></div>
+
+    <div class="side-panel">
+        <button class="panel-btn" id="btnReset" title="重置视角">↺</button>
+        <button class="panel-btn" id="btnAutoRotate" title="自动旋转">↻</button>
+        <button class="panel-btn" id="btnWireframe" title="线框模式">◇</button>
+        <button class="panel-btn" id="btnScreenshot" title="截图">📷</button>
+    </div>
+
+    <div class="info-panel">
+        <div class="info-title">当前服装</div>
+        <div id="infoContent">
+            <div class="info-row"><span class="info-label">款式</span><span class="info-value" id="infoStyle">-</span></div>
+            <div class="info-row"><span class="info-label">类型</span><span class="info-value" id="infoType">-</span></div>
+            <div class="info-row"><span class="info-label">材质</span><span class="info-value" id="infoMaterial">-</span></div>
+        </div>
+        <div class="color-section">
+            <div class="color-label">服装颜色</div>
+            <div class="color-options" id="colorOptions"></div>
+        </div>
+    </div>
+
     <script type="importmap">
     {
         "imports": {
-            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
         }
     }
     </script>
-</head>
-<body>
-    <div id="loading">
-        <div class="spinner"></div>
-        <p>加载 3D 场景中...</p>
-    </div>
 
-    <div id="app">
-        <canvas id="viewport"></canvas>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        <header>
-            <h1>3D 虚拟试衣间</h1>
-        </header>
+        // ==================== Scene Setup ====================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0f);
 
-        <div id="clothing-panel">
-            <h2>选择服装</h2>
-            <div id="clothing-list">
-                <button class="clothing-item active" data-outfit="0">
-                    <div class="outfit-preview" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">T</div>
-                    <span>经典T恤</span>
-                </button>
-                <button class="clothing-item" data-outfit="1">
-                    <div class="outfit-preview" style="background: linear-gradient(135deg, #3498db, #2980b9);">S</div>
-                    <span>休闲衬衫</span>
-                </button>
-                <button class="clothing-item" data-outfit="2">
-                    <div class="outfit-preview" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">D</div>
-                    <span>连衣裙</span>
-                </button>
-                <button class="clothing-item" data-outfit="3">
-                    <div class="outfit-preview" style="background: linear-gradient(135deg, #2ecc71, #27ae60);">H</div>
-                    <span>运动卫衣</span>
-                </button>
-                <button class="clothing-item" data-outfit="4">
-                    <div class="outfit-preview" style="background: linear-gradient(135deg, #2c3e50, #1a252f);">B</div>
-                    <span>正式西装</span>
-                </button>
-            </div>
-        </div>
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.2, 5);
 
-        <div id="control-panel">
-            <div class="control-group">
-                <label>服装颜色</label>
-                <input type="color" id="color-picker" value="#e74c3c">
-            </div>
-            <div class="control-group">
-                <label>物理模拟</label>
-                <button id="physics-toggle" class="toggle-btn active">开启</button>
-            </div>
-            <div class="control-group">
-                <label>自动旋转</label>
-                <button id="auto-rotate-toggle" class="toggle-btn">关闭</button>
-            </div>
-        </div>
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
 
-        <div id="outfit-info">
-            <span id="outfit-name">经典T恤</span>
-        </div>
-    </div>
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.minDistance = 2.5;
+        controls.maxDistance = 10;
+        controls.target.set(0, 0.8, 0);
+        controls.maxPolarAngle = Math.PI * 0.85;
+        controls.minPolarAngle = Math.PI * 0.1;
 
-    <script type="module" src="app.js"></script>
+        // ==================== Lighting ====================
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        keyLight.position.set(5, 8, 5);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.set(2048, 2048);
+        keyLight.shadow.camera.near = 0.5;
+        keyLight.shadow.camera.far = 50;
+        scene.add(keyLight);
+
+        scene.add(new THREE.DirectionalLight(0x8899ff, 0.4).translateX(-5).translateY(3).translateZ(-3));
+        scene.add(new THREE.DirectionalLight(0xf0c674, 0.6).translateZ(-8).translateY(2));
+
+        const spotLight = new THREE.SpotLight(0xffffff, 0.8, 20, Math.PI / 6, 0.5, 1);
+        spotLight.position.set(0, 8, 0);
+        spotLight.castShadow = true;
+        scene.add(spotLight);
+
+        // ==================== Ground ====================
+        const groundGeo = new THREE.CircleGeometry(3, 64);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x111118, metalness: 0.8, roughness: 0.3 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -1.4;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const ringGeo = new THREE.RingGeometry(2.8, 3, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xf0c674, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = -1.38;
+        scene.add(ring);
+
+        // ==================== Mannequin ====================
+        const bodyGroup = new THREE.Group();
+        scene.add(bodyGroup);
+
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdeb887, metalness: 0.05, roughness: 0.6 });
+
+        function createLimb(radius, height) {
+            const geo = new THREE.CylinderGeometry(radius, radius * 0.85, height, 16);
+            const mesh = new THREE.Mesh(geo, bodyMat);
+            mesh.castShadow = true;
+            return mesh;
+        }
+
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.18, 32, 32);
+        const head = new THREE.Mesh(headGeo, bodyMat);
+        head.position.y = 1.65; head.castShadow = true;
+        bodyGroup.add(head);
+
+        // Neck
+        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.12, 16), bodyMat);
+        neck.position.y = 1.48; bodyGroup.add(neck);
+
+        // Torso
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 0.6, 32), bodyMat);
+        torso.position.y = 1.12; torso.castShadow = true; bodyGroup.add(torso);
+
+        // Chest
+        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.35, 32), bodyMat);
+        chest.position.y = 0.85; chest.castShadow = true; bodyGroup.add(chest);
+
+        // Waist
+        const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.2, 32), bodyMat);
+        waist.position.y = 0.58; bodyGroup.add(waist);
+
+        // Hips
+        const hips = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.22, 0.2, 32), bodyMat);
+        hips.position.y = 0.4; bodyGroup.add(hips);
+
+        // Arms
+        const upperArmL = createLimb(0.06, 0.32); upperArmL.position.set(-0.38, 1.05, 0); upperArmL.rotation.z = 0.15; bodyGroup.add(upperArmL);
+        const forearmL = createLimb(0.05, 0.3); forearmL.position.set(-0.42, 0.7, 0); forearmL.rotation.z = 0.05; bodyGroup.add(forearmL);
+        const upperArmR = createLimb(0.06, 0.32); upperArmR.position.set(0.38, 1.05, 0); upperArmR.rotation.z = -0.15; bodyGroup.add(upperArmR);
+        const forearmR = createLimb(0.05, 0.3); forearmR.position.set(0.42, 0.7, 0); forearmR.rotation.z = -0.05; bodyGroup.add(forearmR);
+
+        // Legs
+        const thighL = createLimb(0.1, 0.45); thighL.position.set(-0.12, 0.15, 0); bodyGroup.add(thighL);
+        const calfL = createLimb(0.07, 0.45); calfL.position.set(-0.12, -0.35, 0); bodyGroup.add(calfL);
+        const thighR = createLimb(0.1, 0.45); thighR.position.set(0.12, 0.15, 0); bodyGroup.add(thighR);
+        const calfR = createLimb(0.07, 0.45); calfR.position.set(0.12, -0.35, 0); bodyGroup.add(calfR);
+
+        // Body contour map for collision
+        function getBodyRadiusAt(y) {
+            if (y > 1.4) return 0.15;
+            if (y > 1.0) return 0.25;
+            if (y > 0.7) return 0.28;
+            if (y > 0.5) return 0.22;
+            if (y > 0.2) return 0.26;
+            return 0.15;
+        }
+
+        // ==================== Cloth Physics (Verlet Integration) ====================
+        class ClothSim {
+            constructor(geometry, clothType) {
+                this.geo = geometry;
+                this.type = clothType; // 'skirt', 'dress', 'upper'
+                this.particles = [];
+                this.springs = [];
+                this.time = 0;
+                this.init();
+            }
+
+            init() {
+                const pos = this.geo.attributes.position;
+                const count = pos.count;
+                this.particles = [];
+
+                for (let i = 0; i < count; i++) {
+                    const p = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
+                    const isTop = this._isTopVertex(i);
+                    this.particles.push({
+                        pos: p.clone(),
+                        prev: p.clone(),
+                        original: p.clone(),
+                        pinned: isTop,
+                        acc: new THREE.Vector3(0, 0, 0)
+                    });
+                }
+
+                // Build spring network from geometry indices
+                const idx = this.geo.index;
+                if (idx) {
+                    const used = new Set();
+                    for (let t = 0; t < idx.count; t += 3) {
+                        const a = idx.getX(t), b = idx.getX(t + 1), c = idx.getX(t + 2);
+                        this._addSpring(a, b, used);
+                        this._addSpring(b, c, used);
+                        this._addSpring(c, a, used);
+                    }
+                }
+            }
+
+            _isTopVertex(index) {
+                const pos = this.geo.attributes.position;
+                const y = pos.getY(index);
+                const maxY = this.geo.boundingBox ? this.geo.boundingBox.max.y : 1.0;
+                return y > maxY - 0.05;
+            }
+
+            _addSpring(a, b, used) {
+                const key = Math.min(a, b) + '-' + Math.max(a, b);
+                if (used.has(key)) return;
+                used.add(key);
+                const restLen = this.particles[a].original.distanceTo(this.particles[b].original);
+                this.springs.push({ a, b, restLength: restLen });
+            }
+
+            update(dt, windStr = 0.3) {
+                this.time += dt;
+                const gravity = -9.8 * 0.02;
+                const windX = Math.sin(this.time * 1.5 + Math.random() * 0.5) * windStr * 0.4;
+                const windZ = Math.cos(this.time * 1.2) * windStr * 0.3;
+
+                const pos = this.geo.attributes.position;
+
+                // Verlet integration
+                for (let i = 0; i < this.particles.length; i++) {
+                    const p = this.particles[i];
+                    if (p.pinned) continue;
+
+                    const curr = p.pos.clone();
+
+                    // Velocity = current - previous
+                    const vel = p.pos.clone().sub(p.prev);
+                    vel.multiplyScalar(0.98); // damping
+
+                    // Gravity
+                    vel.y += gravity;
+
+                    // Wind
+                    vel.x += windX * dt;
+                    vel.z += windZ * dt;
+
+                    // New position
+                    p.prev.copy(curr);
+                    p.pos.add(vel);
+
+                    // Body collision - push outward
+                    const distXY = Math.sqrt(p.pos.x * p.pos.x + p.pos.z * p.pos.z);
+                    const bodyR = getBodyRadiusAt(p.pos.y) + 0.025;
+                    if (distXY < bodyR && distXY > 0.001) {
+                        const scale = bodyR / distXY;
+                        p.pos.x *= scale;
+                        p.pos.z *= scale;
+                    }
+
+                    // Clamp position
+                    p.pos.y = Math.max(p.pos.y, p.original.y - 0.15);
+                }
+
+                // Constraint satisfaction (multiple passes for stability)
+                for (let iter = 0; iter < 3; iter++) {
+                    for (const s of this.springs) {
+                        const pa = this.particles[s.a];
+                        const pb = this.particles[s.b];
+                        const diff = pb.pos.clone().sub(pa.pos);
+                        const dist = diff.length();
+                        if (dist < 0.0001) continue;
+
+                        const err = (dist - s.restLength) / dist;
+                        const correction = diff.multiplyScalar(err * 0.5);
+
+                        if (!pa.pinned) pa.pos.add(correction);
+                        if (!pb.pinned) pb.pos.sub(correction);
+                    }
+                }
+
+                // Restore to original shape (soft constraint)
+                for (let i = 0; i < this.particles.length; i++) {
+                    const p = this.particles[i];
+                    if (p.pinned) continue;
+                    const restore = p.original.clone().sub(p.pos).multiplyScalar(0.03);
+                    p.pos.add(restore);
+                }
+
+                // Update geometry
+                for (let i = 0; i < this.particles.length; i++) {
+                    pos.setXYZ(i, this.particles[i].pos.x, this.particles[i].pos.y, this.particles[i].pos.z);
+                }
+                pos.needsUpdate = true;
+                this.geo.computeVertexNormals();
+            }
+
+            reset() {
+                for (let i = 0; i < this.particles.length; i++) {
+                    this.particles[i].pos.copy(this.particles[i].original);
+                    this.particles[i].prev.copy(this.particles[i].original);
+                }
+                const pos = this.geo.attributes.position;
+                for (let i = 0; i < this.particles.length; i++) {
+                    pos.setXYZ(i, this.particles[i].pos.x, this.particles[i].pos.y, this.particles[i].pos.z);
+                }
+                pos.needsUpdate = true;
+            }
+        }
+
+        // ==================== Clothing Data ====================
+        const clothingData = [
+            { id: 'tshirt', name: '休闲T恤', type: '上衣', material: '棉质', color: 0x3498db, icon: '👕', colors: [0x3498db, 0xe74c3c, 0x2ecc71, 0xf39c12, 0x9b59b6, 0xffffff] },
+            { id: 'dress', name: '晚礼长裙', type: '连衣裙', material: '丝绸', color: 0xe74c3c, icon: '👗', colors: [0xe74c3c, 0x3498db, 0x9b59b6, 0xf1c40f, 0x1abc9c, 0xffffff] },
+            { id: 'jacket', name: '皮夹克', type: '外套', material: '真皮', color: 0x2c3e50, icon: '🧥', colors: [0x2c3e50, 0x1a1a2e, 0x8B4513, 0x2d3436, 0x636e72, 0xffffff] },
+            { id: 'skirt', name: '百褶短裙', type: '半裙', material: '聚酯纤维', color: 0x9b59b6, icon: '👘', colors: [0x9b59b6, 0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0xffffff] },
+            { id: 'coat', name: '羊毛大衣', type: '外套', material: '羊毛', color: 0x7f8c8d, icon: '🧥', colors: [0x7f8c8d, 0x2c3e50, 0x1a1a2e, 0x6c3483, 0x117a65, 0xffffff] }
+        ];
+
+        let currentClothing = null;
+        let activeClothingIndex = 0;
+
+        // ==================== Clothing Creators ====================
+        function createSleeveGeo(length) {
+            const geo = new THREE.CylinderGeometry(0.055, 0.065, length, 16);
+            geo.translate(0, length / 2, 0);
+            return geo;
+        }
+
+        function createTShirt(color) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.0, side: THREE.DoubleSide });
+            const darkMat = new THREE.MeshStandardMaterial({ color: darkenColor(color, 0.15), roughness: 0.7 });
+
+            // Torso - fitted
+            const shape = new THREE.Shape();
+            shape.moveTo(-0.28, 0);
+            shape.lineTo(-0.28, 0.35);
+            shape.quadraticCurveTo(-0.28, 0.42, -0.22, 0.45);
+            shape.lineTo(-0.08, 0.48);
+            shape.lineTo(-0.06, 0.44);
+            shape.quadraticCurveTo(-0.12, 0.40, -0.12, 0.36);
+            shape.lineTo(-0.12, 0.12);
+            shape.quadraticCurveTo(-0.18, 0.08, -0.26, 0.06);
+            shape.lineTo(-0.28, 0);
+            shape.lineTo(0.28, 0);
+            shape.lineTo(0.26, 0.06);
+            shape.quadraticCurveTo(0.18, 0.08, 0.12, 0.12);
+            shape.lineTo(0.12, 0.36);
+            shape.quadraticCurveTo(0.12, 0.40, 0.06, 0.44);
+            shape.lineTo(0.08, 0.48);
+            shape.lineTo(0.22, 0.45);
+            shape.quadraticCurveTo(0.28, 0.42, 0.28, 0.35);
+            shape.lineTo(0.28, 0);
+
+            const extrudeSettings = { depth: 0.52, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 3 };
+            const bodyGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            bodyGeo.center();
+            bodyGeo.translate(0, 0, -0.26);
+            const bodyMesh = new THREE.Mesh(bodyGeo, mat);
+            bodyMesh.castShadow = true; bodyMesh.receiveShadow = true;
+            group.add(bodyMesh);
+
+            // Sleeves
+            const sleeveGeo = createSleeveGeo(0.26);
+            const sleeveL = new THREE.Mesh(sleeveGeo, mat);
+            sleeveL.position.set(-0.38, 0.12, 0); sleeveL.rotation.z = 0.15;
+            sleeveL.castShadow = true; group.add(sleeveL);
+            const sleeveR = new THREE.Mesh(sleeveGeo, mat);
+            sleeveR.position.set(0.38, 0.12, 0); sleeveR.rotation.z = -0.15;
+            sleeveR.castShadow = true; group.add(sleeveR);
+
+            // Collar
+            const collarGeo = new THREE.TorusGeometry(0.07, 0.015, 8, 32);
+            const collar = new THREE.Mesh(collarGeo, darkMat);
+            collar.position.y = 0.48; collar.rotation.x = Math.PI / 2;
+            group.add(collar);
+
+            group.position.y = 0.62;
+            group.userData = { type: 'upper', color };
+            return group;
+        }
+
+        function createDress(color) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.1, side: THREE.DoubleSide });
+            const darkMat = new THREE.MeshStandardMaterial({ color: darkenColor(color, 0.12), roughness: 0.3 });
+
+            // Bodice
+            const bodiceGeo = new THREE.CylinderGeometry(0.18, 0.2, 0.45, 32);
+            const bodice = new THREE.Mesh(bodiceGeo, mat);
+            bodice.position.y = 0.85; bodice.castShadow = true; group.add(bodice);
+
+            // Neckline
+            const neckGeo = new THREE.TorusGeometry(0.06, 0.012, 8, 32);
+            const neck = new THREE.Mesh(neckGeo, darkMat);
+            neck.position.y = 1.08; neck.rotation.x = Math.PI / 2; group.add(neck);
+
+            // Skirt (with cloth sim)
+            const skirtGeo = new THREE.CylinderGeometry(0.2, 0.7, 1.1, 32, 20, true);
+            skirtGeo.computeBoundingBox();
+            const skirt = new THREE.Mesh(skirtGeo, mat);
+            skirt.position.y = 0.05; skirt.castShadow = true; skirt.receiveShadow = true;
+            skirt.userData.hasSim = true;
+            group.add(skirt);
+
+            // Pleats
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const r = 0.15 + (0.55 * 0.5);
+                const pleatGeo = new THREE.BoxGeometry(0.01, 0.95, 0.05);
+                const pleat = new THREE.Mesh(pleatGeo, darkMat);
+                pleat.position.set(Math.cos(angle) * r, 0.05, Math.sin(angle) * r);
+                pleat.rotation.y = angle; pleat.castShadow = true;
+                group.add(pleat);
+            }
+
+            group.userData = { type: 'full', color };
+            return group;
+        }
+
+        function createJacket(color) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide });
+            const darkMat = new THREE.MeshStandardMaterial({ color: darkenColor(color, 0.2), roughness: 0.3 });
+
+            // Body
+            const bodyGeo = new THREE.CylinderGeometry(0.28, 0.32, 0.7, 32);
+            const body = new THREE.Mesh(bodyGeo, mat);
+            body.position.y = 0.95; body.castShadow = true; group.add(body);
+
+            // Collar
+            const collarShape = new THREE.Shape();
+            collarShape.moveTo(-0.12, 0); collarShape.lineTo(-0.12, 0.1);
+            collarShape.quadraticCurveTo(-0.08, 0.15, 0, 0.15);
+            collarShape.quadraticCurveTo(0.08, 0.15, 0.12, 0.1);
+            collarShape.lineTo(0.12, 0);
+            const collarGeo = new THREE.ExtrudeGeometry(collarShape, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005 });
+            const collar = new THREE.Mesh(collarGeo, mat);
+            collar.position.set(0, 1.32, -0.03); collar.rotation.x = -0.2;
+            group.add(collar);
+
+            // Lapels
+            const lapelGeo = new THREE.BoxGeometry(0.08, 0.2, 0.01);
+            const lapelL = new THREE.Mesh(lapelGeo, darkMat);
+            lapelL.position.set(-0.1, 1.22, 0.15); lapelL.rotation.z = 0.3; lapelL.rotation.y = -0.2;
+            group.add(lapelL);
+            const lapelR = new THREE.Mesh(lapelGeo, darkMat);
+            lapelR.position.set(0.1, 1.22, 0.15); lapelR.rotation.z = -0.3; lapelR.rotation.y = 0.2;
+            group.add(lapelR);
+
+            // Sleeves
+            const sleeveGeo = createSleeveGeo(0.38);
+            const sleeveL = new THREE.Mesh(sleeveGeo, mat);
+            sleeveL.position.set(-0.42, 1.0, 0); sleeveL.rotation.z = 0.15; sleeveL.castShadow = true; group.add(sleeveL);
+            const sleeveR = new THREE.Mesh(sleeveGeo, mat);
+            sleeveR.position.set(0.42, 1.0, 0); sleeveR.rotation.z = -0.15; sleeveR.castShadow = true; group.add(sleeveR);
+
+            // Zipper
+            const zipperGeo = new THREE.BoxGeometry(0.015, 0.55, 0.01);
+            const zipperMat = new THREE.MeshStandardMaterial({ color: 0x95a5a6, metalness: 0.8, roughness: 0.2 });
+            const zipper = new THREE.Mesh(zipperGeo, zipperMat);
+            zipper.position.set(0, 0.95, 0.16); group.add(zipper);
+
+            // Buttons
+            for (let i = 0; i < 3; i++) {
+                const btn = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), darkMat);
+                btn.position.set(-0.12, 1.15 - i * 0.15, 0.16); group.add(btn);
+            }
+
+            group.userData = { type: 'upper', color };
+            return group;
+        }
+
+        function createSkirt(color) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
+            const darkMat = new THREE.MeshStandardMaterial({ color: darkenColor(color, 0.12), roughness: 0.4 });
+
+            // Waistband
+            const waistGeo = new THREE.TorusGeometry(0.22, 0.025, 8, 32);
+            const waist = new THREE.Mesh(waistGeo, mat);
+            waist.position.y = 0.45; waist.rotation.x = Math.PI / 2;
+            group.add(waist);
+
+            // Skirt body (with cloth sim)
+            const skirtGeo = new THREE.CylinderGeometry(0.22, 0.55, 0.7, 32, 16, true);
+            skirtGeo.computeBoundingBox();
+            const skirt = new THREE.Mesh(skirtGeo, mat);
+            skirt.position.y = 0.08; skirt.castShadow = true; skirt.receiveShadow = true;
+            skirt.userData.hasSim = true;
+            group.add(skirt);
+
+            // Pleats
+            for (let i = 0; i < 16; i++) {
+                const angle = (i / 16) * Math.PI * 2;
+                const r = (0.2 + 0.55) / 2;
+                const pleatGeo = new THREE.BoxGeometry(0.008, 0.65, 0.04);
+                const pleat = new THREE.Mesh(pleatGeo, darkMat);
+                pleat.position.set(Math.cos(angle) * r, 0.08, Math.sin(angle) * r);
+                pleat.rotation.y = angle + Math.PI / 2; pleat.castShadow = true;
+                group.add(pleat);
+            }
+
+            group.userData = { type: 'lower', color };
+            return group;
+        }
+
+        function createCoat(color) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.0, side: THREE.DoubleSide });
+            const darkMat = new THREE.MeshStandardMaterial({ color: darkenColor(color, 0.2), roughness: 0.7 });
+
+            // Body
+            const bodyGeo = new THREE.CylinderGeometry(0.32, 0.36, 0.9, 32);
+            const body = new THREE.Mesh(bodyGeo, mat);
+            body.position.y = 0.9; body.castShadow = true; group.add(body);
+
+            // Collar
+            const collarShape = new THREE.Shape();
+            collarShape.moveTo(-0.14, 0); collarShape.lineTo(-0.14, 0.12);
+            collarShape.quadraticCurveTo(-0.08, 0.2, 0, 0.2);
+            collarShape.quadraticCurveTo(0.08, 0.2, 0.14, 0.12);
+            collarShape.lineTo(0.14, 0);
+            const collarGeo = new THREE.ExtrudeGeometry(collarShape, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005 });
+            const collar = new THREE.Mesh(collarGeo, darkMat);
+            collar.position.set(0, 1.37, -0.04); collar.rotation.x = -0.15;
+            group.add(collar);
+
+            // Double-breasted buttons
+            for (let i = 0; i < 4; i++) {
+                const btn = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), darkMat);
+                btn.position.set(-0.1, 1.25 - i * 0.15, 0.17); group.add(btn);
+                const btn2 = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), darkMat);
+                btn2.position.set(0.12, 1.25 - i * 0.15, 0.17); group.add(btn2);
+            }
+
+            // Pockets
+            const pocketGeo = new THREE.BoxGeometry(0.12, 0.08, 0.03);
+            const pocketL = new THREE.Mesh(pocketGeo, darkMat);
+            pocketL.position.set(-0.2, 0.75, 0.18); group.add(pocketL);
+            const pocketR = new THREE.Mesh(pocketGeo, darkMat);
+            pocketR.position.set(0.2, 0.75, 0.18); group.add(pocketR);
+
+            // Sleeves
+            const sleeveGeo = createSleeveGeo(0.45);
+            const sleeveL = new THREE.Mesh(sleeveGeo, mat);
+            sleeveL.position.set(-0.45, 0.95, 0); sleeveL.rotation.z = 0.12; sleeveL.castShadow = true; group.add(sleeveL);
+            const sleeveR = new THREE.Mesh(sleeveGeo, mat);
+            sleeveR.position.set(0.45, 0.95, 0); sleeveR.rotation.z = -0.12; sleeveR.castShadow = true; group.add(sleeveR);
+
+            // Hem
+            const hemGeo = new THREE.TorusGeometry(0.36, 0.03, 8, 32);
+            const hem = new THREE.Mesh(hemGeo, darkMat);
+            hem.position.y = 0.45; hem.rotation.x = Math.PI / 2;
+            group.add(hem);
+
+            group.userData = { type: 'upper', color };
+            return group;
+        }
+
+        function darkenColor(hex, factor) {
+            const r = Math.max(0, ((hex >> 16) & 255) * (1 - factor));
+            const g = Math.max(0, ((hex >> 8) & 255) * (1 - factor));
+            const b = Math.max(0, (hex & 255) * (1 - factor));
+            return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
+        }
+
+        // ==================== Clothing Manager ====================
+        const clothingCreators = [createTShirt, createDress, createJacket, createSkirt, createCoat];
+
+        function tryOnClothing(index) {
+            activeClothingIndex = index;
+            if (currentClothing) {
+                scene.remove(currentClothing);
+                currentClothing = null;
+            }
+
+            const data = clothingData[index];
+            const group = clothingCreators[index](data.color);
+            currentClothing = group;
+
+            // Initialize cloth simulation for skirt/dress meshes
+            group.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    if (child.userData.hasSim && child.geometry.index) {
+                        child.userData.clothSim = new ClothSim(child.geometry, 'skirt');
+                    }
+                }
+            });
+
+            // Animate in
+            group.scale.set(0.01, 0.01, 0.01);
+            scene.add(group);
+
+            const startTime = performance.now();
+            const duration = 600;
+            function animIn() {
+                const t = Math.min((performance.now() - startTime) / duration, 1);
+                const ease = 1 - Math.pow(1 - t, 3);
+                group.scale.set(ease, ease, ease);
+                if (t < 1) requestAnimationFrame(animIn);
+            }
+            animIn();
+
+            // Update info
+            document.getElementById('infoStyle').textContent = data.name;
+            document.getElementById('infoType').textContent = data.type;
+            document.getElementById('infoMaterial').textContent = data.material;
+            buildColorOptions(index);
+        }
+
+        function changeClothingColor(colorHex) {
+            if (!currentClothing) return;
+            const data = clothingData[activeClothingIndex];
+            currentClothing.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    // Check if this is a main material (not dark/secondary)
+                    const mainColor = data.color;
+                    if (child.material.color && child.material.color.getHex() === mainColor) {
+                        child.material.color.setHex(colorHex);
+                    }
+                }
+            });
+        }
+
+        // ==================== UI ====================
+        function buildUI() {
+            const panel = document.getElementById('clothingPanel');
+            panel.innerHTML = '';
+            clothingData.forEach((item, i) => {
+                const div = document.createElement('div');
+                div.className = 'clothing-item' + (i === 0 ? ' active' : '');
+                div.innerHTML = `<div class="clothing-icon">${item.icon}</div><div class="clothing-name">${item.name}</div>`;
+                div.addEventListener('click', () => {
+                    document.querySelectorAll('.clothing-item').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+                    tryOnClothing(i);
+                });
+                panel.appendChild(div);
+            });
+        }
+
+        function buildColorOptions(clothingIndex) {
+            const container = document.getElementById('colorOptions');
+            container.innerHTML = '';
+            const data = clothingData[clothingIndex];
+            data.colors.forEach((c, i) => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch' + (i === 0 ? ' active' : '');
+                swatch.style.backgroundColor = '#' + c.toString(16).padStart(6, '0');
+                swatch.addEventListener('click', () => {
+                    document.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('active'));
+                    swatch.classList.add('active');
+                    changeClothingColor(c);
+                });
+                container.appendChild(swatch);
+            });
+        }
+
+        // ==================== Controls ====================
+        document.getElementById('btnReset').addEventListener('click', () => {
+            camera.position.set(0, 1.2, 5);
+            controls.target.set(0, 0.8, 0);
+        });
+        document.getElementById('btnAutoRotate').addEventListener('click', () => {
+            controls.autoRotate = !controls.autoRotate;
+            controls.autoRotateSpeed = 1.5;
+        });
+        let wireframeMode = false;
+        document.getElementById('btnWireframe').addEventListener('click', () => {
+            wireframeMode = !wireframeMode;
+            bodyGroup.traverse(c => { if (c.isMesh && c.material) c.material.wireframe = wireframeMode; });
+            if (currentClothing) currentClothing.traverse(c => { if (c.isMesh && c.material) c.material.wireframe = wireframeMode; });
+        });
+        document.getElementById('btnScreenshot').addEventListener('click', () => {
+            renderer.render(scene, camera);
+            const link = document.createElement('a');
+            link.download = 'virtual-fitting-room.png';
+            link.href = renderer.domElement.toDataURL('image/png');
+            link.click();
+        });
+
+        // ==================== Particles ====================
+        const particleCount = 80;
+        const particleGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount; i++) {
+            pPos[i * 3] = (Math.random() - 0.5) * 10;
+            pPos[i * 3 + 1] = Math.random() * 5;
+            pPos[i * 3 + 2] = (Math.random() - 0.5) * 10;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        const particles = new THREE.Points(particleGeo, new THREE.PointsMaterial({ color: 0xf0c674, size: 0.02, transparent: true, opacity: 0.4, sizeAttenuation: true }));
+        scene.add(particles);
+
+        // ==================== Animation Loop ====================
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            controls.update();
+
+            // Animate particles
+            const posArr = particleGeo.attributes.position.array;
+            for (let i = 0; i < particleCount; i++) {
+                posArr[i * 3 + 1] += delta * 0.1;
+                if (posArr[i * 3 + 1] > 5) posArr[i * 3 + 1] = 0;
+            }
+            particleGeo.attributes.position.needsUpdate = true;
+
+            // Ring glow
+            ring.material.opacity = 0.2 + Math.sin(performance.now() * 0.002) * 0.1;
+
+            // Breathing
+            const breathe = Math.sin(performance.now() * 0.001) * 0.005;
+            chest.scale.x = 1 + breathe;
+            chest.scale.z = 1 + breathe;
+
+            // Cloth simulation
+            if (currentClothing) {
+                currentClothing.traverse((child) => {
+                    if (child.isMesh && child.userData.clothSim) {
+                        child.userData.clothSim.update(delta);
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // ==================== Init ====================
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        buildUI();
+        tryOnClothing(0);
+
+        setTimeout(() => {
+            document.getElementById('loadingScreen').classList.add('hidden');
+        }, 1500);
+
+        animate();
+    </script>
 </body>
 </html>
