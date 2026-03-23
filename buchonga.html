@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素捕虫</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: monospace; }
+canvas { image-rendering: pixelated; border: 3px solid #555; }
+#ui { position: absolute; top: 12px; left: 12px; color: #fff; font-size: 20px; font-family: monospace; pointer-events: none; }
+#ui span { color: #ffdd44; }
+#dialog { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); background: rgba(40, 40, 50, 0.92); color: #ddd; padding: 12px 24px; border: 2px solid #aaa; border-radius: 4px; font-size: 16px; font-family: monospace; min-width: 320px; display: none; text-align: center; line-height: 1.6; }
+#dialog .npc-name { color: #8cf; margin-bottom: 6px; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="ui">🐛 已捕获: <span id="bug-count">0</span></div>
+<div id="dialog"><div class="npc-name"></div><div class="npc-text"></div></div>
+<canvas id="game"></canvas>
+<script>
+const TILE = 24;
+const W = 28, H = 20;
+const CANVAS_W = W * TILE, CANVAS_H = H * TILE;
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = CANVAS_W; canvas.height = CANVAS_H;
+
+// ============ 地图数据 (0=草地, 1=水, 2=树, 3=花, 4=石头, 5=小径, 6=木箱, 7=房屋) ============
+const map = [
+  [7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7],
+  [7,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,7],
+  [7,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,3,0,0,1,1,1,0,0,0,0,2,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,4,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,4,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,7],
+  [7,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,7],
+  [7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7],
+  [7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7],
+];
+
+// 静态障碍物 (2=树, 4=石头, 6=木箱, 7=房屋, 1=水)
+const SOLID = new Set([1, 2, 4, 6, 7]);
+
+// ============ 绘制瓦片 ============
+const tileColors = {
+  0: '#4a8c4a', // 草地
+  1: '#3a6fa3', // 水
+  2: '#2d5a2d', // 树
+  3: '#e88',   // 花
+  4: '#777',   // 石头
+  5: '#c4a05a',// 小径
+  6: '#8b5a2b',// 木箱
+  7: '#996633',// 房屋
+};
+
+function drawTile(x, y, type) {
+  const px = x * TILE, py = y * TILE;
+  ctx.fillStyle = tileColors[type];
+  ctx.fillRect(px, py, TILE, TILE);
+  if (type === 1) { // 水 — 波纹
+    const t = Date.now() / 300;
+    ctx.fillStyle = '#5a9fd3';
+    ctx.fillRect(px + 4 + Math.sin(t + x) * 2, py + 8, 6, 2);
+    ctx.fillRect(px + 14 + Math.sin(t + y + 1) * 2, py + 14, 5, 2);
+  }
+  if (type === 2) { // 树
+    ctx.fillStyle = '#1a3a1a';
+    ctx.fillRect(px + 6, py + 14, 12, 10); // 树干
+    ctx.fillStyle = '#2d7a2d';
+    ctx.fillRect(px + 2, py + 2, 20, 14); // 树冠
+    ctx.fillStyle = '#3a9a3a';
+    ctx.fillRect(px + 4, py + 4, 16, 10);
+  }
+  if (type === 3) { // 花
+    ctx.fillStyle = '#4a8c4a';
+    ctx.fillRect(px, py, TILE, TILE);
+    ctx.fillStyle = '#e55';
+    ctx.fillRect(px + 10, py + 8, 4, 10); // 茎
+    ctx.fillStyle = '#ff3';
+    ctx.fillRect(px + 8, py + 4, 8, 6);  // 花瓣
+  }
+  if (type === 4) { // 石头
+    ctx.fillStyle = '#555';
+    ctx.fillRect(px + 2, py + 6, 20, 14);
+    ctx.fillStyle = '#777';
+    ctx.fillRect(px + 4, py + 8, 16, 10);
+  }
+  if (type === 5) { // 小径纹理
+    ctx.fillStyle = '#b8904a';
+    ctx.fillRect(px + 4, py + 10, 3, 2);
+    ctx.fillRect(px + 16, py + 4, 3, 2);
+  }
+  if (type === 6) { // 木箱
+    ctx.fillStyle = '#7a4a1b';
+    ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+    ctx.fillStyle = '#9a6a3b';
+    ctx.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
+    ctx.strokeStyle = '#5a3a0b';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px + 3, py + 3, TILE - 6, TILE - 6);
+  }
+  if (type === 7) { // 房屋
+    ctx.fillStyle = '#884422';
+    ctx.fillRect(px, py, TILE, TILE);
+    ctx.fillStyle = '#552211';
+    ctx.fillRect(px, py + 8, TILE, TILE - 8); // 墙
+    ctx.fillStyle = '#aa33';
+    ctx.fillRect(px + 8, py + 14, 8, 10); // 门
+    ctx.fillStyle = '#66bbff';
+    ctx.fillRect(px + 3, py + 10, 5, 5);  // 窗
+    ctx.fillRect(px + 16, py + 10, 5, 5);
+  }
+}
+
+// ============ 玩家 ============
+const player = {
+  x: 14 * TILE, y: 13 * TILE,
+  dir: 'down', frame: 0, frameTimer: 0,
+  speed: 1.8,
+  animSpeed: 120,
+};
+const dirs = { up: { dx: 0, dy: -1 }, down: { dx: 0, dy: 1 }, left: { dx: -1, dy: 0 }, right: { dx: 1, dy: 0 } };
+const keys = {};
+
+function drawPlayer() {
+  const px = player.x, py = player.y;
+  // 阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(px + TILE/2, py + TILE - 2, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+  // 身体
+  ctx.fillStyle = '#ff6b35';
+  ctx.fillRect(px + 6, py + 10, 12, 12);
+  // 头
+  ctx.fillStyle = '#ffcba4';
+  ctx.fillRect(px + 7, py + 3, 10, 9);
+  // 帽子
+  ctx.fillStyle = '#cc3333';
+  ctx.fillRect(px + 5, py + 2, 14, 4);
+  ctx.fillRect(px + 7, py, 10, 3);
+  // 腿 (行走动画)
+  ctx.fillStyle = '#3344aa';
+  const legOff = player.moving ? Math.sin(player.frame * 0.8) * 2 : 0;
+  ctx.fillRect(px + 7 + legOff, py + 22, 4, 3);
+  ctx.fillRect(px + 13 - legOff, py + 22, 4, 3);
+  // 方向指示 — 眼睛位置
+  ctx.fillStyle = '#333';
+  if (player.dir === 'down') {
+    ctx.fillRect(px + 9, py + 6, 2, 2);
+    ctx.fillRect(px + 13, py + 6, 2, 2);
+  } else if (player.dir === 'up') {
+    // 背面看不到眼睛
+  } else if (player.dir === 'left') {
+    ctx.fillRect(px + 8, py + 6, 2, 2);
+  } else if (player.dir === 'right') {
+    ctx.fillRect(px + 14, py + 6, 2, 2);
+  }
+}
+
+function playerCanMove(dx, dy) {
+  const newX = player.x + dx * player.speed;
+  const newY = player.y + dy * player.speed;
+  const tl = Math.floor(newX / TILE), tt = Math.floor(newY / TILE);
+  const tr = Math.floor((newX + TILE - 2) / TILE), tb = Math.floor((newY + TILE - 2) / TILE);
+  for (let r = tt; r <= tb; r++) {
+    for (let c = tl; c <= tr; c++) {
+      if (r < 0 || r >= H || c < 0 || c >= W || SOLID.has(map[r][c])) return false;
+    }
+  }
+  return true;
+}
+
+// ============ NPC ============
+const npcs = [
+  { x: 6 * TILE, y: 6 * TILE, dir: 'down', name: '老王', color: '#4488cc', text: '嘿，你也在找虫子吗？\n湖边经常有蝴蝶飞过！' },
+  { x: 20 * TILE, y: 8 * TILE, dir: 'left', name: '小美', color: '#cc6688', text: '森林里有很多稀有的虫子，\n用空格键挥网试试看！' },
+  { x: 10 * TILE, y: 14 * TILE, dir: 'up', name: '捕虫达人', color: '#66aa44', text: '听说已经有人捕获了\n100 只虫子了，你呢？' },
+];
+
+function drawNpc(npc) {
+  const px = npc.x, py = npc.y;
+  // 阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(px + TILE/2, py + TILE - 2, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+  // 身体
+  ctx.fillStyle = npc.color;
+  ctx.fillRect(px + 6, py + 10, 12, 12);
+  // 头
+  ctx.fillStyle = '#ffcba4';
+  ctx.fillRect(px + 7, py + 3, 10, 9);
+  // 头发
+  ctx.fillStyle = '#443322';
+  ctx.fillRect(px + 6, py + 2, 12, 5);
+  // 眼睛
+  ctx.fillStyle = '#333';
+  if (npc.dir === 'down') {
+    ctx.fillRect(px + 9, py + 6, 2, 2);
+    ctx.fillRect(px + 13, py + 6, 2, 2);
+  } else if (npc.dir === 'up') {
+  } else if (npc.dir === 'left') {
+    ctx.fillRect(px + 8, py + 6, 2, 2);
+  } else if (npc.dir === 'right') {
+    ctx.fillRect(px + 14, py + 6, 2, 2);
+  }
+}
+
+// ============ 虫子 ============
+let bugs = [];
+let bugCount = 0;
+const BUG_TYPES = [
+  { name: '蝴蝶', color: '#ff88cc', wingColor: '#ffaaff', size: 10 },
+  { name: '甲虫', color: '#556b2f', wingColor: '#88aa33', size: 8 },
+  { name: '萤火虫', color: '#ffff66', wingColor: '#aaffaa', size: 7 },
+  { name: '蜻蜓', color: '#4488ff', wingColor: '#88ccff', size: 9 },
+  { name: '蜜蜂', color: '#ffaa00', wingColor: '#ffee88', size: 8 },
+];
+
+function spawnBug() {
+  if (bugs.length >= 6) return;
+  let attempts = 0;
+  while (attempts < 50) {
+    const tx = Math.floor(Math.random() * (W - 2)) + 1;
+    const ty = Math.floor(Math.random() * (H - 2)) + 1;
+    if (map[ty][tx] === 0) {
+      const type = BUG_TYPES[Math.floor(Math.random() * BUG_TYPES.length)];
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.5 + Math.random() * 0.8;
+      bugs.push({
+        x: tx * TILE + TILE / 2,
+        y: ty * TILE + TILE / 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        type,
+        frame: Math.random() * 100,
+        alive: true,
+      });
+      break;
+    }
+    attempts++;
+  }
+}
+
+function updateBugs() {
+  const t = Date.now() / 1000;
+  bugs.forEach(b => {
+    if (!b.alive) return;
+    b.x += b.vx;
+    b.y += b.vy;
+    b.frame += 0.15;
+    // 随机改变方向
+    if (Math.random() < 0.01) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.5 + Math.random() * 0.8;
+      b.vx = Math.cos(angle) * speed;
+      b.vy = Math.sin(angle) * speed;
+    }
+    // 边界和障碍物反弹
+    const tl = Math.floor((b.x - 6) / TILE), tt = Math.floor((b.y - 6) / TILE);
+    const tr = Math.floor((b.x + 6) / TILE), tb = Math.floor((b.y + 6) / TILE);
+    let blocked = false;
+    for (let r = tt; r <= tb; r++) {
+      for (let c = tl; c <= tr; c++) {
+        if (r < 0 || r >= H || c < 0 || c >= W || SOLID.has(map[r][c])) {
+          blocked = true;
+        }
+      }
+    }
+    if (blocked) {
+      b.vx *= -1; b.vy *= -1;
+      b.x += b.vx * 2; b.y += b.vy * 2;
+    }
+  });
+}
+
+function drawBugs() {
+  bugs.forEach(b => {
+    if (!b.alive) return;
+    const px = b.x, py = b.y;
+    const s = b.type.size;
+    const wobble = Math.sin(b.frame) * 2;
+    // 翅膀
+    ctx.fillStyle = b.type.wingColor;
+    ctx.fillRect(px - s + wobble, py - s/2, s - 2, s/2);
+    ctx.fillRect(px + 2 - wobble, py - s/2, s - 2, s/2);
+    // 身体
+    ctx.fillStyle = b.type.color;
+    ctx.fillRect(px - 2, py - s/3, 4, s * 0.7);
+    // 萤火虫发光
+    if (b.type.name === '萤火虫') {
+      ctx.fillStyle = `rgba(255, 255, 100, ${0.3 + Math.sin(b.frame * 2) * 0.2})`;
+      ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+}
+
+// ============ 捕虫网 ============
+let netSwing = 0;
+let netActive = false;
+
+function drawNet() {
+  if (netSwing <= 0) return;
+  const px = player.x + TILE / 2, py = player.y + TILE / 2;
+  const progress = netSwing / 10;
+  const reach = 30 * Math.sin(progress * Math.PI);
+  let ox = 0, oy = 0;
+  if (player.dir === 'up') oy = -reach;
+  else if (player.dir === 'down') oy = reach;
+  else if (player.dir === 'left') ox = -reach;
+  else if (player.dir === 'right') ox = reach;
+  // 网杆
+  ctx.strokeStyle = '#8b6914';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(px + ox, py + oy);
+  ctx.stroke();
+  // 网圈
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(px + ox, py + oy, 8 + progress * 4, 0, Math.PI * 2);
+  ctx.stroke();
+  // 网线
+  ctx.beginPath();
+  ctx.moveTo(px + ox - 6, py + oy - 4); ctx.lineTo(px + ox + 6, py + oy + 4);
+  ctx.moveTo(px + ox + 6, py + oy - 4); ctx.lineTo(px + ox - 6, py + oy + 4);
+  ctx.moveTo(px + ox, py + oy - 6); ctx.lineTo(px + ox, py + oy + 6);
+  ctx.stroke();
+}
+
+function swingNet() {
+  if (netSwing > 0) return;
+  netSwing = 10;
+  netActive = true;
+  // 检测捕捉
+  const px = player.x + TILE / 2, py = player.y + TILE / 2;
+  const dir = dirs[player.dir];
+  const catchX = px + dir.dx * 28, catchY = py + dir.dy * 28;
+  bugs.forEach(b => {
+    if (!b.alive) return;
+    const dist = Math.hypot(b.x - catchX, b.y - catchY);
+    if (dist < 16) {
+      b.alive = false;
+      bugCount++;
+      document.getElementById('bug-count').textContent = bugCount;
+      showFloatText('+1 ' + b.type.name, catchX, catchY);
+    }
+  });
+}
+
+// ============ 浮动文字 ============
+let floatTexts = [];
+
+function showFloatText(text, x, y) {
+  floatTexts.push({ text, x, y, life: 60, alpha: 1 });
+}
+
+function drawFloatTexts() {
+  floatTexts = floatTexts.filter(ft => {
+    ft.y -= 0.8;
+    ft.life--;
+    ft.alpha = ft.life / 60;
+    if (ft.life <= 0) return false;
+    ctx.fillStyle = `rgba(255, 220, 50, ${ft.alpha})`;
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(ft.text, ft.x, ft.y);
+    return true;
+  });
+}
+
+// ============ 对话框 ============
+let dialogOpen = false;
+
+function showDialog(npc) {
+  dialogOpen = true;
+  const el = document.getElementById('dialog');
+  el.querySelector('.npc-name').textContent = npc.name;
+  el.querySelector('.npc-text').innerHTML = npc.text.replace(/\n/g, '<br>');
+  el.style.display = 'block';
+}
+
+function closeDialog() {
+  dialogOpen = false;
+  document.getElementById('dialog').style.display = 'none';
+}
+
+// ============ 主循环 ============
+function gameLoop() {
+  // 清空
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // 绘制地图
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < W; c++) {
+      drawTile(c, r, map[r][c]);
+    }
+  }
+
+  // 更新玩家移动
+  player.moving = false;
+  for (const d in dirs) {
+    if (keys[d]) {
+      player.dir = d;
+      if (playerCanMove(dirs[d].dx, dirs[d].dy)) {
+        player.x += dirs[d].dx * player.speed;
+        player.y += dirs[d].dy * player.speed;
+        player.moving = true;
+      }
+    }
+  }
+  // 行走动画
+  if (player.moving) {
+    player.frameTimer += 16;
+    if (player.frameTimer >= player.animSpeed) {
+      player.frameTimer = 0;
+      player.frame = (player.frame + 1) % 4;
+    }
+  } else {
+    player.frame = 0;
+  }
+
+  // 更新虫子
+  updateBugs();
+
+  // 绘制虫子
+  drawBugs();
+
+  // 绘制 NPC
+  npcs.forEach(drawNpc);
+
+  // 绘制玩家
+  drawPlayer();
+
+  // 绘制捕虫网
+  if (netSwing > 0) {
+    drawNet();
+    netSwing--;
+  }
+
+  // 浮动文字
+  drawFloatTexts();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ============ 输入 ============
+document.addEventListener('keydown', e => {
+  const key = e.key.toLowerCase();
+  if (['arrowup', 'w'].includes(key) || key === 'arrowup') { keys.up = true; e.preventDefault(); }
+  if (['arrowdown', 's'].includes(key) || key === 'arrowdown') { keys.down = true; e.preventDefault(); }
+  if (['arrowleft', 'a'].includes(key) || key === 'arrowleft') { keys.left = true; e.preventDefault(); }
+  if (['arrowright', 'd'].includes(key) || key === 'arrowright') { keys.right = true; e.preventDefault(); }
+  if (key === ' ') { swingNet(); e.preventDefault(); }
+  if (key === 'e') {
+    if (dialogOpen) { closeDialog(); return; }
+    // 检测 NPC 交互
+    for (const npc of npcs) {
+      const dist = Math.hypot(player.x - npc.x, player.y - npc.y);
+      if (dist < TILE * 2) {
+        // 面向 NPC
+        const dx = npc.x - player.x, dy = npc.y - player.y;
+        if (Math.abs(dx) > Math.abs(dy)) {
+          player.dir = dx > 0 ? 'right' : 'left';
+        } else {
+          player.dir = dy > 0 ? 'down' : 'up';
+        }
+        showDialog(npc);
+        break;
+      }
+    }
+  }
+});
+
+document.addEventListener('keyup', e => {
+  const key = e.key.toLowerCase();
+  if (['arrowup', 'w'].includes(key) || key === 'arrowup') keys.up = false;
+  if (['arrowdown', 's'].includes(key) || key === 'arrowdown') keys.down = false;
+  if (['arrowleft', 'a'].includes(key) || key === 'arrowleft') keys.left = false;
+  if (['arrowright', 'd'].includes(key) || key === 'arrowright') keys.right = false;
+});
+
+// ============ 初始化 ============
+// 初始生成虫子
+for (let i = 0; i < 4; i++) spawnBug();
+// 定时生成新虫子
+setInterval(spawnBug, 4000);
+
+gameLoop();
+</script>
+</body>
+</html>
