@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简易地图 - 定位、标记与底图切换</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+    #map { width: 100%; height: 100%; }
+
+    /* 控制面板 */
+    .control-panel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      overflow: hidden;
+      min-width: 160px;
+    }
+    .control-panel h3 {
+      font-size: 14px;
+      padding: 10px 14px;
+      background: #f5f5f5;
+      border-bottom: 1px solid #eee;
+    }
+    .layer-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .layer-list li {
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.2s;
+    }
+    .layer-list li:last-child { border-bottom: none; }
+    .layer-list li:hover { background: #f0f0f0; }
+    .layer-list li.active {
+      background: #e8f4e8;
+      color: #2e7d32;
+      font-weight: 600;
+    }
+
+    /* 定位按钮 */
+    .locate-btn {
+      position: absolute;
+      bottom: 30px;
+      right: 10px;
+      z-index: 1000;
+      width: 36px;
+      height: 36px;
+      background: #fff;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: background 0.2s;
+    }
+    .locate-btn:hover { background: #f0f0f0; }
+
+    /* 弹窗样式 */
+    .leaflet-popup-content { margin: 8px 14px; }
+    .popup-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 6px;
+    }
+    .popup-desc {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+    }
+    .popup-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #e3f2fd;
+      color: #1565c0;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    /* 顶部提示 */
+    .top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 999;
+      padding: 10px 50px;
+      background: rgba(255,255,255,0.9);
+      text-align: center;
+      font-size: 14px;
+      color: #555;
+      border-bottom: 1px solid #ddd;
+      backdrop-filter: blur(4px);
+      transition: opacity 0.3s;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar" id="topBar">
+    点击标记查看详情 | 右上角切换底图样式 | 右下角定位按钮
+  </div>
+
+  <div id="map"></div>
+
+  <div class="control-panel">
+    <h3>底图样式</h3>
+    <ul class="layer-list" id="layerList"></ul>
+  </div>
+
+  <button class="locate-btn" id="locateBtn" title="定位到当前位置">&#x1F4CD;</button>
+
+  <script>
+    // ==================== 1. 初始化地图 ====================
+    var map = L.map('map', {
+      center: [39.9042, 116.4074], // 北京
+      zoom: 12,
+      zoomControl: false,
+    });
+
+    // 将缩放控件移到左下角
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+    // ==================== 2. 底图图层定义 ====================
+    var baseLayers = {
+      "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }),
+      "卫星图": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri',
+        maxZoom: 19,
+      }),
+      "地形图": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenTopoMap',
+        maxZoom: 17,
+      }),
+      "深色": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB',
+        maxZoom: 19,
+      }),
+      "浅色": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB',
+        maxZoom: 19,
+      }),
+    };
+
+    // 当前活跃图层
+    var currentLayerName = "OpenStreetMap";
+    baseLayers[currentLayerName].addTo(map);
+
+    // 构建底图切换列表
+    var layerList = document.getElementById('layerList');
+    Object.keys(baseLayers).forEach(function (name) {
+      var li = document.createElement('li');
+      li.textContent = name;
+      if (name === currentLayerName) li.classList.add('active');
+      li.addEventListener('click', function () {
+        // 移除旧图层
+        map.removeLayer(baseLayers[currentLayerName]);
+        // 添加新图层
+        currentLayerName = name;
+        baseLayers[name].addTo(map);
+        // 更新选中状态
+        document.querySelectorAll('.layer-list li').forEach(function (el) {
+          el.classList.remove('active');
+        });
+        li.classList.add('active');
+      });
+      layerList.appendChild(li);
+    });
+
+    // ==================== 3. 兴趣点数据 ====================
+    var pois = [
+      {
+        lat: 39.9087, lng: 116.3975,
+        name: "天安门广场",
+        desc: "北京市中心广场，中华人民共和国象征之一。面积44万平方米，可容纳100万人举行盛大集会。",
+        tag: "地标建筑"
+      },
+      {
+        lat: 39.9163, lng: 116.3972,
+        name: "故宫博物院",
+        desc: "明清两代皇宫，世界上现存规模最大的木质结构古建筑群，收藏文物180多万件。",
+        tag: "文化景点"
+      },
+      {
+        lat: 39.8836, lng: 116.3928,
+        name: "天坛公园",
+        desc: "明清两代帝王祭天祈谷的场所，建筑群布局严谨，是中国古代建筑的杰作。",
+        tag: "文化景点"
+      },
+      {
+        lat: 39.9772, lng: 116.3908,
+        name: "鸟巢（国家体育场）",
+        desc: "2008年北京奥运会主体育场，造型独特如鸟巢，可容纳观众9.1万人。",
+        tag: "体育场馆"
+      },
+      {
+        lat: 39.9928, lng: 116.3917,
+        name: "水立方（国家游泳中心）",
+        desc: "2008年北京奥运会游泳比赛场馆，外观如蓝色水泡，是现代建筑的代表作。",
+        tag: "体育场馆"
+      },
+      {
+        lat: 39.9042, lng: 116.4320,
+        name: "王府井大街",
+        desc: "北京最著名的商业街之一，汇聚各类品牌店铺与老字号，被誉为"金街"。",
+        tag: "商业街区"
+      },
+      {
+        lat: 39.9054, lng: 116.4615,
+        name: "CBD 国贸",
+        desc: "北京中央商务区核心地带，摩天大楼林立，是北京的金融与商业中心。",
+        tag: "商务区"
+      },
+    ];
+
+    // ==================== 4. 添加标记和弹窗 ====================
+    var markers = [];
+    pois.forEach(function (poi) {
+      var marker = L.marker([poi.lat, poi.lng]).addTo(map);
+      marker.bindPopup(
+        '<div class="popup-title">' + poi.name + '</div>' +
+        '<div class="popup-desc">' + poi.desc + '</div>' +
+        '<span class="popup-tag">' + poi.tag + '</span>',
+        { maxWidth: 280 }
+      );
+      // 点击标记时打开弹窗并放大
+      marker.on('click', function () {
+        map.setView([poi.lat, poi.lng], 15);
+      });
+      markers.push(marker);
+    });
+
+    // ==================== 5. 定位功能 ====================
+    var locateBtn = document.getElementById('locateBtn');
+    var userMarker = null;
+
+    locateBtn.addEventListener('click', function () {
+      if (!navigator.geolocation) {
+        alert("您的浏览器不支持地理定位");
+        return;
+      }
+      locateBtn.innerHTML = "⏳";
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          var lat = pos.coords.latitude;
+          var lng = pos.coords.longitude;
+          // 移除旧的用户标记
+          if (userMarker) map.removeLayer(userMarker);
+          // 添加用户位置标记
+          var userIcon = L.divIcon({
+            html: '<div style="width:16px;height:16px;background:#2196F3;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
+            className: '',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+          });
+          userMarker = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+          userMarker.bindPopup('<b>我的位置</b><br/>经度: ' + lng.toFixed(5) + '<br/>纬度: ' + lat.toFixed(5));
+          // 飞到用户位置
+          map.flyTo([lat, lng], 16, { duration: 1.5 });
+          locateBtn.innerHTML = "&#x1F4CD;";
+        },
+        function (err) {
+          alert("定位失败: " + err.message);
+          locateBtn.innerHTML = "&#x1F4CD;";
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+
+    // ==================== 6. 自动定位（可选，延迟3秒后尝试） ====================
+    setTimeout(function () {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function (pos) {
+            var topBar = document.getElementById('topBar');
+            topBar.style.opacity = '0';
+            setTimeout(function () { topBar.style.display = 'none'; }, 300);
+          },
+          function () {} // 静默失败，不影响使用
+        );
+      }
+    }, 3000);
+  </script>
+
+</body>
+</html>
