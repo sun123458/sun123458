@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品详情页</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #333; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 16px; }
+
+  /* ===== 顶部导航 ===== */
+  .top-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; font-size: 15px; }
+  .top-bar .back { cursor: pointer; font-size: 20px; }
+
+  /* ===== 主内容两栏布局 ===== */
+  .main { display: flex; gap: 24px; }
+  .left { width: 420px; flex-shrink: 0; }
+  .right { flex: 1; }
+
+  /* ===== 图片轮播 ===== */
+  .carousel { position: relative; width: 100%; border-radius: 8px; overflow: hidden; background: #fff; }
+  .carousel-list { display: flex; transition: transform 0.4s ease; }
+  .carousel-list img { width: 420px; height: 420px; object-fit: cover; flex-shrink: 0; }
+  .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; border: none; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s; }
+  .carousel-btn:hover { background: rgba(0,0,0,.7); }
+  .carousel-btn.prev { left: 8px; }
+  .carousel-btn.next { right: 8px; }
+  .carousel-dots { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+  .carousel-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.55); cursor: pointer; transition: background .2s; }
+  .carousel-dots span.active { background: #fff; }
+
+  /* ===== 缩略图列表 ===== */
+  .thumbnails { display: flex; gap: 8px; margin-top: 10px; }
+  .thumbnails img { width: 64px; height: 64px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: border-color .2s; }
+  .thumbnails img.active { border-color: #ff4d4f; }
+
+  /* ===== 右侧商品信息 ===== */
+  .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+
+  .price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+  .price-row .label { font-size: 13px; color: #999; }
+  .price-row .price { font-size: 28px; color: #ff4d4f; font-weight: 700; }
+  .price-row .price small { font-size: 14px; }
+  .price-row .original { font-size: 14px; color: #bbb; text-decoration: line-through; }
+
+  .title { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 10px; }
+  .subtitle { font-size: 13px; color: #999; margin-bottom: 16px; }
+
+  /* ===== 规格选择 ===== */
+  .spec-section { margin-bottom: 16px; }
+  .spec-title { font-size: 14px; color: #666; margin-bottom: 8px; }
+  .spec-options { display: flex; flex-wrap: wrap; gap: 8px; }
+  .spec-option { padding: 6px 16px; border: 1.5px solid #e0e0e0; border-radius: 4px; font-size: 13px; cursor: pointer; transition: all .2s; background: #fff; }
+  .spec-option:hover { border-color: #ff4d4f; color: #ff4d4f; }
+  .spec-option.selected { border-color: #ff4d4f; color: #ff4d4f; background: #fff2f0; }
+  .spec-option.disabled { color: #ccc; cursor: not-allowed; border-color: #f0f0f0; }
+  .spec-option.disabled:hover { border-color: #f0f0f0; color: #ccc; }
+
+  /* ===== 数量 & 加减 ===== */
+  .quantity-section { display: flex; align-items: center; gap: 16px; }
+  .quantity-label { font-size: 14px; color: #666; }
+  .quantity-controls { display: flex; align-items: center; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden; }
+  .qty-btn { width: 36px; height: 34px; border: none; background: #fafafa; font-size: 18px; cursor: pointer; color: #666; transition: background .2s; }
+  .qty-btn:hover:not(:disabled) { background: #eee; }
+  .qty-btn:disabled { color: #ccc; cursor: not-allowed; }
+  .qty-input { width: 48px; height: 34px; border: none; border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; text-align: center; font-size: 15px; outline: none; }
+  .stock-info { font-size: 12px; color: #999; }
+
+  /* ===== 实时价格计算 ===== */
+  .total-row { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+  .total-label { font-size: 14px; color: #666; }
+  .total-price { font-size: 24px; color: #ff4d4f; font-weight: 700; }
+  .total-price small { font-size: 14px; }
+
+  /* ===== 底部按钮 ===== */
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #eee; padding: 12px 20px; display: flex; gap: 12px; z-index: 99; }
+  .bottom-bar .container { display: flex; gap: 12px; width: 100%; max-width: 960px; margin: 0 auto; padding: 0; }
+  .btn { flex: 1; height: 44px; border-radius: 22px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+  .btn:hover { opacity: .85; }
+  .btn-cart { background: #ff9500; color: #fff; }
+  .btn-buy { background: #ff4d4f; color: #fff; }
+
+  /* 为底部栏留空间 */
+  body { padding-bottom: 80px; }
+
+  /* 提示消息 */
+  .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,.75); color: #fff; padding: 12px 28px; border-radius: 8px; font-size: 14px; z-index: 999; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="top-bar">
+    <span class="back">&larr;</span>
+    <span>商品详情</span>
+  </div>
+
+  <div class="main">
+    <!-- 左侧：图片轮播 -->
+    <div class="left">
+      <div class="carousel" id="carousel">
+        <div class="carousel-list" id="carouselList"></div>
+        <button class="carousel-btn prev" id="prevBtn">&lt;</button>
+        <button class="carousel-btn next" id="nextBtn">&gt;</button>
+        <div class="carousel-dots" id="carouselDots"></div>
+      </div>
+      <div class="thumbnails" id="thumbnails"></div>
+    </div>
+
+    <!-- 右侧：商品信息 -->
+    <div class="right">
+      <div class="card">
+        <div class="price-row">
+          <span class="label">售价</span>
+          <span class="price" id="displayPrice"><small>¥</small>0</span>
+          <span class="original" id="originalPrice"></span>
+        </div>
+        <h1 class="title" id="productTitle"></h1>
+        <p class="subtitle" id="productSubtitle"></p>
+      </div>
+
+      <div class="card" id="specCard"></div>
+
+      <div class="card">
+        <div class="quantity-section">
+          <span class="quantity-label">数量</span>
+          <div class="quantity-controls">
+            <button class="qty-btn" id="qtyMinus">&minus;</button>
+            <input type="text" class="qty-input" id="qtyInput" value="1" readonly>
+            <button class="qty-btn" id="qtyPlus">&plus;</button>
+          </div>
+          <span class="stock-info" id="stockInfo"></span>
+        </div>
+
+        <div class="total-row">
+          <span class="total-label">合计</span>
+          <span class="total-price" id="totalPrice"><small>¥</small>0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 底部按钮 -->
+<div class="bottom-bar">
+  <div class="container">
+    <button class="btn btn-cart" id="btnCart">加入购物车</button>
+    <button class="btn btn-buy" id="btnBuy">立即购买</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== 商品数据 ==========
+const product = {
+  title: 'Apple MacBook Pro 14 英寸 M3 芯片 笔记本电脑',
+  subtitle: 'M3 Pro 芯片 · 18GB 统一内存 · 512GB 固态硬盘 · 深空灰色',
+  images: [
+    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=420&h=420&fit=crop',
+    'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=420&h=420&fit=crop',
+    'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=420&h=420&fit=crop',
+    'https://images.unsplash.com/photo-1531297461136-82lw9z21a5e1?w=420&h=420&fit=crop',
+    'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=420&h=420&fit=crop',
+  ],
+  specs: [
+    {
+      name: '颜色',
+      key: 'color',
+      options: [
+        { id: 'space-gray', label: '深空灰色', stock: 50 },
+        { id: 'silver',    label: '银色',      stock: 30 },
+        { id: 'gold',      label: '金色',      stock: 0  },
+      ]
+    },
+    {
+      name: '内存',
+      key: 'memory',
+      options: [
+        { id: '8gb',   label: '8GB 统一内存',   price: 12999, stock: 20 },
+        { id: '18gb',  label: '18GB 统一内存',  price: 14999, stock: 50 },
+        { id: '36gb',  label: '36GB 统一内存',  price: 17999, stock: 15 },
+      ]
+    },
+    {
+      name: '存储',
+      key: 'storage',
+      options: [
+        { id: '256gb',  label: '256GB SSD',  price: 0,   stock: 40 },
+        { id: '512gb',  label: '512GB SSD',  price: 1500, stock: 35 },
+        { id: '1tb',    label: '1TB SSD',    price: 4500, stock: 10 },
+      ]
+    },
+    {
+      name: '套餐',
+      key: 'bundle',
+      options: [
+        { id: 'bare',       label: '单机',        price: 0,   stock: 999 },
+        { id: 'protection', label: '延保+保护壳',  price: 800, stock: 60 },
+        { id: 'mouse',      label: 'Magic Mouse', price: 699, stock: 25 },
+      ]
+    }
+  ],
+  // 基础价格（内存规格作为基础）
+  basePrice: 14999
+};
+
+// ========== 状态 ==========
+let selectedSpecs = {};
+let quantity = 1;
+let currentSlide = 0;
+
+// ========== 初始化 ==========
+function init() {
+  renderCarousel();
+  renderSpecs();
+  renderProductInfo();
+  bindEvents();
+  updatePrice();
+}
+
+// ========== 图片轮播 ==========
+function renderCarousel() {
+  const list = document.getElementById('carouselList');
+  const dots = document.getElementById('carouselDots');
+  const thumbs = document.getElementById('thumbnails');
+
+  list.innerHTML = product.images.map(src =>
+    `<img src="${src}" alt="商品图片">`
+  ).join('');
+
+  dots.innerHTML = product.images.map((_, i) =>
+    `<span class="${i === 0 ? 'active' : ''}" data-index="${i}"></span>`
+  ).join('');
+
+  thumbs.innerHTML = product.images.map((src, i) =>
+    `<img src="${src}" alt="缩略图${i+1}" class="${i === 0 ? 'active' : ''}" data-index="${i}">`
+  ).join('');
+}
+
+function goToSlide(index) {
+  const total = product.images.length;
+  currentSlide = ((index % total) + total) % total;
+  document.getElementById('carouselList').style.transform = `translateX(-${currentSlide * 420}px)`;
+
+  // 更新小圆点
+  document.querySelectorAll('.carousel-dots span').forEach((d, i) => {
+    d.classList.toggle('active', i === currentSlide);
+  });
+  // 更新缩略图
+  document.querySelectorAll('.thumbnails img').forEach((t, i) => {
+    t.classList.toggle('active', i === currentSlide);
+  });
+}
+
+// ========== 规格渲染 & 逻辑 ==========
+function renderSpecs() {
+  const card = document.getElementById('specCard');
+  card.innerHTML = product.specs.map(spec => `
+    <div class="spec-section" data-key="${spec.key}">
+      <div class="spec-title">${spec.name}</div>
+      <div class="spec-options">
+        ${spec.options.map(opt =>
+          `<span class="spec-option" data-key="${spec.key}" data-id="${opt.id}">${opt.label}</span>`
+        ).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderProductInfo() {
+  document.getElementById('productTitle').textContent = product.title;
+  document.getElementById('productSubtitle').textContent = product.subtitle;
+}
+
+function getSelectedOptions() {
+  const result = {};
+  for (const spec of product.specs) {
+    const selected = selectedSpecs[spec.key];
+    if (selected) {
+      result[spec.key] = spec.options.find(o => o.id === selected);
+    }
+  }
+  return result;
+}
+
+// 计算当前价格（以内存规格为基准，其他规格叠加差价）
+function calculatePrice() {
+  let base = product.basePrice;
+  let extra = 0;
+
+  for (const spec of product.specs) {
+    const selId = selectedSpecs[spec.key];
+    if (!selId) continue;
+    const opt = spec.options.find(o => o.id === selId);
+    if (!opt) continue;
+
+    if (spec.key === 'memory') {
+      // 内存规格决定基础价格
+      base = opt.price;
+    } else if (opt.price !== undefined) {
+      extra += opt.price;
+    }
+  }
+  return base + extra;
+}
+
+// 计算库存（取各已选规格库存的最小值）
+function calculateStock() {
+  let minStock = Infinity;
+  for (const spec of product.specs) {
+    const selId = selectedSpecs[spec.key];
+    if (!selId) continue;
+    const opt = spec.options.find(o => o.id === selId);
+    if (opt && opt.stock < minStock) {
+      minStock = opt.stock;
+    }
+  }
+  return minStock === Infinity ? 0 : minStock;
+}
+
+function updatePrice() {
+  const price = calculatePrice();
+  const stock = calculateStock();
+
+  // 显示单价
+  document.getElementById('displayPrice').innerHTML = `<small>¥</small>${price.toLocaleString()}`;
+  // 显示原价（模拟）
+  const original = Math.round(price * 1.1);
+  document.getElementById('originalPrice').textContent = `¥${original.toLocaleString()}`;
+
+  // 合计 = 单价 × 数量
+  const total = price * quantity;
+  document.getElementById('totalPrice').innerHTML = `<small>¥</small>${total.toLocaleString()}`;
+
+  // 库存提示
+  document.getElementById('stockInfo').textContent = stock > 0 ? `库存 ${stock} 件` : '缺货';
+
+  // 更新加减按钮状态
+  document.getElementById('qtyMinus').disabled = quantity <= 1;
+  document.getElementById('qtyPlus').disabled = quantity >= stock;
+
+  // 更新底部按钮状态
+  const canBuy = stock > 0;
+  document.getElementById('btnCart').disabled = !canBuy;
+  document.getElementById('btnBuy').disabled = !canBuy;
+  document.getElementById('btnCart').style.opacity = canBuy ? 1 : 0.5;
+  document.getElementById('btnBuy').style.opacity = canBuy ? 1 : 0.5;
+}
+
+// ========== 事件绑定 ==========
+function bindEvents() {
+  // 轮播左右按钮
+  document.getElementById('prevBtn').addEventListener('click', () => goToSlide(currentSlide - 1));
+  document.getElementById('nextBtn').addEventListener('click', () => goToSlide(currentSlide + 1));
+
+  // 轮播小圆点
+  document.getElementById('carouselDots').addEventListener('click', e => {
+    if (e.target.dataset.index !== undefined) {
+      goToSlide(parseInt(e.target.dataset.index));
+    }
+  });
+
+  // 缩略图点击
+  document.getElementById('thumbnails').addEventListener('click', e => {
+    if (e.target.dataset.index !== undefined) {
+      goToSlide(parseInt(e.target.dataset.index));
+    }
+  });
+
+  // 规格选择
+  document.getElementById('specCard').addEventListener('click', e => {
+    const opt = e.target.closest('.spec-option');
+    if (!opt) return;
+
+    const key = opt.dataset.key;
+    const id = opt.dataset.id;
+
+    // 找到对应的规格
+    const spec = product.specs.find(s => s.key === key);
+    const option = spec.options.find(o => o.id === id);
+
+    if (option.stock === 0) return; // 缺货不可选
+
+    // 选中
+    selectedSpecs[key] = id;
+
+    // 更新 UI
+    spec.options.forEach(o => {
+      const el = document.querySelector(`.spec-option[data-key="${key}"][data-id="${o.id}"]`);
+      el.classList.toggle('selected', o.id === id);
+      el.classList.toggle('disabled', o.stock === 0);
+    });
+
+    updatePrice();
+  });
+
+  // 数量减
+  document.getElementById('qtyMinus').addEventListener('click', () => {
+    if (quantity > 1) {
+      quantity--;
+      document.getElementById('qtyInput').value = quantity;
+      updatePrice();
+    }
+  });
+
+  // 数量加
+  document.getElementById('qtyPlus').addEventListener('click', () => {
+    const stock = calculateStock();
+    if (quantity < stock) {
+      quantity++;
+      document.getElementById('qtyInput').value = quantity;
+      updatePrice();
+    }
+  });
+
+  // 加入购物车
+  document.getElementById('btnCart').addEventListener('click', () => {
+    const stock = calculateStock();
+    if (stock <= 0) {
+      showToast('该规格暂无库存');
+      return;
+    }
+    const price = calculatePrice();
+    showToast(`已加入购物车 × ${quantity}，合计 ¥${(price * quantity).toLocaleString()}`);
+  });
+
+  // 立即购买
+  document.getElementById('btnBuy').addEventListener('click', () => {
+    const stock = calculateStock();
+    if (stock <= 0) {
+      showToast('该规格暂无库存');
+      return;
+    }
+    const price = calculatePrice();
+    showToast(`准备结算 ¥${(price * quantity).toLocaleString()}`);
+  });
+}
+
+// Toast 提示
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// 启动
+init();
+</script>
+
+</body>
+</html>
