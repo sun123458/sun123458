@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>两个小球同时下落 - 物理实验模拟</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  h1 {
+    text-align: center;
+    padding: 20px 0 10px;
+    font-size: 28px;
+    background: linear-gradient(90deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  .container {
+    display: flex;
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px 20px;
+    flex-wrap: wrap;
+  }
+
+  /* 左侧控制面板 */
+  .panel {
+    width: 320px;
+    flex-shrink: 0;
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #334155;
+    height: fit-content;
+  }
+  .panel h2 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .control-group {
+    margin-bottom: 18px;
+  }
+  .control-group label {
+    display: block;
+    font-size: 14px;
+    color: #cbd5e1;
+    margin-bottom: 6px;
+  }
+  .control-group label span.hint {
+    font-size: 11px;
+    color: #64748b;
+    margin-left: 4px;
+  }
+  .control-group select,
+  .control-group input[type="range"] {
+    width: 100%;
+  }
+  .control-group select {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #475569;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .control-group select:focus {
+    outline: none;
+    border-color: #38bdf8;
+  }
+  .value-display {
+    font-size: 13px;
+    color: #38bdf8;
+    margin-top: 4px;
+    text-align: right;
+  }
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .toggle {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    appearance: none;
+    background: #334155;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .toggle:checked { background: #38bdf8; }
+  .toggle::before {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+  }
+  .toggle:checked::before {
+    transform: translateX(22px);
+  }
+
+  /* 实验显示区 */
+  .experiment-area {
+    flex: 1;
+    min-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .canvas-container {
+    background: #0c1222;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    overflow: hidden;
+    position: relative;
+  }
+  #simCanvas {
+    display: block;
+    width: 100%;
+  }
+  .overlay-info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  /* 按钮区 */
+  .button-bar {
+    display: flex;
+    gap: 12px;
+  }
+  .btn {
+    flex: 1;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-start {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+  }
+  .btn-start:hover { box-shadow: 0 6px 20px rgba(16,185,129,0.5); }
+  .btn-reset {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    box-shadow: 0 4px 15px rgba(239,68,68,0.3);
+  }
+  .btn-reset:hover { box-shadow: 0 6px 20px rgba(239,68,68,0.5); }
+  .btn-pause {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    box-shadow: 0 4px 15px rgba(245,158,11,0.3);
+  }
+
+  /* 结果展示 */
+  .results {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #334155;
+  }
+  .results h3 {
+    font-size: 16px;
+    color: #818cf8;
+    margin-bottom: 14px;
+  }
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .result-card {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 14px;
+    border: 1px solid #1e293b;
+  }
+  .result-card h4 {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 4px;
+  }
+  .result-card .val {
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .result-card .val.object-a { color: #f472b6; }
+  .result-card .val.object-b { color: #34d399; }
+  .result-card .unit {
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  .conclusion {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #1e1b4b, #312e81);
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid #4338ca;
+    margin-top: 4px;
+  }
+  .conclusion h4 {
+    font-size: 13px;
+    color: #a5b4fc;
+    margin-bottom: 6px;
+  }
+  .conclusion p {
+    font-size: 13px;
+    color: #c7d2fe;
+    line-height: 1.6;
+  }
+
+  /* 知识点提示 */
+  .knowledge {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #334155;
+  }
+  .knowledge h4 {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 8px;
+  }
+  .knowledge p {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<h1>两个小球同时下落</h1>
+<p class="subtitle">自由落体运动模拟实验 &mdash; 探究不同物体在真空与空气中的下落规律</p>
+
+<div class="container">
+
+  <!-- 左侧控制面板 -->
+  <div class="panel">
+    <h2>&#9881; 实验参数</h2>
+
+    <!-- 物体A -->
+    <div class="control-group">
+      <label>物体 A 类型</label>
+      <select id="typeA">
+        <option value="ball" selected>钢球</option>
+        <option value="feather">羽毛</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>物体 A 重量 <span class="hint">(kg)</span></label>
+      <input type="range" id="weightA" min="0.01" max="10" step="0.01" value="1">
+      <div class="value-display" id="weightAVal">1.00 kg</div>
+    </div>
+
+    <!-- 物体B -->
+    <div class="control-group">
+      <label>物体 B 类型</label>
+      <select id="typeB">
+        <option value="feather" selected>羽毛</option>
+        <option value="ball">钢球</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>物体 B 重量 <span class="hint">(kg)</span></label>
+      <input type="range" id="weightB" min="0.01" max="10" step="0.01" value="0.01">
+      <div class="value-display" id="weightBVal">0.01 kg</div>
+    </div>
+
+    <!-- 真空开关 -->
+    <div class="control-group">
+      <div class="toggle-wrap">
+        <input type="checkbox" class="toggle" id="vacuum" checked>
+        <label for="vacuum">真空环境</label>
+      </div>
+    </div>
+
+    <!-- 空气阻力系数 -->
+    <div class="control-group">
+      <label>空气阻力系数 <span class="hint">(k)</span></label>
+      <input type="range" id="dragK" min="0" max="2" step="0.01" value="0.47">
+      <div class="value-display" id="dragKVal">0.47</div>
+    </div>
+
+    <!-- 重力加速度 -->
+    <div class="control-group">
+      <label>重力加速度 <span class="hint">(m/s&sup2;)</span></label>
+      <input type="range" id="gravity" min="1" max="20" step="0.1" value="9.8">
+      <div class="value-display" id="gravityVal">9.8 m/s&sup2;</div>
+    </div>
+
+    <div class="knowledge">
+      <h4>科普知识</h4>
+      <p>在真空中，所有物体无论质量大小，都以相同加速度下落。在空气中，较轻的物体受到的空气阻力相对更大，下落更慢。1609年伽利略通过比萨斜塔实验证明了这一点。</p>
+    </div>
+  </div>
+
+  <!-- 右侧实验区 -->
+  <div class="experiment-area">
+    <div class="canvas-container">
+      <canvas id="simCanvas" width="800" height="500"></canvas>
+      <div class="overlay-info" id="timerDisplay">时间: 0.000 s</div>
+    </div>
+
+    <div class="button-bar">
+      <button class="btn btn-start" id="btnStart">&#9654; 开始实验</button>
+      <button class="btn btn-pause" id="btnPause" style="display:none;">&#9646;&#9646; 暂停</button>
+      <button class="btn btn-reset" id="btnReset">&#8635; 重置</button>
+    </div>
+
+    <div class="results">
+      <h3>实验结果</h3>
+      <div class="result-grid">
+        <div class="result-card">
+          <h4 id="labelA">钢球 A</h4>
+          <div class="val object-a" id="timeA">&mdash;</div>
+          <div class="unit">到达时间</div>
+        </div>
+        <div class="result-card">
+          <h4 id="labelB">羽毛 B</h4>
+          <div class="val object-b" id="timeB">&mdash;</div>
+          <div class="unit">到达时间</div>
+        </div>
+        <div class="result-card">
+          <h4>时间差</h4>
+          <div class="val" id="timeDiff" style="color:#fbbf24;">&mdash;</div>
+          <div class="unit">秒</div>
+        </div>
+        <div class="result-card">
+          <h4>下落高度</h4>
+          <div class="val" style="color:#60a5fa;" id="heightDisplay">100 m</div>
+          <div class="unit">米</div>
+        </div>
+        <div class="conclusion">
+          <h4>实验结论</h4>
+          <p id="conclusionText">调整参数后点击"开始实验"查看结果。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---- 常量 & 配置 ----
+const SCALE = 100;           // 像素/米
+const FALL_HEIGHT = 100;     // 下落高度(米)
+const TIME_STEP = 0.016;     // 模拟步长(秒)
+const EPS = 0.0001;
+
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+
+// ---- 状态 ----
+let running = false;
+let paused = false;
+let simTime = 0;
+let animationId = null;
+
+// 两个物体
+let objA = { y: 0, vy: 0, landed: false, landTime: null };
+let objB = { y: 0, vy: 0, landed: false, landTime: null };
+
+// ---- 获取参数 ----
+function getParams() {
+  return {
+    typeA: document.getElementById('typeA').value,
+    typeB: document.getElementById('typeB').value,
+    weightA: parseFloat(document.getElementById('weightA').value),
+    weightB: parseFloat(document.getElementById('weightB').value),
+    vacuum: document.getElementById('vacuum').checked,
+    dragK: parseFloat(document.getElementById('dragK').value),
+    gravity: parseFloat(document.getElementById('gravity').value),
+  };
+}
+
+// ---- 物理模型 ----
+// 空气阻力公式: F_drag = k * v^2 (简化模型)
+// 加速度: a = g - (k/m) * v^2
+function computeAccel(v, m, g, vacuum, dragK) {
+  if (vacuum) return g;
+  if (m < EPS) return 0;
+  const dragAccel = (dragK * v * v) / m;
+  return Math.max(0, g - dragAccel);
+}
+
+// ---- 物体名称映射 ----
+function typeName(t) {
+  return t === 'feather' ? '羽毛' : '钢球';
+}
+
+// ---- 更新标签 ----
+function updateLabels() {
+  const p = getParams();
+  document.getElementById('labelA').textContent = typeName(p.typeA) + ' A';
+  document.getElementById('labelB').textContent = typeName(p.typeB) + ' B';
+  document.getElementById('heightDisplay').textContent = FALL_HEIGHT.toFixed(0) + ' m';
+}
+
+// ---- 调整 canvas 大小 ----
+function resizeCanvas() {
+  const container = canvas.parentElement;
+  canvas.width = container.clientWidth;
+  canvas.height = Math.min(500, window.innerHeight * 0.55);
+  if (!running && !paused) draw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ---- 绘制函数 ----
+function draw() {
+  const W = canvas.width;
+  const H = canvas.height;
+  const groundY = H - 60;     // 地面 y 坐标
+  const topY = 50;            // 起始 y 坐标
+  const fallPx = groundY - topY; // 下落像素距离
+
+  ctx.clearRect(0, 0, W, H);
+
+  // 背景渐变
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#0c1222');
+  bgGrad.addColorStop(1, '#1e1b4b');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // 背景网格
+  ctx.strokeStyle = 'rgba(100,116,139,0.1)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const y = topY + (fallPx * i / 10);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    // 刻度标签
+    ctx.fillStyle = 'rgba(100,116,139,0.4)';
+    ctx.font = '11px monospace';
+    ctx.fillText((FALL_HEIGHT * (10 - i) / 10).toFixed(0) + 'm', 4, y - 4);
+  }
+
+  // 地面
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(0, groundY, W, H - groundY);
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(0, groundY, W, 3);
+
+  // ---- 绘制物体 ----
+  const pxPerMeter = fallPx / FALL_HEIGHT;
+
+  // 物体A (粉色)
+  drawObject(objA, p => p.typeA, '#f472b6', '#ec4899', W * 0.3, topY, groundY, pxPerMeter);
+  // 物体B (绿色)
+  drawObject(objB, p => p.typeB, '#34d399', '#10b981', W * 0.7, topY, groundY, pxPerMeter);
+
+  // 标签
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillStyle = '#f472b6';
+  ctx.textAlign = 'center';
+  ctx.fillText(typeName(getParams().typeA) + ' A', W * 0.3, topY - 28);
+  ctx.fillStyle = '#34d399';
+  ctx.fillText(typeName(getParams().typeB) + ' B', W * 0.7, topY - 28);
+}
+
+function drawObject(obj, typeGetter, color, darkColor, cx, topY, groundY, pxPerMeter) {
+  const params = getParams();
+  const type = typeGetter(params);
+  const pxY = obj.y * pxPerMeter;
+  const screenY = Math.min(groundY, topY + pxY);
+
+  if (type === 'feather') {
+    // 绘制羽毛
+    drawFeather(cx, screenY, color, darkColor);
+  } else {
+    // 绘制小球
+    drawBall(cx, screenY, color, darkColor);
+  }
+
+  // 速度矢量指示
+  if (!obj.landed && obj.vy > 0.1) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    const arrowLen = Math.min(40, obj.vy * 3);
+    ctx.beginPath();
+    ctx.moveTo(cx, screenY + 18);
+    ctx.lineTo(cx, screenY + 18 + arrowLen);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // 箭头
+    ctx.beginPath();
+    ctx.moveTo(cx, screenY + 18 + arrowLen);
+    ctx.lineTo(cx - 4, screenY + 12 + arrowLen);
+    ctx.lineTo(cx + 4, screenY + 12 + arrowLen);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fill();
+  }
+}
+
+function drawBall(x, y, color, darkColor) {
+  // 阴影
+  ctx.beginPath();
+  ctx.ellipse(x + 2, y + 4, 14, 5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+  // 球体渐变
+  const grad = ctx.createRadialGradient(x - 5, y - 5, 2, x, y, 15);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.3, color);
+  grad.addColorStop(1, darkColor);
+  ctx.beginPath();
+  ctx.arc(x, y, 15, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+function drawFeather(x, y, color, darkColor) {
+  // 简化的羽毛形状
+  ctx.save();
+  ctx.translate(x, y);
+  // 羽毛茎
+  ctx.strokeStyle = darkColor;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -15);
+  ctx.lineTo(0, 15);
+  ctx.stroke();
+  // 左半
+  ctx.beginPath();
+  ctx.moveTo(0, -15);
+  ctx.quadraticCurveTo(-18, -8, -16, 0);
+  ctx.quadraticCurveTo(-12, 8, 0, 15);
+  const gradL = ctx.createLinearGradient(-18, 0, 0, 0);
+  gradL.addColorStop(0, darkColor);
+  gradL.addColorStop(1, color);
+  ctx.fillStyle = gradL;
+  ctx.fill();
+  // 右半
+  ctx.beginPath();
+  ctx.moveTo(0, -15);
+  ctx.quadraticCurveTo(18, -8, 16, 0);
+  ctx.quadraticCurveTo(12, 8, 0, 15);
+  const gradR = ctx.createLinearGradient(18, 0, 0, 0);
+  gradR.addColorStop(0, darkColor);
+  gradR.addColorStop(1, color);
+  ctx.fillStyle = gradR;
+  ctx.fill();
+  ctx.restore();
+}
+
+// ---- 模拟步骤 ----
+function step(dt) {
+  const p = getParams();
+
+  // 物体A
+  if (!objA.landed) {
+    const a = computeAccel(objA.vy, p.weightA, p.gravity, p.vacuum, p.dragK);
+    objA.vy += a * dt;
+    objA.y += objA.vy * dt;
+    if (objA.y >= FALL_HEIGHT) {
+      objA.y = FALL_HEIGHT;
+      objA.landed = true;
+      objA.landTime = simTime;
+    }
+  }
+
+  // 物体B
+  if (!objB.landed) {
+    const a = computeAccel(objB.vy, p.weightB, p.gravity, p.vacuum, p.dragK);
+    objB.vy += a * dt;
+    objB.y += objB.vy * dt;
+    if (objB.y >= FALL_HEIGHT) {
+      objB.y = FALL_HEIGHT;
+      objB.landed = true;
+      objB.landTime = simTime;
+    }
+  }
+
+  simTime += dt;
+}
+
+// ---- 结果计算 & 显示 ----
+function showResults() {
+  const p = getParams();
+  const tA = objA.landTime !== null ? objA.landTime.toFixed(3) : '&infin;';
+  const tB = objB.landTime !== null ? objB.landTime.toFixed(3) : '&infin;';
+
+  document.getElementById('timeA').innerHTML = tA;
+  document.getElementById('timeB').innerHTML = tB;
+
+  if (objA.landTime !== null && objB.landTime !== null) {
+    const diff = Math.abs(objA.landTime - objB.landTime);
+    document.getElementById('timeDiff').textContent = diff.toFixed(3);
+    generateConclusion(diff, p);
+  } else {
+    document.getElementById('timeDiff').textContent = '&infin;';
+    document.getElementById('conclusionText').textContent = '部分物体未完成下落。';
+  }
+}
+
+function generateConclusion(diff, p) {
+  let text = '';
+  if (p.vacuum) {
+    text = `在真空环境中，${typeName(p.typeA)}和${typeName(p.typeB)}同时到达地面（时间差 ${diff.toFixed(3)}s，由数值精度引起）。这说明：在真空中，所有物体无论质量大小，都以相同的加速度自由下落。这是伽利略于1609年通过比萨斜塔实验证明的著名结论。`;
+  } else {
+    if (diff < 0.01) {
+      text = `在空气中，${typeName(p.typeA)}和${typeName(p.typeB)}几乎同时到达地面（时间差 ${diff.toFixed(3)}s）。由于两者质量相近或空气阻力影响较小，下落速度差异不明显。`;
+    } else {
+      const faster = objA.landTime < objB.landTime ? typeName(p.typeA) : typeName(p.typeB);
+      const slower = objA.landTime > objB.landTime ? typeName(p.typeA) : typeName(p.typeB);
+      text = `在空气中，${faster}先到达地面，${slower}落后了 ${diff.toFixed(3)}s。这是因为${slower}受到的空气阻力相对于其自重更大，导致有效加速度更小。在真空环境下两者会同时落地。`;
+    }
+  }
+  document.getElementById('conclusionText').textContent = text;
+}
+
+// ---- 动画循环 ----
+function animate() {
+  if (!running) return;
+
+  step(TIME_STEP);
+  draw();
+  document.getElementById('timerDisplay').textContent = `时间: ${simTime.toFixed(3)} s`;
+
+  // 检查是否全部落地
+  if (objA.landed && objB.landed) {
+    // 再跑一小段让结果稳定
+    setTimeout(() => {
+      running = false;
+      showResults();
+      document.getElementById('btnStart').style.display = '';
+      document.getElementById('btnPause').style.display = 'none';
+    }, 200);
+    return;
+  }
+
+  animationId = requestAnimationFrame(animate);
+}
+
+// ---- 控制 ----
+function startSim() {
+  if (running) return;
+  if (paused) {
+    running = true;
+    paused = false;
+    animate();
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnPause').style.display = '';
+    return;
+  }
+
+  // 重置状态
+  objA = { y: 0, vy: 0, landed: false, landTime: null };
+  objB = { y: 0, vy: 0, landed: false, landTime: null };
+  simTime = 0;
+
+  running = true;
+  paused = false;
+  document.getElementById('btnStart').style.display = 'none';
+  document.getElementById('btnPause').style.display = '';
+  document.getElementById('timeA').innerHTML = '&mdash;';
+  document.getElementById('timeB').innerHTML = '&mdash;';
+  document.getElementById('timeDiff').textContent = '&mdash;';
+  document.getElementById('conclusionText').textContent = '实验进行中...';
+
+  animate();
+}
+
+function pauseSim() {
+  if (!running) return;
+  running = false;
+  paused = true;
+  cancelAnimationFrame(animationId);
+  document.getElementById('btnStart').style.display = '';
+  document.getElementById('btnPause').style.display = 'none';
+}
+
+function resetSim() {
+  running = false;
+  paused = false;
+  cancelAnimationFrame(animationId);
+  objA = { y: 0, vy: 0, landed: false, landTime: null };
+  objB = { y: 0, vy:0, landed: false, landTime: null };
+  simTime = 0;
+  document.getElementById('timerDisplay').textContent = '时间: 0.000 s';
+  document.getElementById('timeA').innerHTML = '&mdash;';
+  document.getElementById('timeB').innerHTML = '&mdash;';
+  document.getElementById('timeDiff').textContent = '&mdash;';
+  document.getElementById('conclusionText').textContent = '调整参数后点击"开始实验"查看结果。';
+  document.getElementById('btnStart').style.display = '';
+  document.getElementById('btnPause').style.display = 'none';
+  draw();
+}
+
+// ---- 事件绑定 ----
+document.getElementById('btnStart').addEventListener('click', startSim);
+document.getElementById('btnPause').addEventListener('click', pauseSim);
+document.getElementById('btnReset').addEventListener('click', resetSim);
+
+// 滑块实时更新
+['weightA', 'weightB', 'dragK', 'gravity'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    const display = document.getElementById(id + 'Val');
+    if (id === 'gravity') {
+      display.textContent = v.toFixed(1) + ' m/s&sup2;';
+    } else if (id === 'weightA' || id === 'weightB') {
+      display.textContent = v.toFixed(2) + ' kg';
+    } else {
+      display.textContent = v.toFixed(2);
+    }
+    if (!running && !paused) draw();
+  });
+});
+
+// 下拉菜单 & 真空开关
+['typeA', 'typeB', 'vacuum'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    updateLabels();
+    if (!running && !paused) draw();
+  });
+});
+
+// ---- 初始化 ----
+resizeCanvas();
+updateLabels();
+draw();
+</script>
+
+</body>
+</html>
