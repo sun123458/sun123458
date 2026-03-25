@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D 虚拟试衣间</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f0f0f5;
+      color: #333;
+    }
+
+    #renderCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    /* 顶部标题栏 */
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .top-bar h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #333;
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 8px 24px;
+      border-radius: 24px;
+      letter-spacing: 1px;
+    }
+
+    /* 旋转提示 */
+    .rotate-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      color: #888;
+      pointer-events: none;
+      animation: hintFade 4s ease-in-out forwards;
+    }
+
+    @keyframes hintFade {
+      0%, 70% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* 侧边面板 */
+    .side-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-left: 1px solid rgba(255, 255, 255, 0.4);
+      z-index: 50;
+      overflow-y: auto;
+      padding: 72px 20px 24px;
+      transition: transform 0.3s ease;
+    }
+
+    .side-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .side-panel::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.15);
+      border-radius: 2px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+      margin-top: 24px;
+    }
+
+    .section-title:first-child {
+      margin-top: 0;
+    }
+
+    /* 服装选择网格 */
+    .garment-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .garment-card {
+      background: rgba(255, 255, 255, 0.6);
+      border: 2px solid transparent;
+      border-radius: 14px;
+      padding: 14px 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .garment-card:hover {
+      background: rgba(255, 255, 255, 0.9);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .garment-card.active {
+      border-color: #4A90D9;
+      background: rgba(74, 144, 217, 0.08);
+      box-shadow: 0 2px 8px rgba(74, 144, 217, 0.2);
+    }
+
+    .garment-icon {
+      font-size: 28px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .garment-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    .garment-card.active .garment-name {
+      color: #4A90D9;
+    }
+
+    /* 颜色选择 */
+    .color-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .color-swatch {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.12);
+    }
+
+    .color-swatch.active {
+      border-color: #333;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    /* 滑块 */
+    .slider-group {
+      margin-bottom: 16px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .slider-value {
+      font-weight: 600;
+      color: #4A90D9;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #e0e0e5;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #4A90D9;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #4A90D9;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+
+    /* 脱下按钮 */
+    .remove-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 16px;
+    }
+
+    .remove-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    /* 状态提示 */
+    .status-toast {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(0,0,0,0.72);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+
+    .status-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 768px) {
+      .side-panel {
+        width: 280px;
+        transform: translateX(280px);
+      }
+
+      .side-panel.open {
+        transform: translateX(0);
+      }
+
+      .menu-toggle {
+        display: block;
+      }
+    }
+
+    .menu-toggle {
+      display: none;
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 200;
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      cursor: pointer;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- 顶部标题 -->
+  <div class="top-bar">
+    <h1>3D 虚拟试衣间</h1>
+  </div>
+
+  <!-- 旋转提示 -->
+  <div class="rotate-hint" id="rotateHint">拖拽鼠标旋转模型 | 滚轮缩放</div>
+
+  <!-- 状态提示 -->
+  <div class="status-toast" id="statusToast"></div>
+
+  <!-- 移动端菜单按钮 -->
+  <button class="menu-toggle" id="menuToggle" onclick="document.querySelector('.side-panel').classList.toggle('open');">&#9776;</button>
+
+  <!-- 侧边面板 -->
+  <div class="side-panel" id="sidePanel">
+    <div class="section-title">选择服装</div>
+    <div class="garment-grid" id="garmentGrid">
+      <div class="garment-card" data-type="tshirt" onclick="selectGarment('tshirt')">
+        <span class="garment-icon">&#128085;</span>
+        <div class="garment-name">T恤</div>
+      </div>
+      <div class="garment-card" data-type="dress" onclick="selectGarment('dress')">
+        <span class="garment-icon">&#128087;</span>
+        <div class="garment-name">连衣裙</div>
+      </div>
+      <div class="garment-card" data-type="jacket" onclick="selectGarment('jacket')">
+        <span class="garment-icon">&#129509;</span>
+        <div class="garment-name">夹克</div>
+      </div>
+      <div class="garment-card" data-type="skirt" onclick="selectGarment('skirt')">
+        <span class="garment-icon">&#128086;</span>
+        <div class="garment-name">半裙</div>
+      </div>
+      <div class="garment-card" data-type="pants" onclick="selectGarment('pants')" style="grid-column: span 2;">
+        <span class="garment-icon">&#128084;</span>
+        <div class="garment-name">长裤</div>
+      </div>
+    </div>
+
+    <div class="section-title">服装颜色</div>
+    <div class="color-row" id="colorRow">
+      <div class="color-swatch active" style="background:#4A90D9;" data-color="0x4A90D9" onclick="selectColor(this, 0x4A90D9)"></div>
+      <div class="color-swatch" style="background:#E74C3C;" data-color="0xE74C3C" onclick="selectColor(this, 0xE74C3C)"></div>
+      <div class="color-swatch" style="background:#2ECC71;" data-color="0x2ECC71" onclick="selectColor(this, 0x2ECC71)"></div>
+      <div class="color-swatch" style="background:#F39C12;" data-color="0xF39C12" onclick="selectColor(this, 0xF39C12)"></div>
+      <div class="color-swatch" style="background:#9B59B6;" data-color="0x9B59B6" onclick="selectColor(this, 0x9B59B6)"></div>
+      <div class="color-swatch" style="background:#1ABC9C;" data-color="0x1ABC9C" onclick="selectColor(this, 0x1ABC9C)"></div>
+      <div class="color-swatch" style="background:#34495E;" data-color="0x34495E" onclick="selectColor(this, 0x34495E)"></div>
+      <div class="color-swatch" style="background:#FFFFFF; border: 1px solid #ddd;" data-color="0xFFFFFF" onclick="selectColor(this, 0xFFFFFF)"></div>
+    </div>
+
+    <div class="section-title">体型调节</div>
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>身高</span>
+        <span class="slider-value" id="heightValue">175 cm</span>
+      </div>
+      <input type="range" id="heightSlider" min="155" max="195" value="175" oninput="updateBody()">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>体型</span>
+        <span class="slider-value" id="buildValue">中等</span>
+      </div>
+      <input type="range" id="buildSlider" min="0" max="100" value="50" oninput="updateBody()">
+    </div>
+
+    <button class="remove-btn" onclick="removeGarment()">脱下服装</button>
+  </div>
+
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- 模块 -->
+  <script src="ClothPhysics.js"></script>
+  <script src="BodyModel.js"></script>
+  <script src="GarmentFactory.js"></script>
+  <script src="app.js"></script>
+
+  <script>
+    let currentColor = 0x4A90D9;
+    let currentType = null;
+
+    function selectGarment(type) {
+      currentType = type;
+
+      // 更新卡片状态
+      document.querySelectorAll('.garment-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.type === type);
+      });
+
+      if (window.app) {
+        window.app.tryOn(type, currentColor);
+        showToast('正在试穿: ' + getGarmentName(type));
+      }
+    }
+
+    function selectColor(el, color) {
+      currentColor = color;
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      el.classList.add('active');
+
+      if (window.app) {
+        window.app.changeColor(color);
+      }
+    }
+
+    function removeGarment() {
+      if (window.app) {
+        window.app._removeGarment();
+        currentType = null;
+        document.querySelectorAll('.garment-card').forEach(card => {
+          card.classList.remove('active');
+        });
+        showToast('已脱下服装');
+      }
+    }
+
+    function updateBody() {
+      const height = parseInt(document.getElementById('heightSlider').value);
+      const build = parseInt(document.getElementById('buildSlider').value) / 100;
+
+      document.getElementById('heightValue').textContent = height + ' cm';
+
+      const buildText = build < 0.3 ? '偏瘦' : build < 0.65 ? '中等' : '偏胖';
+      document.getElementById('buildValue').textContent = buildText;
+
+      if (window.app) {
+        window.app.updateBody({ height: height / 100, build: build });
+      }
+    }
+
+    function getGarmentName(type) {
+      const names = { tshirt: 'T恤', dress: '连衣裙', jacket: '夹克', skirt: '半裙', pants: '长裤' };
+      return names[type] || type;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('statusToast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+  </script>
+</body>
+</html>
