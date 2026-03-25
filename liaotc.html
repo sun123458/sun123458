@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>即时聊天</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #e8e8e8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .chat-app {
+    width: 420px;
+    height: 600px;
+    background: #fff;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 30px rgba(0,0,0,.12);
+    overflow: hidden;
+  }
+
+  /* ---- Header ---- */
+  .chat-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .chat-header .title {
+    font-size: 17px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chat-header .unread-badge {
+    background: #ff4757;
+    font-size: 12px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    display: none;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50%     { transform: scale(1.15); }
+  }
+
+  /* ---- Message List ---- */
+  .message-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+  }
+  .message-list::-webkit-scrollbar { width: 5px; }
+  .message-list::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,.15);
+    border-radius: 4px;
+  }
+
+  .message {
+    display: flex;
+    flex-direction: column;
+    max-width: 80%;
+    animation: msgIn .25s ease;
+  }
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .message.sent  { align-self: flex-end; }
+  .message.received { align-self: flex-start; }
+
+  .message .bubble {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    word-break: break-word;
+    position: relative;
+  }
+  .message.sent .bubble {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .message.received .bubble {
+    background: #f1f0f0;
+    color: #333;
+    border-bottom-left-radius: 4px;
+  }
+
+  /* unread indicator */
+  .message.unread .bubble::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: -10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff4757;
+    animation: pulse 1.5s infinite;
+  }
+  .message.sent.unread .bubble::after {
+    right: auto;
+    left: -10px;
+  }
+
+  .message .meta {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+    padding: 0 4px;
+  }
+  .message.sent .meta       { text-align: right; }
+  .message.received .meta   { text-align: left; }
+
+  /* ---- Emoji Picker ---- */
+  .emoji-panel {
+    display: none;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #fafafa;
+    border-top: 1px solid #eee;
+    max-height: 150px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .emoji-panel.open { display: flex; }
+  .emoji-panel span {
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: background .15s;
+    user-select: none;
+  }
+  .emoji-panel span:hover {
+    background: #e0e0e0;
+  }
+
+  /* ---- Input Area ---- */
+  .input-area {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-top: 1px solid #eee;
+    background: #fff;
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  .emoji-btn {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 4px;
+    border-radius: 6px;
+    transition: background .15s;
+  }
+  .emoji-btn:hover { background: #f0f0f0; }
+
+  .input-area input {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 9px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .input-area input:focus {
+    border-color: #764ba2;
+  }
+
+  .send-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 9px 18px;
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity .2s;
+  }
+  .send-btn:hover { opacity: .85; }
+  .send-btn:disabled {
+    opacity: .4;
+    cursor: default;
+  }
+
+  /* ---- Typing indicator ---- */
+  .typing {
+    align-self: flex-start;
+    font-size: 12px;
+    color: #999;
+    padding: 0 4px;
+    height: 18px;
+    visibility: hidden;
+  }
+  .typing.visible { visibility: visible; }
+  .typing .dot {
+    display: inline-block;
+    animation: blink 1.2s infinite;
+  }
+  .typing .dot:nth-child(2) { animation-delay: .2s; }
+  .typing .dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink {
+    0%,60%,100% { opacity: .2; }
+    30%         { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="chat-app">
+  <div class="chat-header">
+    <div class="title">聊天室</div>
+    <div class="unread-badge" id="unreadBadge"></div>
+  </div>
+
+  <div class="message-list" id="msgList"></div>
+  <div class="typing" id="typing">
+    对方正在输入<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+  </div>
+
+  <div class="emoji-panel" id="emojiPanel"></div>
+
+  <div class="input-area">
+    <button class="emoji-btn" id="emojiBtn" title="表情">😊</button>
+    <input id="msgInput" type="text" placeholder="输入消息…" autocomplete="off" />
+    <button class="send-btn" id="sendBtn" disabled>发送</button>
+  </div>
+</div>
+
+<script>
+const EMOJIS = [
+  '😀','😂','🤣','😊','😍','🥰','😘','😜','🤗','🤔',
+  '😎','🥳','😴','😷','🤯','😱','😢','😭','😤','🤬',
+  '👍','👎','👏','🙌','🤝','💪','❤️','💔','🔥','⭐',
+  '🎉','🎊','💯','✅','❌','💬','🕊️','🌈','☀️','🌙',
+  '🍕','🍔','🍟','🎮','⚽','🏀','🎵','📱','💻','🚀'
+];
+
+const BOT_REPLIES = [
+  '你好呀！👋',
+  '收到！',
+  '好的，没问题 😊',
+  '哈哈，太有趣了 🤣',
+  '嗯嗯，我明白了 🤔',
+  '太棒了！🎉',
+  '嗯～让我想想…',
+  '你说得对！👍',
+  '我也是这么觉得的 ❤️',
+  '下次一起玩呀 😎',
+  '这个主意不错！💡',
+  '等等我，马上就来 🚀',
+];
+
+// ---- State ----
+let messages = [];
+let unreadCount = 0;
+let lastReadIdx = -1;  // index of last message the user has seen
+
+// ---- DOM ----
+const msgList    = document.getElementById('msgList');
+const msgInput   = document.getElementById('msgInput');
+const sendBtn    = document.getElementById('sendBtn');
+const emojiBtn   = document.getElementById('emojiBtn');
+const emojiPanel = document.getElementById('emojiPanel');
+const typingEl   = document.getElementById('typing');
+const badge      = document.getElementById('unreadBadge');
+
+// ---- Scroll observer ----
+let userScrolledUp = false;
+msgList.addEventListener('scroll', markReadOnScroll);
+
+function markReadOnScroll() {
+  const atBottom = msgList.scrollTop + msgList.clientHeight >= msgList.scrollHeight - 30;
+  if (atBottom) {
+    if (unreadCount > 0) {
+      unreadCount = 0;
+      updateBadge();
+    }
+    // mark all received messages as read
+    messages.forEach(m => m.unread = false);
+    renderMessages();
+  } else {
+    userScrolledUp = true;
+  }
+}
+
+// ---- Emoji panel ----
+EMOJIS.forEach(e => {
+  const span = document.createElement('span');
+  span.textContent = e;
+  span.addEventListener('click', () => {
+    msgInput.value += e;
+    msgInput.focus();
+    updateSendBtn();
+  });
+  emojiPanel.appendChild(span);
+});
+
+emojiBtn.addEventListener('click', () => {
+  emojiPanel.classList.toggle('open');
+});
+
+// ---- Input ----
+msgInput.addEventListener('input', updateSendBtn);
+msgInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing) send();
+});
+
+function updateSendBtn() {
+  sendBtn.disabled = msgInput.value.trim() === '';
+}
+
+// ---- Send ----
+sendBtn.addEventListener('click', send);
+
+function send() {
+  const text = msgInput.value.trim();
+  if (!text) return;
+
+  messages.push({
+    id: Date.now(),
+    text,
+    type: 'sent',
+    time: fmtTime(new Date()),
+    unread: false
+  });
+
+  msgInput.value = '';
+  updateSendBtn();
+  emojiPanel.classList.remove('open');
+
+  scrollToBottom();
+  renderMessages();
+
+  // simulate reply
+  showTyping();
+  const delay = 1000 + Math.random() * 2000;
+  setTimeout(() => {
+    hideTyping();
+    const reply = BOT_REPLIES[Math.floor(Math.random() * BOT_REPLIES.length)];
+    const msg = {
+      id: Date.now(),
+      text: reply,
+      type: 'received',
+      time: fmtTime(new Date()),
+      unread: false
+    };
+    messages.push(msg);
+    renderMessages();
+
+    // Only auto-scroll & mark read if user is near bottom
+    const atBottom = msgList.scrollTop + msgList.clientHeight >= msgList.scrollHeight - 60;
+    if (atBottom) {
+      scrollToBottom();
+    } else {
+      msg.unread = true;
+      unreadCount++;
+      updateBadge();
+      renderMessages();
+    }
+  }, delay);
+}
+
+// ---- Typing indicator ----
+function showTyping() { typingEl.classList.add('visible'); }
+function hideTyping() { typingEl.classList.remove('visible'); }
+
+// ---- Badge ----
+function updateBadge() {
+  if (unreadCount > 0) {
+    badge.style.display = 'inline-block';
+    badge.textContent = unreadCount;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ---- Render ----
+function renderMessages() {
+  msgList.innerHTML = '';
+  messages.forEach(m => {
+    const div = document.createElement('div');
+    div.className = `message ${m.type}${m.unread ? ' unread' : ''}`;
+
+    div.innerHTML = `
+      <div class="bubble">${escapeHtml(m.text)}</div>
+      <div class="meta">${m.time}</div>
+    `;
+    msgList.appendChild(div);
+  });
+}
+
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    msgList.scrollTop = msgList.scrollHeight;
+  });
+}
+
+// ---- Helpers ----
+function fmtTime(d) {
+  return d.getHours().toString().padStart(2,'0') + ':' +
+         d.getMinutes().toString().padStart(2,'0');
+}
+
+function escapeHtml(s) {
+  const map = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'": '&#039;' };
+  return s.replace(/[&<>"']/g, c => map[c]);
+}
+
+// ---- Initial demo messages ----
+messages = [
+  { id: 1, text: '你好！欢迎使用即时聊天 🎉', type: 'received', time: '10:00', unread: false },
+  { id: 2, text: '你好呀！', type: 'sent', time: '10:01', unread: false },
+  { id: 3, text: '今天天气真不错 ☀️', type: 'received', time: '10:02', unread: false },
+];
+renderMessages();
+scrollToBottom();
+</script>
+</body>
+</html>
