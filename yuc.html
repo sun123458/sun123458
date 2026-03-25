@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>粒子雨动效</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a1a;
+    color: #e0e0e0;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow-x: hidden;
+  }
+
+  #rain-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ---- 控制面板 ---- */
+  .controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    background: rgba(10, 10, 30, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 20px 24px;
+    width: 260px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .controls h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 18px;
+    color: #fff;
+    letter-spacing: 1px;
+  }
+
+  .control-row {
+    margin-bottom: 16px;
+  }
+
+  .control-row label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 6px;
+  }
+
+  .control-row label span {
+    color: #6cf;
+    font-weight: 600;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.12);
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6cf;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(102,204,255,0.5);
+  }
+
+  .stats {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px;
+    color: #666;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ---- 展示内容区 ---- */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, #6cf, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+  }
+
+  .hero p {
+    font-size: 1.1rem;
+    color: #888;
+    max-width: 500px;
+    line-height: 1.7;
+  }
+
+  .scroll-hint {
+    margin-top: 60px;
+    animation: bounce 2s infinite;
+    color: #555;
+    font-size: 24px;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(12px); }
+  }
+
+  section {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+
+  section h2 {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    color: #ccc;
+  }
+
+  section p {
+    color: #777;
+    max-width: 500px;
+    text-align: center;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="rain-canvas"></canvas>
+
+<!-- 控制面板 -->
+<div class="controls">
+  <h2>粒子雨控制</h2>
+  <div class="control-row">
+    <label>下落速度 <span id="speed-val">1.0x</span></label>
+    <input type="range" id="speed-slider" min="0.2" max="3" step="0.1" value="1">
+  </div>
+  <div class="control-row">
+    <label>基础密度 <span id="density-val">1.0x</span></label>
+    <input type="range" id="density-slider" min="0.2" max="2" step="0.1" value="1">
+  </div>
+  <div class="stats">
+    <span id="particle-count">粒子: 0</span>
+    <span id="fps-display">FPS: 60</span>
+  </div>
+</div>
+
+<!-- 页面内容 -->
+<div class="content">
+  <div class="hero">
+    <h1>粒子雨动效</h1>
+    <p>向下滚动查看粒子密度随滚动距离变化<br>右上角面板可调节速度与密度</p>
+    <div class="scroll-hint">↓</div>
+  </div>
+  <section>
+    <h2>密度渐增区</h2>
+    <p>随着滚动，粒子数量逐步增加，模拟雨势渐大的效果。</p>
+  </section>
+  <section>
+    <h2>暴雨区</h2>
+    <p>滚动到这里，粒子密度已达到峰值，仿佛置身暴风雨中。</p>
+  </section>
+  <section>
+    <h2>尾声</h2>
+    <p>继续向下，粒子密度会回落，雨势逐渐减小。</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ==================== Canvas 初始化 ====================
+  const canvas = document.getElementById('rain-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ==================== 配置 ====================
+  const BASE_COUNT = 180;          // 基础粒子数
+  const SCROLL_DENSITY_FACTOR = 3; // 滚动后密度倍数上限
+  let speedMul = 1;
+  let densityMul = 1;
+
+  // ==================== 色板 ====================
+  const palettes = [
+    ['#6cf', '#38f', '#0af', '#5ef', '#8df'],             // 冰蓝
+    ['#a78bfa', '#c084fc', '#818cf8', '#7c3aed', '#6d28d9'], // 紫色
+    ['#f472b6', '#fb7185', '#e879f9', '#f9a8d4', '#ec4899'], // 粉红
+    ['#34d399', '#6ee7b7', '#10b981', '#a7f3d0', '#059669'], // 翡翠
+    ['#fbbf24', '#f59e0b', '#fcd34d', '#fde68a', '#d97706'], // 琥珀
+  ];
+  let currentPalette = palettes[0];
+  let paletteTimer = 0;
+
+  function pickColor() {
+    return currentPalette[Math.floor(Math.random() * currentPalette.length)];
+  }
+
+  // 每 5 秒随机切换色板
+  function maybeSwitchPalette(dt) {
+    paletteTimer += dt;
+    if (paletteTimer > 5) {
+      paletteTimer = 0;
+      currentPalette = palettes[Math.floor(Math.random() * palettes.length)];
+    }
+  }
+
+  // ==================== 粒子类 ====================
+  class Particle {
+    constructor() { this.reset(true); }
+
+    reset(initial = false) {
+      this.x = Math.random() * W;
+      this.y = initial ? Math.random() * H : -10;
+      this.r = Math.random() * 2 + 1;         // 半径
+      this.speed = Math.random() * 2 + 1.5;    // 基础速度
+      this.wind = (Math.random() - 0.5) * 0.6; // 水平风力
+      this.opacity = Math.random() * 0.5 + 0.3;
+      this.color = pickColor();
+      // 拖尾长度
+      this.tail = this.speed * 4 * this.r;
+    }
+
+    update() {
+      this.y += this.speed * speedMul * 1.2;
+      this.x += this.wind;
+
+      if (this.y > H + 10 || this.x < -10 || this.x > W + 10) {
+        this.reset();
+      }
+    }
+
+    draw() {
+      // 拖尾
+      const grad = ctx.createLinearGradient(this.x, this.y - this.tail, this.x, this.y);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, this.color);
+      ctx.globalAlpha = this.opacity;
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = this.r;
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y - this.tail);
+      ctx.lineTo(this.x, this.y);
+      ctx.stroke();
+
+      // 粒子头部（高亮点）
+      ctx.globalAlpha = this.opacity + 0.2;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ==================== 粒子池 ====================
+  // 预分配最大数量，避免运行时 GC
+  const MAX_PARTICLES = Math.round(BASE_COUNT * SCROLL_DENSITY_FACTOR * 2.5);
+  const pool = [];
+  for (let i = 0; i < MAX_PARTICLES; i++) {
+    pool.push(new Particle());
+  }
+  let activeCount = BASE_COUNT;
+
+  // ==================== 滚动密度 ====================
+  function updateDensity() {
+    const scrollY = window.scrollY || 0;
+    const maxScroll = document.documentElement.scrollHeight - H;
+    const ratio = maxScroll > 0 ? Math.min(scrollY / maxScroll, 1) : 0;
+    // 先增后减（抛物线）
+    const curve = ratio <= 0.5
+      ? 2 * ratio * ratio
+      : 1 - 2 * (1 - ratio) * (1 - ratio);
+    // 取反：先增后减
+    const densityCurve = 1 - Math.abs(curve * 2 - 1);
+    activeCount = Math.round(
+      BASE_COUNT * densityMul * (1 + densityCurve * SCROLL_DENSITY_FACTOR)
+    );
+    activeCount = Math.min(activeCount, MAX_PARTICLES);
+  }
+  window.addEventListener('scroll', updateDensity, { passive: true });
+
+  // ==================== FPS 计数 ====================
+  let frames = 0;
+  let fpsAccum = 0;
+  let displayFps = 60;
+
+  // ==================== 主循环 ====================
+  let lastTime = performance.now();
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    // FPS 统计
+    frames++;
+    fpsAccum += dt;
+    if (fpsAccum >= 0.5) {
+      displayFps = Math.round(frames / fpsAccum);
+      frames = 0;
+      fpsAccum = 0;
+    }
+
+    maybeSwitchPalette(dt);
+
+    // 清屏（带残影实现运动模糊）
+    ctx.fillStyle = 'rgba(10, 10, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+
+    // 绘制当前数量的粒子
+    for (let i = 0; i < activeCount; i++) {
+      pool[i].update();
+      pool[i].draw();
+    }
+
+    // 更新面板数据
+    particleCountEl.textContent = `粒子: ${activeCount}`;
+    fpsEl.textContent = `FPS: ${displayFps}`;
+  }
+
+  requestAnimationFrame(loop);
+
+  // ==================== 控件绑定 ====================
+  const speedSlider = document.getElementById('speed-slider');
+  const densitySlider = document.getElementById('density-slider');
+  const speedVal = document.getElementById('speed-val');
+  const densityVal = document.getElementById('density-val');
+  const particleCountEl = document.getElementById('particle-count');
+  const fpsEl = document.getElementById('fps-display');
+
+  speedSlider.addEventListener('input', () => {
+    speedMul = parseFloat(speedSlider.value);
+    speedVal.textContent = speedMul.toFixed(1) + 'x';
+  });
+
+  densitySlider.addEventListener('input', () => {
+    densityMul = parseFloat(densitySlider.value);
+    densityVal.textContent = densityMul.toFixed(1) + 'x';
+    updateDensity();
+  });
+})();
+</script>
+</body>
+</html>
