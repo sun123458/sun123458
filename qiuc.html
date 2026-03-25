@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自由落体实验 - 两个小球同时下落</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  header {
+    text-align: center;
+    padding: 18px 20px 12px;
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    border-bottom: 1px solid #334155;
+  }
+  header h1 {
+    font-size: 26px;
+    background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+  }
+  header p { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+
+  .container {
+    display: flex;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 16px;
+    gap: 16px;
+    min-height: calc(100vh - 90px);
+  }
+
+  /* ---- 左侧控制面板 ---- */
+  .panel-left {
+    width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .card {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #334155;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-title .icon { font-size: 16px; }
+
+  .control-group { margin-bottom: 14px; }
+  .control-group:last-child { margin-bottom: 0; }
+  .control-group label {
+    display: block;
+    font-size: 13px;
+    color: #cbd5e1;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  select, input[type="number"] {
+    width: 100%;
+    padding: 8px 10px;
+    background: #0f172a;
+    border: 1px solid #475569;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  select:focus, input[type="number"]:focus { border-color: #60a5fa; }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .slider-row input[type="range"] { flex: 1; }
+  .slider-val {
+    min-width: 52px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #60a5fa;
+    background: #0f172a;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: #334155;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #60a5fa;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(96,165,250,.5);
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .toggle {
+    position: relative;
+    width: 48px; height: 26px;
+    background: #475569;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background .3s;
+  }
+  .toggle.active { background: #22c55e; }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .3s;
+  }
+  .toggle.active::after { transform: translateX(22px); }
+
+  /* ---- 右侧实验区 ---- */
+  .panel-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .experiment-area {
+    flex: 1;
+    position: relative;
+    background: linear-gradient(180deg, #0c1222 0%, #162032 40%, #1a2a44 100%);
+    border-radius: 12px;
+    border: 1px solid #334155;
+    overflow: hidden;
+    min-height: 480px;
+  }
+
+  /* 背景网格 */
+  .experiment-area::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(96,165,250,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(96,165,250,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* 刻度标尺 */
+  .ruler {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 36px;
+    background: rgba(15,23,42,.6);
+    border-right: 1px solid #334155;
+    z-index: 2;
+  }
+  .ruler-mark {
+    position: absolute;
+    right: 0;
+    width: 12px;
+    height: 1px;
+    background: #475569;
+  }
+  .ruler-mark.major { width: 20px; background: #64748b; }
+  .ruler-label {
+    position: absolute;
+    right: 22px;
+    font-size: 9px;
+    color: #64748b;
+    transform: translateY(-50%);
+  }
+
+  /* 地面 */
+  .ground {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(180deg, #2d4a2d, #1a3a1a);
+    border-top: 2px solid #4ade80;
+    z-index: 3;
+  }
+  .ground::before {
+    content: '';
+    position: absolute;
+    top: -6px; left: 0; right: 0;
+    height: 6px;
+    background: linear-gradient(180deg, transparent, rgba(74,222,128,.15));
+  }
+
+  /* 下落区域 */
+  .drop-zone {
+    position: absolute;
+    top: 30px;
+    bottom: 42px;
+    left: 40px;
+    right: 10px;
+    display: flex;
+  }
+  .drop-lane {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .drop-lane:first-child { border-right: 1px dashed #334155; }
+
+  .lane-label {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-weight: 600;
+    padding: 2px 12px;
+    background: rgba(15,23,42,.7);
+    border-radius: 10px;
+    z-index: 5;
+  }
+  .lane-label.left { border: 1px solid rgba(96,165,250,.3); color: #60a5fa; }
+  .lane-label.right { border: 1px solid rgba(244,114,182,.3); color: #f472b6; }
+
+  /* 物体 */
+  .object {
+    position: absolute;
+    top: 24px;
+    z-index: 4;
+    transition: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .obj-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+  }
+
+  /* 球形 */
+  .obj-body.ball {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+  }
+  .obj-body.ball-a { background: radial-gradient(circle at 35% 35%, #93c5fd, #2563eb, #1e40af); }
+  .obj-body.ball-b { background: radial-gradient(circle at 35% 35%, #fda4af, #e11d48, #9f1239); }
+
+  /* 羽毛 */
+  .feather-svg {
+    width: 28px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+  }
+
+  /* 轨迹 */
+  .trail {
+    position: absolute;
+    width: 2px;
+    top: 48px;
+    border-radius: 1px;
+    opacity: .5;
+    z-index: 1;
+  }
+  .trail-a { background: linear-gradient(180deg, transparent, #3b82f6); }
+  .trail-b { background: linear-gradient(180deg, transparent, #ec4899); }
+
+  /* 落地标记 */
+  .land-mark {
+    position: absolute;
+    bottom: 0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity .3s;
+    z-index: 5;
+    white-space: nowrap;
+  }
+  .land-mark.show { opacity: 1; }
+  .land-mark.left-mark { background: rgba(59,130,246,.2); color: #60a5fa; border: 1px solid rgba(59,130,246,.3); }
+  .land-mark.right-mark { background: rgba(236,72,153,.2); color: #f472b6; border: 1px solid rgba(236,72,153,.3); }
+
+  /* 速度标签 */
+  .speed-tag {
+    position: absolute;
+    font-size: 10px;
+    color: #94a3b8;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity .15s;
+    z-index: 5;
+    background: rgba(15,23,42,.8);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .speed-tag.show { opacity: 1; }
+
+  /* ---- 底部控制 ---- */
+  .bottom-bar {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .btn-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: 1px;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-start {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(34,197,94,.3);
+  }
+  .btn-start:hover { box-shadow: 0 4px 20px rgba(34,197,94,.5); }
+  .btn-start:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-reset {
+    background: linear-gradient(135deg, #475569, #334155);
+    color: #e2e8f0;
+  }
+  .btn-reset:hover { background: linear-gradient(135deg, #64748b, #475569); }
+
+  /* 结果区 */
+  .results {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .result-item {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+    border: 1px solid #334155;
+  }
+  .result-item .ri-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+  .result-item .ri-value { font-size: 22px; font-weight: 700; }
+  .ri-value.blue { color: #60a5fa; }
+  .ri-value.pink { color: #f472b6; }
+  .ri-value.green { color: #4ade80; }
+  .ri-value .unit { font-size: 12px; font-weight: 400; color: #64748b; margin-left: 2px; }
+
+  /* 实验结论 */
+  .conclusion-box {
+    background: linear-gradient(135deg, rgba(96,165,250,.08), rgba(167,139,250,.08));
+    border: 1px solid rgba(96,165,250,.2);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 12px;
+    display: none;
+  }
+  .conclusion-box.show { display: block; }
+  .conclusion-box h3 {
+    font-size: 14px;
+    color: #a78bfa;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .conclusion-box p {
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.7;
+  }
+  .conclusion-box .highlight {
+    color: #fbbf24;
+    font-weight: 600;
+  }
+
+  /* 风的视觉效果 */
+  .wind-lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+  .wind-line {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(96,165,250,.15), transparent);
+    animation: windMove 2s linear infinite;
+  }
+  @keyframes windMove {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(200%); }
+  }
+
+  /* 真空效果 */
+  .vacuum-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(15,23,42,.3) 100%);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity .5s;
+  }
+  .vacuum-overlay.show { opacity: 1; }
+
+  /* 响应式 */
+  @media (max-width: 860px) {
+    .container { flex-direction: column; }
+    .panel-left { width: 100%; }
+    .experiment-area { min-height: 400px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>自由落体实验</h1>
+  <p>探索重力与空气阻力对下落物体的影响 — 复现伽利略经典思想实验</p>
+</header>
+
+<div class="container">
+  <!-- 左侧控制面板 -->
+  <aside class="panel-left">
+    <div class="card">
+      <div class="card-title"><span class="icon">A</span> 物体 A 设置</div>
+      <div class="control-group">
+        <label>物体类型</label>
+        <select id="typeA">
+          <option value="ball">小球</option>
+          <option value="feather">羽毛</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>质量 (kg)</label>
+        <div class="slider-row">
+          <input type="range" id="massA" min="0.01" max="20" step="0.01" value="5">
+          <span class="slider-val" id="massAVal">5.00 kg</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">B</span> 物体 B 设置</div>
+      <div class="control-group">
+        <label>物体类型</label>
+        <select id="typeB">
+          <option value="ball">小球</option>
+          <option value="feather" selected>羽毛</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>质量 (kg)</label>
+        <div class="slider-row">
+          <input type="range" id="massB" min="0.001" max="20" step="0.001" value="0.01">
+          <span class="slider-val" id="massBVal">0.01 kg</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">&#9881;</span> 环境参数</div>
+      <div class="control-group">
+        <div class="toggle-row">
+          <label style="margin:0">真空环境</label>
+          <div class="toggle" id="vacuumToggle" role="switch" aria-label="真空环境切换"></div>
+        </div>
+      </div>
+      <div class="control-group" id="dragGroup">
+        <label>空气阻力系数 (Cd)</label>
+        <div class="slider-row">
+          <input type="range" id="dragCoeff" min="0" max="2" step="0.01" value="0.47">
+          <span class="slider-val" id="dragVal">0.47</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>重力加速度 (m/s²)</label>
+        <div class="slider-row">
+          <input type="range" id="gravity" min="0.5" max="30" step="0.1" value="9.8">
+          <span class="slider-val" id="gravityVal">9.8</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>下落高度 (m)</label>
+        <div class="slider-row">
+          <input type="range" id="height" min="5" max="200" step="1" value="50">
+          <span class="slider-val" id="heightVal">50 m</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 右侧实验区 -->
+  <div class="panel-right">
+    <div class="experiment-area" id="expArea">
+      <div class="ruler" id="ruler"></div>
+      <div class="vacuum-overlay" id="vacuumOverlay"></div>
+      <div class="wind-lines" id="windLines"></div>
+
+      <div class="drop-zone">
+        <div class="drop-lane">
+          <span class="lane-label left">物体 A</span>
+          <div class="trail trail-a" id="trailA"></div>
+          <div class="object" id="objA">
+            <div class="obj-body ball ball-a">A</div>
+          </div>
+          <div class="speed-tag" id="speedA"></div>
+          <div class="land-mark left-mark" id="landA"></div>
+        </div>
+        <div class="drop-lane">
+          <span class="lane-label right">物体 B</span>
+          <div class="trail trail-b" id="trailB"></div>
+          <div class="object" id="objB">
+            <div class="obj-body ball ball-b">B</div>
+          </div>
+          <div class="speed-tag" id="speedB"></div>
+          <div class="land-mark right-mark" id="landB"></div>
+        </div>
+      </div>
+
+      <div class="ground"></div>
+    </div>
+
+    <!-- 底部按钮 + 结果 -->
+    <div class="card bottom-bar">
+      <div class="btn-group">
+        <button class="btn btn-start" id="btnStart">开始实验</button>
+        <button class="btn btn-reset" id="btnReset">重置</button>
+      </div>
+      <div class="results">
+        <div class="result-item">
+          <div class="ri-label">物体 A 落地时间</div>
+          <div class="ri-value blue" id="resTimeA">--<span class="unit">s</span></div>
+        </div>
+        <div class="result-item">
+          <div class="ri-label">物体 B 落地时间</div>
+          <div class="ri-value pink" id="resTimeB">--<span class="unit">s</span></div>
+        </div>
+        <div class="result-item">
+          <div class="ri-label">时间差</div>
+          <div class="ri-value green" id="resDiff">--<span class="unit">s</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 结论 -->
+    <div class="conclusion-box" id="conclusion">
+      <h3>&#128300; 实验结论</h3>
+      <p id="conclusionText"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== DOM 引用 ====================
+const $ = id => document.getElementById(id);
+
+const typeAEl = $('typeA'), typeBEl = $('typeB');
+const massAEl = $('massA'), massBEl = $('massB');
+const dragEl = $('dragCoeff'), gravEl = $('gravity'), heightEl = $('height');
+const vacuumToggle = $('vacuumToggle');
+const btnStart = $('btnStart'), btnReset = $('btnReset');
+const objAEl = $('objA'), objBEl = $('objB');
+const trailA = $('trailA'), trailB = $('trailB');
+const speedAEl = $('speedA'), speedBEl = $('speedB');
+const landAEl = $('landA'), landBEl = $('landB');
+const vacuumOverlay = $('vacuumOverlay');
+const windLines = $('windLines');
+
+// ==================== 滑块实时更新 ====================
+function bindSlider(slider, display, suffix, decimals = 2) {
+  const update = () => { display.textContent = parseFloat(slider.value).toFixed(decimals) + ' ' + suffix; };
+  slider.addEventListener('input', update);
+  update();
+}
+bindSlider(massAEl, $('massAVal'), 'kg', 2);
+bindSlider(massBEl, $('massBVal'), 'kg', 3);
+bindSlider(dragEl, $('dragVal'), '', 2);
+bindSlider(gravEl, $('gravityVal'), 'm/s²', 1);
+bindSlider(heightEl, $('heightVal'), 'm', 0);
+
+// ==================== 真空切换 ====================
+let isVacuum = false;
+vacuumToggle.addEventListener('click', () => {
+  isVacuum = !isVacuum;
+  vacuumToggle.classList.toggle('active', isVacuum);
+  vacuumOverlay.classList.toggle('show', isVacuum);
+  $('dragGroup').style.opacity = isVacuum ? 0.35 : 1;
+  $('dragGroup').style.pointerEvents = isVacuum ? 'none' : 'auto';
+  // 真空中移除风效果
+  if (isVacuum) windLines.innerHTML = '';
+  else generateWindLines();
+});
+
+// ==================== 风效果 ====================
+function generateWindLines() {
+  windLines.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const line = document.createElement('div');
+    line.className = 'wind-line';
+    line.style.top = (10 + Math.random() * 80) + '%';
+    line.style.width = (60 + Math.random() * 100) + 'px';
+    line.style.animationDelay = (Math.random() * 2) + 's';
+    line.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+    windLines.appendChild(line);
+  }
+}
+generateWindLines();
+
+// ==================== 刻度尺 ====================
+function buildRuler() {
+  const ruler = $('ruler');
+  ruler.innerHTML = '';
+  const h = parseFloat(heightEl.value);
+  const rulerH = ruler.parentElement.clientHeight - 82; // 可用高度
+  const steps = 10;
+  for (let i = 0; i <= steps; i++) {
+    const frac = i / steps;
+    const mark = document.createElement('div');
+    mark.className = 'ruler-mark' + (i % 5 === 0 ? ' major' : '');
+    mark.style.bottom = (frac * (rulerH - 30) + 48) + 'px';
+    ruler.appendChild(mark);
+    if (i % 2 === 0) {
+      const label = document.createElement('div');
+      label.className = 'ruler-label';
+      label.style.bottom = (frac * (rulerH - 30) + 48) + 'px';
+      label.textContent = (frac * h).toFixed(0) + 'm';
+      ruler.appendChild(label);
+    }
+  }
+}
+
+// ==================== 物体外观 ====================
+const featherSVG = `<svg class="feather-svg" viewBox="0 0 40 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M20 2 C12 18, 2 35, 8 55 C12 65, 18 72, 20 78 C22 72, 28 65, 32 55 C38 35, 28 18, 20 2Z" fill="currentColor" opacity="0.8"/>
+  <line x1="20" y1="4" x2="20" y2="76" stroke="currentColor" stroke-width="1.2" opacity="0.6"/>
+  <line x1="20" y1="20" x2="10" y2="30" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+  <line x1="20" y1="30" x2="8" y2="42" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+  <line x1="20" y1="40" x2="10" y2="52" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+  <line x1="20" y1="20" x2="30" y2="30" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+  <line x1="20" y1="30" x2="32" y2="42" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+  <line x1="20" y1="40" x2="30" y2="52" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+</svg>`;
+
+function updateObjVisual(objEl, type, side) {
+  const body = objEl.querySelector('.obj-body');
+  if (type === 'ball') {
+    body.className = 'obj-body ball ' + (side === 'A' ? 'ball-a' : 'ball-b');
+    body.innerHTML = side;
+  } else {
+    body.className = '';
+    body.innerHTML = featherSVG;
+    body.style.color = side === 'A' ? '#60a5fa' : '#f472b6';
+  }
+}
+
+function syncVisuals() {
+  updateObjVisual(objAEl, typeAEl.value, 'A');
+  updateObjVisual(objBEl, typeBEl.value, 'B');
+  // 更新标签颜色
+  const labelA = objAEl.closest('.drop-lane').querySelector('.lane-label');
+  const labelB = objBEl.closest('.drop-lane').querySelector('.lane-label');
+  labelA.textContent = typeAEl.value === 'ball' ? '小球 A' : '羽毛 A';
+  labelB.textContent = typeBEl.value === 'ball' ? '小球 B' : '羽毛 B';
+}
+typeAEl.addEventListener('change', syncVisuals);
+typeBEl.addEventListener('change', syncVisuals);
+
+// ==================== 物理模拟 ====================
+// 空气密度
+const AIR_DENSITY = 1.225; // kg/m³
+
+// 物体截面积 (简化模型)
+function getArea(type, mass) {
+  if (type === 'ball') {
+    // 假设密度 ~8000 kg/m³ (铁球), 计算半径
+    const r = Math.pow((3 * mass) / (4 * Math.PI * 8000), 1/3);
+    return Math.PI * r * r;
+  } else {
+    // 羽毛: 大面积，轻质量
+    return 0.005 + mass * 0.5; // 简化
+  }
+}
+
+function simulate(type, mass, Cd, g, h, vacuum) {
+  const dt = 0.0005; // 时间步长
+  const area = getArea(type, mass);
+  const cd = vacuum ? 0 : Cd;
+  let y = 0, v = 0, t = 0;
+  const points = [];
+
+  while (y < h && t < 30) {
+    // 加速度: a = g - (0.5 * Cd * ρ * A * v²) / m
+    const dragForce = 0.5 * cd * AIR_DENSITY * area * v * v;
+    const a = g - dragForce / Math.max(mass, 0.001);
+    v += a * dt;
+    y += v * dt;
+    t += dt;
+    // 每隔约 16ms 采样一帧
+    if (points.length === 0 || t - points[points.length - 1].t >= 0.016) {
+      points.push({ t, y: Math.min(y, h), v });
+    }
+  }
+  // 落地帧
+  points.push({ t, y: h, v });
+  return { points, totalTime: t, finalVelocity: v };
+}
+
+// ==================== 动画控制 ====================
+let animId = null;
+let running = false;
+
+function resetExperiment() {
+  if (animId) cancelAnimationFrame(animId);
+  running = false;
+  btnStart.disabled = false;
+  btnStart.textContent = '开始实验';
+
+  objAEl.style.top = '24px';
+  objBEl.style.top = '24px';
+  trailA.style.height = '0';
+  trailB.style.height = '0';
+  speedAEl.classList.remove('show');
+  speedBEl.classList.remove('show');
+  landAEl.classList.remove('show');
+  landBEl.classList.remove('show');
+
+  $('resTimeA').innerHTML = '--<span class="unit">s</span>';
+  $('resTimeB').innerHTML = '--<span class="unit">s</span>';
+  $('resDiff').innerHTML = '--<span class="unit">s</span>';
+  $('conclusion').classList.remove('show');
+
+  buildRuler();
+  syncVisuals();
+}
+
+function startExperiment() {
+  if (running) return;
+  resetExperiment();
+  running = true;
+  btnStart.disabled = true;
+  btnStart.textContent = '实验中...';
+
+  // 读取参数
+  const typeA = typeAEl.value, typeB = typeBEl.value;
+  const massA = parseFloat(massAEl.value);
+  const massB = parseFloat(massBEl.value);
+  const Cd = parseFloat(dragEl.value);
+  const g = parseFloat(gravEl.value);
+  const h = parseFloat(heightEl.value);
+
+  // 模拟
+  const resultA = simulate(typeA, massA, Cd, g, h, isVacuum);
+  const resultB = simulate(typeB, massB, Cd, g, h, isVacuum);
+
+  const totalDuration = Math.max(resultA.totalTime, resultB.totalTime);
+  const displayDuration = Math.max(totalDuration * 1.1, 2); // 额外留10%时间
+
+  // 计算像素映射
+  const expArea = $('expArea');
+  const dropZone = expArea.querySelector('.drop-zone');
+  const maxPixelDrop = dropZone.clientHeight - 80; // 可用的下落像素
+
+  function yPosToPixel(y) {
+    return 24 + (y / h) * maxPixelDrop;
+  }
+
+  // 动画参数
+  const startTime = performance.now();
+  const animDurationMs = Math.min(displayDuration * 1000, 15000); // 最长15秒展示
+  const timeScale = animDurationMs / (totalDuration * 1000);
+
+  let landedA = false, landedB = false;
+  let frameIdxA = 0, frameIdxB = 0;
+
+  function animate(now) {
+    const elapsed = (now - startTime) / timeScale; // 模拟时间(ms)
+    const simTime = elapsed / 1000; // 模拟时间(s)
+
+    // 物体A
+    if (!landedA) {
+      while (frameIdxA < resultA.points.length - 1 && resultA.points[frameIdxA + 1].t <= simTime) frameIdxA++;
+      const pA = resultA.points[Math.min(frameIdxA, resultA.points.length - 1)];
+      const pixA = yPosToPixel(pA.y);
+      objAEl.style.top = pixA + 'px';
+      trailA.style.height = Math.max(0, pixA - 48) + 'px';
+
+      if (pA.y >= h) {
+        landedA = true;
+        const t = resultA.totalTime;
+        landAEl.textContent = t.toFixed(3) + 's';
+        landAEl.style.bottom = '46px';
+        landAEl.classList.add('show');
+        $('resTimeA').innerHTML = t.toFixed(3) + '<span class="unit">s</span>';
+      } else {
+        speedAEl.textContent = pA.v.toFixed(1) + ' m/s';
+        speedAEl.style.top = (pixA + 50) + 'px';
+        speedAEl.style.left = '60px';
+        speedAEl.classList.add('show');
+      }
+    }
+
+    // 物体B
+    if (!landedB) {
+      while (frameIdxB < resultB.points.length - 1 && resultB.points[frameIdxB + 1].t <= simTime) frameIdxB++;
+      const pB = resultB.points[Math.min(frameIdxB, resultB.points.length - 1)];
+      const pixB = yPosToPixel(pB.y);
+      objBEl.style.top = pixB + 'px';
+      trailB.style.height = Math.max(0, pixB - 48) + 'px';
+
+      if (pB.y >= h) {
+        landedB = true;
+        const t = resultB.totalTime;
+        landBEl.textContent = t.toFixed(3) + 's';
+        landBEl.style.bottom = '46px';
+        landBEl.classList.add('show');
+        $('resTimeB').innerHTML = t.toFixed(3) + '<span class="unit">s</span>';
+      } else {
+        speedBEl.textContent = pB.v.toFixed(1) + ' m/s';
+        speedBEl.style.top = (pixB + 50) + 'px';
+        speedBEl.style.right = '60px';
+        speedBEl.style.left = 'auto';
+        speedBEl.classList.add('show');
+      }
+    }
+
+    // 两者都落地后停止
+    if (landedA && landedB) {
+      running = false;
+      btnStart.textContent = '开始实验';
+      btnStart.disabled = false;
+      speedAEl.classList.remove('show');
+      speedBEl.classList.remove('show');
+      showResults(resultA, resultB);
+      return;
+    }
+
+    animId = requestAnimationFrame(animate);
+  }
+
+  animId = requestAnimationFrame(animate);
+}
+
+function showResults(rA, rB) {
+  const diff = Math.abs(rA.totalTime - rB.totalTime);
+  $('resDiff').innerHTML = diff.toFixed(4) + '<span class="unit">s</span>';
+
+  const conclusionEl = $('conclusion');
+  const text = $('conclusionText');
+
+  if (isVacuum) {
+    text.innerHTML = `在<span class="highlight">真空环境</span>中，无论物体质量和形状如何，两个物体都以
+      <span class="highlight">${parseFloat(gravEl.value).toFixed(1)} m/s²</span> 的加速度同时下落。
+      物体 A 用时 <b>${rA.totalTime.toFixed(3)}s</b>，物体 B 用时 <b>${rB.totalTime.toFixed(3)}s</b>，
+      时间差仅为 <span class="highlight">${diff.toFixed(4)}s</span>。
+      这完美验证了伽利略的结论：<span class="highlight">在忽略空气阻力的条件下，所有物体的自由落体加速度相同，与质量无关</span>。`;
+  } else if (diff < 0.05) {
+    text.innerHTML = `在当前空气阻力条件下，两个物体的落地时间非常接近，时间差仅 <span class="highlight">${diff.toFixed(4)}s</span>。
+      这是因为两个物体的质量相对较大或阻力较小，空气阻力影响不明显。`;
+  } else {
+    const slower = rA.totalTime > rB.totalTime ? 'A' : 'B';
+    text.innerHTML = `在空气阻力作用下，两个物体出现明显的时间差 <span class="highlight">${diff.toFixed(3)}s</span>，
+      物体 <b>${slower}</b> 落地更晚。这说明<span class="highlight">空气阻力对轻/大体积物体的影响更大</span>，
+      导致其终端速度更低，下落更慢。这也解释了为什么在空气中羽毛比铁球下落慢得多，
+      但在真空中它们会<span class="highlight">同时着地</span>。`;
+  }
+  conclusionEl.classList.add('show');
+}
+
+// ==================== 事件绑定 ====================
+btnStart.addEventListener('click', startExperiment);
+btnReset.addEventListener('click', resetExperiment);
+
+// 初始化
+window.addEventListener('load', () => {
+  buildRuler();
+  syncVisuals();
+});
+window.addEventListener('resize', () => {
+  if (!running) buildRuler();
+});
+</script>
+</body>
+</html>
