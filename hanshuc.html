@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>科学函数计算器</title>
+<style>
+/* ========== 主题变量 ========== */
+:root {
+  --transition-speed: 0.3s;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-display: #16213e;
+  --bg-btn: #1f2b47;
+  --bg-btn-hover: #2a3a5c;
+  --bg-btn-op: #1a2744;
+  --bg-btn-func: #0d3b66;
+  --bg-btn-eq: #e94560;
+  --bg-btn-clear: #533a1e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0b0;
+  --text-display: #ffffff;
+  --border-color: #2a2a4a;
+  --accent: #e94560;
+  --accent-glow: rgba(233, 69, 96, 0.3);
+  --error-color: #ff4757;
+  --history-bg: #12122a;
+  --history-entry: #1a1a35;
+  --canvas-bg: #0a0a18;
+  --canvas-grid: #1a1a3a;
+  --canvas-line: #e94560;
+  --canvas-axis: #4a4a6a;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+[data-theme="light"] {
+  --bg-primary: #eef1f5;
+  --bg-secondary: #ffffff;
+  --bg-display: #f0f4f8;
+  --bg-btn: #ffffff;
+  --bg-btn-hover: #e8ecf1;
+  --bg-btn-op: #dbe4ee;
+  --bg-btn-func: #cde0f5;
+  --bg-btn-eq: #4361ee;
+  --bg-btn-clear: #fde2c8;
+  --text-primary: #2b2d42;
+  --text-secondary: #6c757d;
+  --text-display: #1a1a2e;
+  --border-color: #d0d7de;
+  --accent: #4361ee;
+  --accent-glow: rgba(67, 97, 238, 0.2);
+  --error-color: #e63946;
+  --history-bg: #f5f7fa;
+  --history-entry: #ffffff;
+  --canvas-bg: #fafbfc;
+  --canvas-grid: #e1e5ea;
+  --canvas-line: #4361ee;
+  --canvas-axis: #8892a0;
+  --shadow: 0 8px 32px rgba(0,0,0,0.08);
+}
+
+[data-theme="retro"] {
+  --bg-primary: #2b2000;
+  --bg-secondary: #3d2e00;
+  --bg-display: #1a1400;
+  --bg-btn: #4a3b10;
+  --bg-btn-hover: #5c4a1a;
+  --bg-btn-op: #5a4210;
+  --bg-btn-func: #3a5500;
+  --bg-btn-eq: #cc7a00;
+  --bg-btn-clear: #8b2500;
+  --text-primary: #ffcc00;
+  --text-secondary: #bfa030;
+  --text-display: #00ff00;
+  --border-color: #6b5500;
+  --accent: #ff8c00;
+  --accent-glow: rgba(255, 140, 0, 0.3);
+  --error-color: #ff4500;
+  --history-bg: #221a00;
+  --history-entry: #2e2400;
+  --canvas-bg: #0e0a00;
+  --canvas-grid: #2a2000;
+  --canvas-line: #00ff00;
+  --canvas-axis: #6b5500;
+  --shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* ========== 基础样式 ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background var(--transition-speed), color var(--transition-speed);
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ========== 顶部标题栏 ========== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--text-primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.theme-switcher {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-btn {
+  padding: 6px 14px;
+  border: 2px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: inherit;
+  transition: all var(--transition-speed);
+}
+
+.theme-btn:hover {
+  border-color: var(--accent);
+}
+
+.theme-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* ========== 主布局 ========== */
+.main-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ========== 计算器区域 ========== */
+.calculator-section {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-speed);
+}
+
+.display-container {
+  background: var(--bg-display);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.display-expression {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  text-align: right;
+  word-break: break-all;
+  min-height: 1.4em;
+  margin-bottom: 4px;
+}
+
+.display-result {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-display);
+  text-align: right;
+  word-break: break-all;
+  line-height: 1.2;
+}
+
+.display-result.error {
+  color: var(--error-color);
+  font-size: 1.2rem;
+}
+
+/* ========== 按钮网格 ========== */
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.btn {
+  padding: 12px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-btn);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--bg-btn-hover);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.btn.func {
+  background: var(--bg-btn-func);
+  font-size: 0.78rem;
+}
+
+.btn.op {
+  background: var(--bg-btn-op);
+  font-weight: 600;
+}
+
+.btn.eq {
+  background: var(--bg-btn-eq);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.btn.clear {
+  background: var(--bg-btn-clear);
+  font-weight: 600;
+}
+
+.btn.wide {
+  grid-column: span 2;
+}
+
+/* ========== 函数绘图区域 ========== */
+.plotter-section {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all var(--transition-speed);
+}
+
+.plotter-section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.plot-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.plot-input {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--bg-display);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-display);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--transition-speed);
+}
+
+.plot-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.plot-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.plot-btn {
+  padding: 10px 18px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.plot-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.canvas-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: var(--canvas-bg);
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.canvas-container canvas {
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.canvas-container canvas:active {
+  cursor: grabbing;
+}
+
+.plot-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.plot-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plot-range-btn {
+  padding: 5px 12px;
+  background: var(--bg-btn);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.plot-range-btn:hover {
+  background: var(--bg-btn-hover);
+}
+
+.plot-range-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ========== 历史记录 ========== */
+.history-section {
+  grid-column: 1 / -1;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-speed);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.history-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.clear-history-btn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.clear-history-btn:hover {
+  border-color: var(--error-color);
+  color: var(--error-color);
+}
+
+.history-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.history-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--history-entry);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.history-entry:hover {
+  background: var(--bg-btn-hover);
+}
+
+.history-expr {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.history-result {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.history-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  padding: 20px;
+}
+
+/* ========== 键盘提示 ========== */
+.keyboard-hint {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding: 8px;
+  opacity: 0.6;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 768px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .history-section {
+    grid-column: 1;
+  }
+
+  .keyboard-hint {
+    grid-column: 1;
+  }
+
+  .app-container {
+    padding: 12px;
+  }
+
+  .display-result {
+    font-size: 1.5rem;
+  }
+
+  .btn {
+    padding: 10px 4px;
+    font-size: 0.75rem;
+  }
+
+  .btn.func {
+    font-size: 0.7rem;
+  }
+
+  .btn-grid {
+    gap: 5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header h1 {
+    font-size: 1.1rem;
+  }
+
+  .btn-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .btn.func:nth-child(n+17):nth-child(-n+21) {
+    display: none;
+  }
+}
+
+/* ========== 键盘按下高亮 ========== */
+.btn.key-active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  transform: scale(0.95);
+}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- 顶部 -->
+  <header class="header">
+    <h1>科学函数计算器</h1>
+    <div class="theme-switcher">
+      <button class="theme-btn active" data-theme="dark">深色</button>
+      <button class="theme-btn" data-theme="light">浅色</button>
+      <button class="theme-btn" data-theme="retro">复古</button>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <!-- 计算器 -->
+    <section class="calculator-section">
+      <div class="display-container" id="display">
+        <div class="display-expression" id="expression"></div>
+        <div class="display-result" id="result">0</div>
+      </div>
+
+      <div class="btn-grid" id="btnGrid">
+        <!-- 第一行：科学函数 -->
+        <button class="btn func" data-action="func" data-value="sin(" >sin</button>
+        <button class="btn func" data-action="func" data-value="cos(">cos</button>
+        <button class="btn func" data-action="func" data-value="tan(">tan</button>
+        <button class="btn func" data-action="func" data-value="log(">log</button>
+        <button class="btn func" data-action="func" data-value="ln(">ln</button>
+        <!-- 第二行 -->
+        <button class="btn func" data-action="func" data-value="sqrt(">sqrt</button>
+        <button class="btn func" data-action="func" data-value="abs(">abs</button>
+        <button class="btn func" data-action="const" data-value="pi">pi</button>
+        <button class="btn func" data-action="const" data-value="e">e</button>
+        <button class="btn func" data-action="power" data-value="^">x^y</button>
+        <!-- 第三行 -->
+        <button class="btn func" data-action="paren" data-value="(">(</button>
+        <button class="btn func" data-action="paren" data-value=")">)</button>
+        <button class="btn func" data-action="factorial" data-value="!">n!</button>
+        <button class="btn func" data-action="percent" data-value="%">%</button>
+        <button class="btn func" data-action="toggle-sign">+/-</button>
+        <!-- 第四行：数字 -->
+        <button class="btn" data-action="digit" data-value="7">7</button>
+        <button class="btn" data-action="digit" data-value="8">8</button>
+        <button class="btn" data-action="digit" data-value="9">9</button>
+        <button class="btn op" data-action="op" data-value="DEL">DEL</button>
+        <button class="btn clear" data-action="clear">AC</button>
+        <!-- 第五行 -->
+        <button class="btn" data-action="digit" data-value="4">4</button>
+        <button class="btn" data-action="digit" data-value="5">5</button>
+        <button class="btn" data-action="digit" data-value="6">6</button>
+        <button class="btn op" data-action="op" data-value="*">x</button>
+        <button class="btn op" data-action="op" data-value="/">/</button>
+        <!-- 第六行 -->
+        <button class="btn" data-action="digit" data-value="1">1</button>
+        <button class="btn" data-action="digit" data-value="2">2</button>
+        <button class="btn" data-action="digit" data-value="3">3</button>
+        <button class="btn op" data-action="op" data-value="+">+</button>
+        <button class="btn op" data-action="op" data-value="-">-</button>
+        <!-- 第七行 -->
+        <button class="btn wide" data-action="digit" data-value="0">0</button>
+        <button class="btn" data-action="decimal">.</button>
+        <button class="btn op" data-action="op" data-value="DEL">DEL</button>
+        <button class="btn eq" data-action="equals">=</button>
+      </div>
+    </section>
+
+    <!-- 函数绘图 -->
+    <section class="plotter-section">
+      <h2>函数绘图</h2>
+      <div class="plot-input-row">
+        <input class="plot-input" id="plotInput" type="text" placeholder='例: x^2, sin(x), log(x)+1' />
+        <button class="plot-btn" id="plotBtn">绘制</button>
+      </div>
+      <div class="plot-controls">
+        <button class="plot-range-btn active" data-range="10">-10 ~ 10</button>
+        <button class="plot-range-btn" data-range="5">-5 ~ 5</button>
+        <button class="plot-range-btn" data-range="50">-50 ~ 50</button>
+        <button class="plot-range-btn" data-range="100">-100 ~ 100</button>
+      </div>
+      <div class="canvas-container">
+        <canvas id="plotCanvas"></canvas>
+      </div>
+      <div class="plot-hint">输入数学表达式，拖拽平移，滚轮缩放。支持: sin, cos, tan, log, ln, sqrt, abs, pi, e, ^</div>
+    </section>
+
+    <!-- 历史记录 -->
+    <section class="history-section">
+      <div class="history-header">
+        <h2>计算历史</h2>
+        <button class="clear-history-btn" id="clearHistoryBtn">清空</button>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="history-empty">暂无计算记录</div>
+      </div>
+    </section>
+
+    <div class="keyboard-hint">支持键盘输入：数字、运算符、Enter(=)、Backspace(DEL)、Escape(AC)</div>
+  </div>
+</div>
+
+<script>
+// ========== 状态管理 ==========
+const state = {
+  expression: '',
+  lastResult: null,
+  justEvaluated: false,
+  history: [],
+  theme: 'dark',
+  plotRange: 10,
+  plotOffset: { x: 0, y: 0 },
+  plotZoom: 1,
+};
+
+// ========== DOM 引用 ==========
+const $expression = document.getElementById('expression');
+const $result = document.getElementById('result');
+const $historyList = document.getElementById('historyList');
+const $plotInput = document.getElementById('plotInput');
+const $canvas = document.getElementById('plotCanvas');
+const ctx = $canvas.getContext('2d');
+
+// ========== Shunting-yard 算法 ==========
+function tokenize(expr) {
+  const tokens = [];
+  let i = 0;
+  const s = expr.replace(/\s+/g, '');
+
+  while (i < s.length) {
+    // 数字
+    if (/[0-9.]/.test(s[i])) {
+      let num = '';
+      while (i < s.length && /[0-9.]/.test(s[i])) {
+        num += s[i++];
+      }
+      tokens.push({ type: 'number', value: parseFloat(num) });
+      continue;
+    }
+
+    // 函数名 / 常量
+    if (/[a-zA-Z]/.test(s[i])) {
+      let name = '';
+      while (i < s.length && /[a-zA-Z]/.test(s[i])) {
+        name += s[i++];
+      }
+      const funcs = ['sin', 'cos', 'tan', 'log', 'ln', 'sqrt', 'abs'];
+      const constants = { pi: Math.PI, e: Math.E, PI: Math.PI, E: Math.E };
+
+      if (funcs.includes(name)) {
+        tokens.push({ type: 'function', value: name });
+      } else if (constants[name] !== undefined) {
+        tokens.push({ type: 'number', value: constants[name] });
+      } else {
+        throw new Error(`未知标识符: ${name}`);
+      }
+      continue;
+    }
+
+    // 运算符
+    if ('+-*/^%'.includes(s[i])) {
+      // 处理一元负号：在开头、左括号后、运算符后
+      if (s[i] === '-' && (tokens.length === 0 ||
+          tokens[tokens.length - 1].type === 'operator' ||
+          tokens[tokens.length - 1].type === 'lparen')) {
+        tokens.push({ type: 'number', value: 0 });
+        tokens.push({ type: 'operator', value: '-' });
+      } else {
+        tokens.push({ type: 'operator', value: s[i] });
+      }
+      i++;
+      continue;
+    }
+
+    if (s[i] === '(') {
+      tokens.push({ type: 'lparen' });
+      i++;
+      continue;
+    }
+
+    if (s[i] === ')') {
+      tokens.push({ type: 'rparen' });
+      i++;
+      continue;
+    }
+
+    if (s[i] === '!') {
+      tokens.push({ type: 'factorial' });
+      i++;
+      continue;
+    }
+
+    throw new Error(`无法识别的字符: ${s[i]}`);
+  }
+
+  return tokens;
+}
+
+function precedence(op) {
+  switch (op) {
+    case '+': case '-': return 2;
+    case '*': case '/': case '%': return 3;
+    case '^': return 4;
+    default: return 0;
+  }
+}
+
+function isRightAssociative(op) {
+  return op === '^';
+}
+
+function factorial(n) {
+  if (n < 0) return NaN;
+  if (n !== Math.floor(n)) return NaN;
+  if (n > 170) return Infinity;
+  let result = 1;
+  for (let i = 2; i <= n; i++) result *= i;
+  return result;
+}
+
+function shuntingYard(tokens) {
+  const output = [];
+  const ops = [];
+
+  for (const token of tokens) {
+    if (token.type === 'number') {
+      output.push(token);
+    } else if (token.type === 'function') {
+      ops.push(token);
+    } else if (token.type === 'operator') {
+      while (ops.length > 0) {
+        const top = ops[ops.length - 1];
+        if (top.type === 'operator' && (
+          precedence(top.value) > precedence(token.value) ||
+          (precedence(top.value) === precedence(token.value) && !isRightAssociative(token.value))
+        )) {
+          output.push(ops.pop());
+        } else {
+          break;
+        }
+      }
+      ops.push(token);
+    } else if (token.type === 'lparen') {
+      ops.push(token);
+    } else if (token.type === 'rparen') {
+      while (ops.length > 0 && ops[ops.length - 1].type !== 'lparen') {
+        output.push(ops.pop());
+      }
+      if (ops.length === 0) throw new Error('括号不匹配');
+      ops.pop(); // 弹出左括号
+      if (ops.length > 0 && ops[ops.length - 1].type === 'function') {
+        output.push(ops.pop());
+      }
+    } else if (token.type === 'factorial') {
+      output.push(token);
+    }
+  }
+
+  while (ops.length > 0) {
+    const op = ops.pop();
+    if (op.type === 'lparen' || op.type === 'rparen') {
+      throw new Error('括号不匹配');
+    }
+    output.push(op);
+  }
+
+  return output;
+}
+
+function evaluateRPN(rpn) {
+  const stack = [];
+
+  for (const token of rpn) {
+    if (token.type === 'number') {
+      stack.push(token.value);
+    } else if (token.type === 'factorial') {
+      const a = stack.pop();
+      if (a === undefined) throw new Error('表达式不完整');
+      stack.push(factorial(a));
+    } else if (token.type === 'operator') {
+      const b = stack.pop();
+      const a = stack.pop();
+      if (a === undefined || b === undefined) throw new Error('表达式不完整');
+      switch (token.value) {
+        case '+': stack.push(a + b); break;
+        case '-': stack.push(a - b); break;
+        case '*': stack.push(a * b); break;
+        case '/':
+          if (b === 0) throw new Error('除数不能为零');
+          stack.push(a / b);
+          break;
+        case '%': stack.push(a % b); break;
+        case '^': stack.push(Math.pow(a, b)); break;
+      }
+    } else if (token.type === 'function') {
+      const a = stack.pop();
+      if (a === undefined) throw new Error('表达式不完整');
+      switch (token.value) {
+        case 'sin': stack.push(Math.sin(a)); break;
+        case 'cos': stack.push(Math.cos(a)); break;
+        case 'tan':
+          if (Math.abs(Math.cos(a)) < 1e-10) throw new Error('tan 未定义');
+          stack.push(Math.tan(a));
+          break;
+        case 'log':
+          if (a <= 0) throw new Error('log 要求正数');
+          stack.push(Math.log10(a));
+          break;
+        case 'ln':
+          if (a <= 0) throw new Error('ln 要求正数');
+          stack.push(Math.log(a));
+          break;
+        case 'sqrt':
+          if (a < 0) throw new Error('sqrt 要求非负数');
+          stack.push(Math.sqrt(a));
+          break;
+        case 'abs': stack.push(Math.abs(a)); break;
+      }
+    }
+  }
+
+  if (stack.length !== 1) throw new Error('表达式无效');
+  return stack[0];
+}
+
+function evaluate(expr) {
+  const tokens = tokenize(expr);
+  const rpn = shuntingYard(tokens);
+  return evaluateRPN(rpn);
+}
+
+// ========== 计算器逻辑 ==========
+function appendToExpression(str) {
+  if (state.justEvaluated) {
+    // 如果刚计算完，输入数字则重新开始，输入运算符则续接结果
+    if (/^[0-9.]/.test(str) || /^[a-zA-Z]/.test(str)) {
+      state.expression = '';
+    } else {
+      state.expression = String(state.lastResult);
+    }
+    state.justEvaluated = false;
+  }
+  state.expression += str;
+  updateDisplay();
+}
+
+function handleEquals() {
+  if (!state.expression) return;
+  try {
+    const result = evaluate(state.expression);
+    if (typeof result !== 'number' || isNaN(result)) {
+      throw new Error('结果无效');
+    }
+
+    const displayExpr = state.expression;
+    const displayResult = formatNumber(result);
+
+    addHistory(displayExpr, displayResult);
+
+    $expression.textContent = displayExpr + ' =';
+    $result.textContent = displayResult;
+    $result.classList.remove('error');
+
+    state.lastResult = result;
+    state.expression = displayResult;
+    state.justEvaluated = true;
+  } catch (err) {
+    $result.textContent = err.message;
+    $result.classList.add('error');
+    state.justEvaluated = false;
+  }
+}
+
+function handleDelete() {
+  if (state.justEvaluated) {
+    state.expression = '';
+    state.justEvaluated = false;
+  } else {
+    // 尝试删除末尾的函数名或单个字符
+    const funcPatterns = ['sin(', 'cos(', 'tan(', 'log(', 'ln(', 'sqrt(', 'abs('];
+    let removed = false;
+    for (const p of funcPatterns) {
+      if (state.expression.endsWith(p)) {
+        state.expression = state.expression.slice(0, -p.length);
+        removed = true;
+        break;
+      }
+    }
+    if (!removed) {
+      state.expression = state.expression.slice(0, -1);
+    }
+  }
+  updateDisplay();
+}
+
+function handleClear() {
+  state.expression = '';
+  state.lastResult = null;
+  state.justEvaluated = false;
+  $expression.textContent = '';
+  $result.textContent = '0';
+  $result.classList.remove('error');
+}
+
+function toggleSign() {
+  if (state.justEvaluated && state.lastResult !== null) {
+    state.expression = String(-state.lastResult);
+    state.justEvaluated = false;
+    updateDisplay();
+    return;
+  }
+  if (state.expression.startsWith('-')) {
+    state.expression = state.expression.slice(1);
+  } else if (state.expression) {
+    state.expression = '-' + state.expression;
+  }
+  updateDisplay();
+}
+
+function updateDisplay() {
+  $expression.textContent = formatExpression(state.expression);
+  // 实时预览
+  if (state.expression) {
+    try {
+      const val = evaluate(state.expression);
+      $result.textContent = formatNumber(val);
+      $result.classList.remove('error');
+    } catch {
+      $result.textContent = '...';
+      $result.classList.remove('error');
+    }
+  } else {
+    $result.textContent = '0';
+    $result.classList.remove('error');
+  }
+}
+
+function formatNumber(n) {
+  if (!isFinite(n)) return n > 0 ? 'Infinity' : '-Infinity';
+  if (Number.isInteger(n) && Math.abs(n) < 1e15) return n.toString();
+  const str = n.toPrecision(12);
+  return parseFloat(str).toString();
+}
+
+function formatExpression(expr) {
+  return expr
+    .replace(/\*/g, ' x ')
+    .replace(/\//g, ' / ')
+    .replace(/\+/g, ' + ')
+    .replace(/(?<!^)-/g, ' - ')
+    .replace(/\^/g, ' ^ ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// ========== 历史记录 ==========
+function addHistory(expr, result) {
+  state.history.unshift({ expr, result, time: new Date() });
+  if (state.history.length > 50) state.history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  if (state.history.length === 0) {
+    $historyList.innerHTML = '<div class="history-empty">暂无计算记录</div>';
+    return;
+  }
+  $historyList.innerHTML = state.history.map((h, i) => `
+    <div class="history-entry" data-index="${i}" title="点击使用此结果">
+      <span class="history-expr">${h.expr}</span>
+      <span class="history-result">= ${h.result}</span>
+    </div>
+  `).join('');
+}
+
+$historyList.addEventListener('click', (e) => {
+  const entry = e.target.closest('.history-entry');
+  if (!entry) return;
+  const idx = parseInt(entry.dataset.index);
+  const h = state.history[idx];
+  if (h) {
+    state.expression = h.result;
+    state.justEvaluated = false;
+    updateDisplay();
+  }
+});
+
+document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+  state.history = [];
+  renderHistory();
+});
+
+// ========== 按钮点击 ==========
+document.getElementById('btnGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.btn');
+  if (!btn) return;
+
+  const action = btn.dataset.action;
+  const value = btn.dataset.value;
+
+  switch (action) {
+    case 'digit':
+      appendToExpression(value);
+      break;
+    case 'decimal':
+      appendToExpression('.');
+      break;
+    case 'op':
+      if (value === 'DEL') handleDelete();
+      else appendToExpression(value);
+      break;
+    case 'func':
+      appendToExpression(value);
+      break;
+    case 'const':
+      if (value === 'pi') appendToExpression('pi');
+      else if (value === 'e') appendToExpression('e');
+      break;
+    case 'power':
+      appendToExpression('^');
+      break;
+    case 'paren':
+      appendToExpression(value);
+      break;
+    case 'factorial':
+      appendToExpression('!');
+      break;
+    case 'percent':
+      appendToExpression('%');
+      break;
+    case 'toggle-sign':
+      toggleSign();
+      break;
+    case 'clear':
+      handleClear();
+      break;
+    case 'equals':
+      handleEquals();
+      break;
+  }
+});
+
+// ========== 键盘支持 ==========
+const keyMap = {};
+document.querySelectorAll('.btn[data-key]').forEach(btn => {
+  keyMap[btn.dataset.key] = btn;
+});
+
+document.addEventListener('keydown', (e) => {
+  // 如果焦点在绘图输入框则忽略（除了 Enter）
+  if (document.activeElement === $plotInput && e.key !== 'Enter') return;
+
+  const key = e.key;
+  let handled = true;
+
+  // 数字
+  if (/^[0-9]$/.test(key)) {
+    appendToExpression(key);
+    highlightBtn(`[data-value="${key}"][data-action="digit"]`);
+  }
+  // 运算符
+  else if (key === '+') { appendToExpression('+'); highlightBtn('[data-value="+"]'); }
+  else if (key === '-') { appendToExpression('-'); highlightBtn('[data-value="-"]'); }
+  else if (key === '*') { appendToExpression('*'); highlightBtn('[data-value="*"]'); }
+  else if (key === '/') { e.preventDefault(); appendToExpression('/'); highlightBtn('[data-value="/"]'); }
+  else if (key === '^') { appendToExpression('^'); highlightBtn('[data-value="^"]'); }
+  else if (key === '%') { appendToExpression('%'); highlightBtn('[data-value="%"]'); }
+  else if (key === '(') { appendToExpression('('); highlightBtn('[data-value="("]'); }
+  else if (key === ')') { appendToExpression(')'); highlightBtn('[data-value=")"]'); }
+  else if (key === '!') { appendToExpression('!'); highlightBtn('[data-value="!"]'); }
+  // 小数点
+  else if (key === '.') { appendToExpression('.'); highlightBtn('[data-action="decimal"]'); }
+  // 退格
+  else if (key === 'Backspace') { handleDelete(); highlightBtn('[data-value="DEL"]'); }
+  // ESC 清除
+  else if (key === 'Escape') { handleClear(); highlightBtn('[data-action="clear"]'); }
+  // 回车 = 计算
+  else if (key === 'Enter') {
+    if (document.activeElement === $plotInput) {
+      drawPlot();
+    } else {
+      handleEquals();
+      highlightBtn('[data-action="equals"]');
+    }
+  }
+  else {
+    handled = false;
+  }
+
+  if (handled) e.stopPropagation();
+});
+
+function highlightBtn(selector) {
+  const btn = document.querySelector(selector);
+  if (!btn) return;
+  btn.classList.add('key-active');
+  setTimeout(() => btn.classList.remove('key-active'), 120);
+}
+
+// ========== 主题切换 ==========
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const theme = btn.dataset.theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.theme = theme;
+    drawPlot(); // 重绘以应用新主题
+  });
+});
+
+// ========== 函数绘图 ==========
+let plotDragging = false;
+let plotDragStart = { x: 0, y: 0 };
+let plotOffsetStart = { x: 0, y: 0 };
+
+function resizeCanvas() {
+  const container = $canvas.parentElement;
+  const rect = container.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  $canvas.width = rect.width * dpr;
+  $canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  $canvas.style.width = rect.width + 'px';
+  $canvas.style.height = rect.height + 'px';
+}
+
+function parsePlotExpression(expr) {
+  // 用于绘图的 evaluate，将 x 替换为具体值
+  return function(x) {
+    const prepared = expr
+      .replace(/\bx\b/g, `(${x})`);
+    try {
+      return evaluate(prepared);
+    } catch {
+      return NaN;
+    }
+  };
+}
+
+function drawPlot() {
+  resizeCanvas();
+  const w = $canvas.clientWidth;
+  const h = $canvas.clientHeight;
+
+  const range = state.plotRange * state.plotZoom;
+  const centerX = w / 2 + state.plotOffset.x;
+  const centerY = h / 2 + state.plotOffset.y;
+  const scaleX = w / (range * 2);
+  const scaleY = h / (range * 2);
+
+  // 读取 CSS 变量获取颜色
+  const style = getComputedStyle(document.documentElement);
+  const canvasBg = style.getPropertyValue('--canvas-bg').trim();
+  const gridColor = style.getPropertyValue('--canvas-grid').trim();
+  const axisColor = style.getPropertyValue('--canvas-axis').trim();
+  const lineColor = style.getPropertyValue('--canvas-line').trim();
+  const textColor = style.getPropertyValue('--text-secondary').trim();
+
+  // 清空
+  ctx.fillStyle = canvasBg;
+  ctx.fillRect(0, 0, w, h);
+
+  // 网格
+  ctx.strokeStyle = gridColor;
+  ctx.lineWidth = 1;
+
+  const gridStep = niceGridStep(range);
+  const startVal = -range - (((-range) % gridStep) + gridStep) % gridStep;
+
+  for (let v = Math.ceil(-range / gridStep) * gridStep; v <= range; v += gridStep) {
+    const px = centerX + v * scaleX;
+    const py = centerY - v * scaleY;
+    // 竖线
+    if (px >= 0 && px <= w) {
+      ctx.beginPath();
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, h);
+      ctx.stroke();
+    }
+    // 横线
+    if (py >= 0 && py <= h) {
+      ctx.beginPath();
+      ctx.moveTo(0, py);
+      ctx.lineTo(w, py);
+      ctx.stroke();
+    }
+  }
+
+  // 坐标轴
+  ctx.strokeStyle = axisColor;
+  ctx.lineWidth = 2;
+
+  // X 轴
+  if (centerY >= 0 && centerY <= h) {
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(w, centerY);
+    ctx.stroke();
+  }
+  // Y 轴
+  if (centerX >= 0 && centerX <= w) {
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, h);
+    ctx.stroke();
+  }
+
+  // 刻度标注
+  ctx.fillStyle = textColor;
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  for (let v = Math.ceil(-range / gridStep) * gridStep; v <= range; v += gridStep) {
+    if (Math.abs(v) < gridStep * 0.1) continue;
+    const px = centerX + v * scaleX;
+    if (px >= 10 && px <= w - 10 && centerY >= 0 && centerY <= h) {
+      ctx.fillText(formatTick(v), px, Math.min(centerY + 14, h - 4));
+    }
+    const py = centerY - v * scaleY;
+    if (py >= 10 && py <= h - 10 && centerX >= 0 && centerX <= w) {
+      ctx.textAlign = 'right';
+      ctx.fillText(formatTick(v), Math.min(centerX - 6, w - 4), py + 4);
+      ctx.textAlign = 'center';
+    }
+  }
+
+  // 绘制函数曲线
+  const exprStr = $plotInput.value.trim();
+  if (!exprStr) return;
+
+  try {
+    const fn = parsePlotExpression(exprStr);
+
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+
+    let started = false;
+    const step = range * 2 / w; // 每像素一步
+
+    for (let px = 0; px < w; px++) {
+      const x = (px - centerX) / scaleX;
+      const y = fn(x);
+
+      if (isNaN(y) || !isFinite(y)) {
+        started = false;
+        continue;
+      }
+
+      const py = centerY - y * scaleY;
+
+      if (py < -h || py > 2 * h) {
+        started = false;
+        continue;
+      }
+
+      if (!started) {
+        ctx.moveTo(px, py);
+        started = true;
+      } else {
+        ctx.lineTo(px, py);
+      }
+    }
+    ctx.stroke();
+  } catch {
+    // 绘图表达式错误时静默处理
+  }
+}
+
+function niceGridStep(range) {
+  const raw = range / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  if (norm < 1.5) return mag;
+  if (norm < 3.5) return 2 * mag;
+  if (norm < 7.5) return 5 * mag;
+  return 10 * mag;
+}
+
+function formatTick(v) {
+  if (Math.abs(v) >= 1000 || (Math.abs(v) < 0.01 && v !== 0)) {
+    return v.toExponential(0);
+  }
+  return parseFloat(v.toPrecision(6)).toString();
+}
+
+// 绘图按钮
+document.getElementById('plotBtn').addEventListener('click', drawPlot);
+$plotInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.stopPropagation();
+    drawPlot();
+  }
+});
+
+// 缩放范围按钮
+document.querySelectorAll('.plot-range-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.plot-range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.plotRange = parseInt(btn.dataset.range);
+    state.plotOffset = { x: 0, y: 0 };
+    state.plotZoom = 1;
+    drawPlot();
+  });
+});
+
+// Canvas 拖拽
+$canvas.addEventListener('mousedown', (e) => {
+  plotDragging = true;
+  plotDragStart = { x: e.offsetX, y: e.offsetY };
+  plotOffsetStart = { ...state.plotOffset };
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!plotDragging) return;
+  state.plotOffset.x = plotOffsetStart.x + (e.offsetX - plotDragStart.x);
+  state.plotOffset.y = plotOffsetStart.y + (e.offsetY - plotDragStart.y);
+  drawPlot();
+});
+
+window.addEventListener('mouseup', () => {
+  plotDragging = false;
+});
+
+// 滚轮缩放
+$canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 1.1 : 0.9;
+  state.plotZoom *= factor;
+  state.plotZoom = Math.max(0.01, Math.min(state.plotZoom, 100));
+  drawPlot();
+}, { passive: false });
+
+// 触摸支持
+$canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    plotDragging = true;
+    const rect = $canvas.getBoundingClientRect();
+    plotDragStart = {
+      x: e.touches[0].clientX - rect.left,
+      y: e.touches[0].clientY - rect.top,
+    };
+    plotOffsetStart = { ...state.plotOffset };
+  }
+}, { passive: true });
+
+$canvas.addEventListener('touchmove', (e) => {
+  if (!plotDragging || e.touches.length !== 1) return;
+  const rect = $canvas.getBoundingClientRect();
+  const dx = e.touches[0].clientX - rect.left - plotDragStart.x;
+  const dy = e.touches[0].clientY - rect.top - plotDragStart.y;
+  state.plotOffset.x = plotOffsetStart.x + dx;
+  state.plotOffset.y = plotOffsetStart.y + dy;
+  drawPlot();
+}, { passive: true });
+
+$canvas.addEventListener('touchend', () => {
+  plotDragging = false;
+});
+
+// 窗口大小改变时重绘
+window.addEventListener('resize', () => {
+  drawPlot();
+});
+
+// ========== 初始化 ==========
+drawPlot();
+</script>
+</body>
+</html>
