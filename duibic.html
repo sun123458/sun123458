@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多路线规划对比</title>
+  <script src="https://webapi.amap.com/maps?v=2.0&key=YOUR_AMAP_KEY"></script>
+  <link rel="stylesheet" href="route-planner.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 搜索面板 -->
+    <div class="search-panel">
+      <div class="panel-header">
+        <h2>多路线规划对比</h2>
+        <button class="swap-btn" id="swapBtn" title="交换起终点">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M7.5 3.5L3 8l4.5 4.5M3 8h13m.5 12.5L21 16l-4.5-4.5M21 16H8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="input-group">
+        <span class="dot dot-origin"></span>
+        <input type="text" id="originInput" placeholder="请输入起点" autocomplete="off" />
+        <ul class="suggestion-list" id="originSuggestions"></ul>
+      </div>
+      <div class="input-group">
+        <span class="dot dot-destination"></span>
+        <input type="text" id="destInput" placeholder="请输入终点" autocomplete="off" />
+        <ul class="suggestion-list" id="destSuggestions"></ul>
+      </div>
+      <button class="plan-btn" id="planBtn">规划路线</button>
+    </div>
+
+    <!-- 路线对比面板 -->
+    <div class="route-panel" id="routePanel">
+      <div class="route-tabs" id="routeTabs">
+        <button class="route-tab active" data-type="driving">
+          <span class="tab-icon">🚗</span>
+          <span class="tab-label">驾车</span>
+        </button>
+        <button class="route-tab" data-type="cycling">
+          <span class="tab-icon">🚲</span>
+          <span class="tab-label">骑行</span>
+        </button>
+        <button class="route-tab" data-type="walking">
+          <span class="tab-icon">🚶</span>
+          <span class="tab-label">步行</span>
+        </button>
+      </div>
+
+      <!-- 路线概要卡片 -->
+      <div class="route-cards" id="routeCards"></div>
+
+      <!-- 详细指引 -->
+      <div class="route-details" id="routeDetails">
+        <div class="details-header">
+          <h3>详细指引</h3>
+          <button class="close-details" id="closeDetails">×</button>
+        </div>
+        <div class="steps-list" id="stepsList"></div>
+      </div>
+    </div>
+
+    <!-- 地图容器 -->
+    <div class="map-container" id="mapContainer"></div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading-mask" id="loadingMask">
+      <div class="spinner"></div>
+      <p>正在规划路线…</p>
+    </div>
+  </div>
+
+  <script src="route-planner.js"></script>
+</body>
+</html>
