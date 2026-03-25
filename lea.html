@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易地图 - Leaflet</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ---------- 顶栏 ---------- */
+        .topbar {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            flex-shrink: 0;
+        }
+        .topbar h1 {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .topbar h1 i { color: #e94560; }
+
+        /* 底图切换按钮组 */
+        .basemap-group {
+            display: flex;
+            gap: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 3px;
+        }
+        .basemap-btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .basemap-btn.active {
+            background: #e94560;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(233,69,96,0.4);
+        }
+        .basemap-btn:hover:not(.active) { color: #fff; }
+
+        /* ---------- 地图 ---------- */
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        /* ---------- 定位按钮 ---------- */
+        .locate-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 16px;
+            z-index: 999;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+            cursor: pointer;
+            font-size: 18px;
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .locate-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+        .locate-btn.locating {
+            color: #e94560;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* ---------- 详情侧边栏 ---------- */
+        .sidebar {
+            position: absolute;
+            top: 0; right: -380px;
+            width: 360px;
+            max-width: 90vw;
+            height: 100%;
+            background: #fff;
+            z-index: 1001;
+            box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            border-radius: 0;
+        }
+        .sidebar.open { right: 0; }
+
+        .sidebar-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #eee;
+            flex-shrink: 0;
+        }
+        .sidebar-header h2 {
+            font-size: 16px;
+            color: #1a1a2e;
+        }
+        .sidebar-close {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: #f0f0f0;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .sidebar-close:hover { background: #e0e0e0; }
+
+        .sidebar-body {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .detail-image {
+            width: 100%;
+            height: 180px;
+            border-radius: 10px;
+            object-fit: cover;
+            margin-bottom: 16px;
+        }
+
+        .detail-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        .tag-scenic  { background: #e8f5e9; color: #2e7d32; }
+        .tag-food    { background: #fff3e0; color: #e65100; }
+        .tag-hotel   { background: #e3f2fd; color: #1565c0; }
+        .tag-culture { background: #fce4ec; color: #c62828; }
+        .tag-transport { background: #f3e5f5; color: #7b1fa2; }
+
+        .detail-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .detail-address {
+            font-size: 13px;
+            color: #888;
+            display: flex;
+            align-items: flex-start;
+            gap: 5px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .detail-address i { margin-top: 3px; color: #e94560; }
+
+        .detail-desc {
+            font-size: 14px;
+            color: #444;
+            line-height: 1.8;
+        }
+
+        .detail-meta {
+            margin-top: 16px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #666;
+            background: #f8f8f8;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+        .meta-item i { color: #e94560; }
+
+        /* ---------- Popup 样式 ---------- */
+        .custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 0;
+        }
+        .custom-popup .leaflet-popup-content {
+            margin: 0;
+            min-width: 200px;
+        }
+        .custom-popup .leaflet-popup-tip {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .popup-card {
+            padding: 14px 16px;
+        }
+        .popup-card h3 {
+            font-size: 14px;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+        .popup-card p {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        .popup-link {
+            display: inline-block;
+            font-size: 12px;
+            color: #e94560;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .popup-link:hover { opacity: 0.7; }
+
+        /* ---------- 标记点图标 ---------- */
+        .marker-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .marker-icon i {
+            transform: rotate(45deg);
+            color: #fff;
+            font-size: 14px;
+        }
+        .marker-scenic  { background: #43a047; }
+        .marker-food    { background: #fb8c00; }
+        .marker-hotel   { background: #1e88e5; }
+        .marker-culture { background: #e53935; }
+        .marker-transport { background: #8e24aa; }
+
+        /* 遮罩 */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .overlay.open { opacity: 1; pointer-events: auto; }
+    </style>
+</head>
+<body>
+
+    <!-- 顶栏 -->
+    <div class="topbar">
+        <h1><i class="fas fa-map-marked-alt"></i> 探索地图</h1>
+        <div class="basemap-group">
+            <button class="basemap-btn active" data-style="standard">标准</button>
+            <button class="basemap-btn" data-style="satellite">卫星</button>
+            <button class="basemap-btn" data-style="dark">暗色</button>
+            <button class="basemap-btn" data-style="watercolor">水彩</button>
+        </div>
+    </div>
+
+    <!-- 地图容器 -->
+    <div style="position:relative;flex:1;">
+        <div id="map"></div>
+        <button class="locate-btn" id="locateBtn" title="定位到当前位置">
+            <i class="fas fa-location-crosshairs"></i>
+        </button>
+        <div class="overlay" id="overlay"></div>
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 id="sidebarTitle">地点详情</h2>
+                <button class="sidebar-close" id="sidebarClose"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="sidebar-body" id="sidebarBody"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+    (function () {
+        /* ============================================================
+         *  数据：示例标记点
+         * ============================================================ */
+        const POIS = [
+            {
+                id: 1, name: "天安门广场", category: "culture",
+                lat: 39.9054, lng: 116.3976,
+                address: "北京市东城区东长安街",
+                desc: "天安门广场位于北京城市中心，是当今世界上最大的城市广场之一。广场北端是天安门城楼，南端是毛主席纪念堂，西侧是人民大会堂，东侧是中国国家博物馆。这里见证了中国近现代史上许多重大历史事件。",
+                image: "https://picsum.photos/seed/tiananmen/400/200",
+                tags: ["5A 景区", "历史地标", "免费参观"],
+                hours: "05:00 - 22:00",
+                rating: "4.8"
+            },
+            {
+                id: 2, name: "故宫博物院", category: "culture",
+                lat: 39.9163, lng: 116.3972,
+                address: "北京市东城区景山前街4号",
+                desc: "故宫又称紫禁城，是中国明清两代的皇家宫殿，也是世界上现存规模最大、保存最为完整的木质结构古建筑群。拥有各类珍贵文物约180万件，是中国文化的瑰宝。",
+                image: "https://picsum.photos/seed/forbidden/400/200",
+                tags: ["世界遗产", "5A 景区", "博物馆"],
+                hours: "08:30 - 17:00（周一闭馆）",
+                rating: "4.9"
+            },
+            {
+                id: 3, name: "景山公园", category: "scenic",
+                lat: 39.9230, lng: 116.3966,
+                address: "北京市西城区景山西街44号",
+                desc: "景山公园地处北京城的中轴线上，是明、清两朝的皇家园林。公园中心的万春亭是北京旧城的最高点，可俯瞰故宫全景和北京中轴线，是摄影爱好者的打卡圣地。",
+                image: "https://picsum.photos/seed/jingshan/400/200",
+                tags: ["公园", "俯瞰全景", "拍照圣地"],
+                hours: "06:00 - 21:00",
+                rating: "4.6"
+            },
+            {
+                id: 4, name: "全聚德烤鸭店（前门店）", category: "food",
+                lat: 39.8992, lng: 116.3958,
+                address: "北京市东城区前门大街30号",
+                desc: "全聚德创建于1864年（清朝同治三年），是享誉全球的中华老字号。前门店是全聚德的总店，传承百余年挂炉烤鸭技艺，外酥里嫩，色泽红润，被誉为"天下第一烤鸭"。",
+                image: "https://picsum.photos/seed/quanjude/400/200",
+                tags: ["百年老店", "烤鸭", "必吃推荐"],
+                hours: "11:00 - 21:30",
+                rating: "4.5"
+            },
+            {
+                id: 5, name: "北京南站", category: "transport",
+                lat: 39.8652, lng: 116.3788,
+                address: "北京市丰台区永外大街车站路12号",
+                desc: "北京南站是中国铁路重要枢纽站之一，主要承担京津城际铁路、京沪高铁等高速列车的始发终到任务，同时也是地铁4号线和14号线的换乘站。",
+                image: "https://picsum.photos/seed/beijingnan/400/200",
+                tags: ["高铁站", "交通枢纽"],
+                hours: "全天运营",
+                rating: "4.3"
+            },
+            {
+                id: 6, name: "北京饭店", category: "hotel",
+                lat: 39.9106, lng: 116.4032,
+                address: "北京市东城区东长安街33号",
+                desc: "北京饭店始建于1900年，坐落于长安街与王府井交汇处，地理位置得天独厚。饭店拥有百年历史，曾接待过众多国内外知名人士，是北京最具传奇色彩的酒店之一。",
+                image: "https://picsum.photos/seed/beijinghotel/400/200",
+                tags: ["百年历史", "豪华酒店", "地标建筑"],
+                hours: "全天营业",
+                rating: "4.6"
+            }
+        ];
+
+        /* ============================================================
+         *  底图图层
+         * ============================================================ */
+        const tileLayers = {
+            standard: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "&copy; OpenStreetMap",
+                maxZoom: 19
+            }),
+            satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+                attribution: "&copy; Esri",
+                maxZoom: 18
+            }),
+            dark: L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+                attribution: "&copy; CartoDB",
+                maxZoom: 19
+            }),
+            watercolor: L.tileLayer("https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg", {
+                attribution: "&copy; Stamen / Stadia",
+                maxZoom: 16
+            })
+        };
+
+        /* ============================================================
+         *  初始化地图
+         * ============================================================ */
+        const map = L.map("map", {
+            center: [39.9042, 116.4074],   // 北京
+            zoom: 13,
+            zoomControl: false,
+            layers: [tileLayers.standard]
+        });
+
+        // 缩放控件放到右上
+        L.control.zoom({ position: "topright" }).addTo(map);
+
+        let currentTile = "standard";
+
+        /* ============================================================
+         *  底图切换
+         * ============================================================ */
+        document.querySelectorAll(".basemap-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const style = btn.dataset.style;
+                if (style === currentTile) return;
+
+                // 移除旧图层，添加新图层
+                map.removeLayer(tileLayers[currentTile]);
+                tileLayers[style].addTo(map);
+                currentTile = style;
+
+                // 按钮状态
+                document.querySelectorAll(".basemap-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+            });
+        });
+
+        /* ============================================================
+         *  自定义标记图标
+         * ============================================================ */
+        function makeIcon(category) {
+            return L.divIcon({
+                className: "",
+                html: `<div class="marker-icon marker-${category}"><i class="fas fa-${iconMap(category)}"></i></div>`,
+                iconSize: [36, 36],
+                iconAnchor: [18, 36],
+                popupAnchor: [0, -38]
+            });
+        }
+        function iconMap(cat) {
+            return { scenic: "mountain", food: "utensils", hotel: "bed", culture: "landmark", transport: "train" }[cat] || "map-pin";
+        }
+
+        /* ============================================================
+         *  添加标记点 + Popup
+         * ============================================================ */
+        const markers = [];
+
+        POIS.forEach(poi => {
+            const marker = L.marker([poi.lat, poi.lng], { icon: makeIcon(poi.category) })
+                .addTo(map)
+                .bindPopup(
+                    `<div class="popup-card">
+                        <h3>${poi.name}</h3>
+                        <p>${poi.address}</p>
+                        <a class="popup-link" data-id="${poi.id}">查看详情 &rarr;</a>
+                    </div>`,
+                    { className: "custom-popup", closeButton: false }
+                );
+            marker.poiId = poi.id;
+            markers.push(marker);
+        });
+
+        /* ============================================================
+         *  Popup 内"查看详情"点击 → 打开侧边栏
+         * ============================================================ */
+        map.on("popupopen", () => {
+            // 延迟绑定，确保 DOM 已渲染
+            setTimeout(() => {
+                document.querySelectorAll(".popup-link").forEach(link => {
+                    link.onclick = () => openSidebar(+link.dataset.id);
+                });
+            }, 50);
+        });
+
+        /* ============================================================
+         *  侧边栏逻辑
+         * ============================================================ */
+        const sidebar   = document.getElementById("sidebar");
+        const overlay   = document.getElementById("overlay");
+        const sidebarBody = document.getElementById("sidebarBody");
+        const sidebarTitle = document.getElementById("sidebarTitle");
+
+        function openSidebar(poiId) {
+            const poi = POIS.find(p => p.id === poiId);
+            if (!poi) return;
+
+            map.closePopup();
+            sidebarTitle.textContent = poi.name;
+
+            const tagClass = `tag-${poi.category}`;
+            const tagsHtml = poi.tags.map(t => `<span class="detail-tag ${tagClass}">${t}</span>`).join("");
+
+            sidebarBody.innerHTML = `
+                <img class="detail-image" src="${poi.image}" alt="${poi.name}" onerror="this.style.background='#eee';this.alt='图片加载失败'" />
+                <div style="margin-bottom:12px">${tagsHtml}</div>
+                <div class="detail-title">${poi.name}</div>
+                <div class="detail-address"><i class="fas fa-map-marker-alt"></i><span>${poi.address}</span></div>
+                <div class="detail-desc">${poi.desc}</div>
+                <div class="detail-meta">
+                    <div class="meta-item"><i class="fas fa-clock"></i>${poi.hours}</div>
+                    <div class="meta-item"><i class="fas fa-star"></i>${poi.rating} 分</div>
+                </div>
+            `;
+
+            sidebar.classList.add("open");
+            overlay.classList.add("open");
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove("open");
+            overlay.classList.remove("open");
+        }
+
+        document.getElementById("sidebarClose").addEventListener("click", closeSidebar);
+        overlay.addEventListener("click", closeSidebar);
+
+        /* ============================================================
+         *  浏览器定位
+         * ============================================================ */
+        const locateBtn = document.getElementById("locateBtn");
+        let locMarker = null;
+        let locCircle = null;
+
+        locateBtn.addEventListener("click", () => {
+            if (!navigator.geolocation) {
+                alert("您的浏览器不支持定位功能");
+                return;
+            }
+
+            locateBtn.classList.add("locating");
+
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+
+                    // 飞到当前位置
+                    map.flyTo([lat, lng], 15, { duration: 1.5 });
+
+                    // 移除旧的定位标记
+                    if (locMarker) map.removeLayer(locMarker);
+                    if (locCircle) map.removeLayer(locCircle);
+
+                    // 精度圈
+                    locCircle = L.circle([lat, lng], {
+                        radius: accuracy,
+                        color: "#e94560",
+                        fillColor: "#e94560",
+                        fillOpacity: 0.1,
+                        weight: 1
+                    }).addTo(map);
+
+                    // 定位点
+                    locMarker = L.circleMarker([lat, lng], {
+                        radius: 8,
+                        color: "#fff",
+                        fillColor: "#e94560",
+                        fillOpacity: 1,
+                        weight: 3
+                    }).addTo(map)
+                      .bindPopup(`<div class="popup-card"><h3>当前位置</h3><p>精度 ±${Math.round(accuracy)}m</p></div>`,
+                                 { className: "custom-popup" });
+
+                    locateBtn.classList.remove("locating");
+                },
+                err => {
+                    locateBtn.classList.remove("locating");
+                    const msgs = {
+                        1: "定位权限被拒绝，请在浏览器设置中开启",
+                        2: "无法获取位置信息",
+                        3: "定位请求超时"
+                    };
+                    alert(msgs[err.code] || "定位失败");
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        });
+
+    })();
+    </script>
+</body>
+</html>
