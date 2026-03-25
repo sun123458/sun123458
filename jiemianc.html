@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 健康管理助手</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #111827;
+  --bg-card: rgba(17, 24, 39, 0.7);
+  --bg-card-hover: rgba(30, 41, 59, 0.8);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-green: #10b981;
+  --accent-green-glow: rgba(16, 185, 129, 0.3);
+  --accent-blue: #3b82f6;
+  --accent-blue-glow: rgba(59, 130, 246, 0.3);
+  --accent-purple: #8b5cf6;
+  --accent-purple-glow: rgba(139, 92, 246, 0.3);
+  --accent-orange: #f59e0b;
+  --accent-orange-glow: rgba(245, 158, 11, 0.3);
+  --accent-red: #ef4444;
+  --accent-red-glow: rgba(239, 68, 68, 0.3);
+  --accent-cyan: #06b6d4;
+  --accent-cyan-glow: rgba(6, 182, 212, 0.3);
+  --border-color: rgba(148, 163, 184, 0.1);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated background */
+.bg-animation {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none; overflow: hidden;
+}
+.bg-orb {
+  position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15;
+  animation: orbFloat 20s ease-in-out infinite;
+}
+.bg-orb:nth-child(1) { width: 600px; height: 600px; background: var(--accent-green); top: -200px; right: -100px; animation-delay: 0s; }
+.bg-orb:nth-child(2) { width: 500px; height: 500px; background: var(--accent-blue); bottom: -150px; left: -100px; animation-delay: -7s; }
+.bg-orb:nth-child(3) { width: 400px; height: 400px; background: var(--accent-purple); top: 50%; left: 50%; animation-delay: -14s; }
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(50px, -80px) scale(1.1); }
+  50% { transform: translate(-30px, 60px) scale(0.9); }
+  75% { transform: translate(70px, 30px) scale(1.05); }
+}
+
+/* Layout */
+.app-container {
+  position: relative; z-index: 1;
+  max-width: 1400px; margin: 0 auto; padding: 20px;
+}
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px; margin-bottom: 24px;
+  background: var(--bg-card); backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color); border-radius: var(--radius);
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo {
+  width: 48px; height: 48px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; box-shadow: 0 0 20px var(--accent-green-glow);
+  animation: logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse {
+  0%, 100% { box-shadow: 0 0 20px var(--accent-green-glow); }
+  50% { box-shadow: 0 0 35px var(--accent-green-glow); }
+}
+.header-title h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.5px; }
+.header-title p { font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.status-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 20px;
+  background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);
+  font-size: 0.8rem; color: var(--accent-green);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green);
+  animation: statusBlink 2s ease-in-out infinite;
+}
+@keyframes statusBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.avatar {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer; transition: transform 0.2s;
+}
+.avatar:hover { transform: scale(1.1); }
+
+/* Section title */
+.section-title {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; font-size: 1.05rem; font-weight: 600;
+}
+.section-title .icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+
+/* Metric Cards */
+.metrics-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px; margin-bottom: 24px;
+}
+.metric-card {
+  position: relative; padding: 20px;
+  background: var(--bg-card); backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color); border-radius: var(--radius);
+  cursor: pointer; transition: all 0.3s ease; overflow: hidden;
+}
+.metric-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(148, 163, 184, 0.2);
+  background: var(--bg-card-hover);
+}
+.metric-card::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 100%; height: 3px; border-radius: var(--radius) var(--radius) 0 0;
+}
+.metric-card.green::before { background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }
+.metric-card.blue::before { background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); }
+.metric-card.purple::before { background: linear-gradient(90deg, var(--accent-purple), var(--accent-red)); }
+.metric-card.orange::before { background: linear-gradient(90deg, var(--accent-orange), var(--accent-red)); }
+.metric-card.cyan::before { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); }
+.metric-card.red::before { background: linear-gradient(90deg, var(--accent-red), var(--accent-orange)); }
+
+.metric-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.metric-icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.metric-icon.green { background: rgba(16,185,129,0.15); }
+.metric-icon.blue { background: rgba(59,130,246,0.15); }
+.metric-icon.purple { background: rgba(139,92,246,0.15); }
+.metric-icon.orange { background: rgba(245,158,11,0.15); }
+.metric-icon.cyan { background: rgba(6,182,212,0.15); }
+.metric-icon.red { background: rgba(239,68,68,0.15); }
+
+.metric-trend {
+  font-size: 0.7rem; padding: 3px 8px; border-radius: 6px;
+  display: flex; align-items: center; gap: 3px;
+}
+.metric-trend.up { color: var(--accent-green); background: rgba(16,185,129,0.1); }
+.metric-trend.down { color: var(--accent-red); background: rgba(239,68,68,0.1); }
+.metric-trend.stable { color: var(--accent-orange); background: rgba(245,158,11,0.1); }
+
+.metric-value { font-size: 2rem; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.metric-unit { font-size: 0.85rem; font-weight: 400; color: var(--text-secondary); }
+.metric-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px; }
+.metric-bar { width: 100%; height: 4px; background: rgba(148,163,184,0.1); border-radius: 2px; overflow: hidden; }
+.metric-bar-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 1.5s ease;
+}
+.metric-bar-fill.green { background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }
+.metric-bar-fill.blue { background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); }
+.metric-bar-fill.purple { background: linear-gradient(90deg, var(--accent-purple), var(--accent-red)); }
+.metric-bar-fill.orange { background: linear-gradient(90deg, var(--accent-orange), var(--accent-red)); }
+.metric-bar-fill.cyan { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); }
+.metric-bar-fill.red { background: linear-gradient(90deg, var(--accent-red), var(--accent-orange)); }
+
+/* Main Grid */
+.main-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 20px; margin-bottom: 24px;
+}
+
+/* Cards */
+.card {
+  background: var(--bg-card); backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color); border-radius: var(--radius);
+  padding: 24px; transition: all 0.3s;
+}
+.card:hover { border-color: rgba(148,163,184,0.2); }
+.card-title {
+  font-size: 1rem; font-weight: 600; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Heart Rate Chart */
+.heart-chart-container { position: relative; height: 180px; margin-bottom: 16px; }
+.heart-chart-canvas { width: 100%; height: 100%; }
+.heart-value-display {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center;
+}
+.heart-bpm { font-size: 2.8rem; font-weight: 800; color: var(--accent-red); }
+.heart-label { font-size: 0.75rem; color: var(--text-secondary); }
+
+.heart-stats { display: flex; gap: 12px; }
+.heart-stat {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm);
+  background: rgba(148,163,184,0.05); text-align: center;
+}
+.heart-stat-value { font-size: 1.1rem; font-weight: 700; }
+.heart-stat-label { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+
+/* AI Recommendations */
+.ai-plan { display: flex; flex-direction: column; gap: 12px; }
+.ai-msg {
+  padding: 14px 16px; border-radius: var(--radius-sm);
+  font-size: 0.85rem; line-height: 1.6; transition: all 0.3s;
+  border: 1px solid transparent;
+}
+.ai-msg:hover { transform: translateX(4px); }
+.ai-msg.ai {
+  background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,182,212,0.08));
+  border-color: rgba(16,185,129,0.15);
+}
+.ai-msg.ai::before {
+  content: '🤖 '; font-size: 0.9rem;
+}
+.ai-msg.warning {
+  background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.15);
+}
+.ai-msg.warning::before { content: '⚠️ '; }
+.ai-msg.success {
+  background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.15);
+}
+.ai-msg.success::before { content: '✅ '; }
+.ai-msg.info {
+  background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.15);
+}
+.ai-msg.info::before { content: '💡 '; }
+
+.ai-typing {
+  display: flex; align-items: center; gap: 4px;
+  padding: 14px 16px; border-radius: var(--radius-sm);
+  background: rgba(16,185,129,0.05); font-size: 0.85rem; color: var(--text-secondary);
+}
+.ai-typing-dot {
+  width: 6px; height: 6px; background: var(--accent-green);
+  border-radius: 50%; animation: typing 1.4s ease-in-out infinite;
+}
+.ai-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-4px); } }
+
+/* Weekly Chart */
+.weekly-chart { height: 200px; display: flex; align-items: flex-end; gap: 8px; padding-top: 20px; }
+.week-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.week-bar-wrapper {
+  width: 100%; height: 150px; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end;
+}
+.week-bar {
+  width: 70%; max-width: 50px; border-radius: 8px 8px 4px 4px;
+  transition: height 1s ease, background 0.3s;
+  cursor: pointer; position: relative;
+}
+.week-bar:hover { filter: brightness(1.2); }
+.week-bar-label { font-size: 0.7rem; color: var(--text-secondary); }
+.week-bar-value {
+  font-size: 0.7rem; color: var(--text-secondary);
+  opacity: 0; transition: opacity 0.3s;
+}
+.week-bar-group:hover .week-bar-value { opacity: 1; }
+
+/* Health Score */
+.score-container { display: flex; align-items: center; gap: 30px; }
+.score-ring { position: relative; width: 160px; height: 160px; flex-shrink: 0; }
+.score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.score-ring-bg { fill: none; stroke: rgba(148,163,184,0.1); stroke-width: 10; }
+.score-ring-fill {
+  fill: none; stroke-width: 10; stroke-linecap: round;
+  transition: stroke-dashoffset 2s ease;
+}
+.score-ring-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center;
+}
+.score-number { font-size: 2.5rem; font-weight: 800; }
+.score-label { font-size: 0.75rem; color: var(--text-secondary); }
+.score-details { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.score-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  background: rgba(148,163,184,0.05); font-size: 0.82rem;
+}
+.score-item-name { color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+.score-item-dot { width: 8px; height: 8px; border-radius: 50%; }
+.score-item-val { font-weight: 600; }
+
+/* Bottom Grid */
+.bottom-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px; margin-bottom: 24px;
+}
+
+/* Activity Timeline */
+.timeline { display: flex; flex-direction: column; gap: 14px; }
+.timeline-item {
+  display: flex; gap: 12px; font-size: 0.82rem;
+  position: relative; padding-left: 10px;
+}
+.timeline-item::before {
+  content: ''; position: absolute; left: 14px; top: 28px;
+  width: 2px; height: calc(100% + 6px); background: var(--border-color);
+}
+.timeline-item:last-child::before { display: none; }
+.timeline-dot {
+  width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+  position: relative; z-index: 1;
+}
+.timeline-content { flex: 1; }
+.timeline-time { color: var(--text-muted); font-size: 0.72rem; margin-top: 3px; }
+
+/* Nutrition */
+.nutrition-bars { display: flex; flex-direction: column; gap: 14px; }
+.nutrition-item {}
+.nutrition-header {
+  display: flex; justify-content: space-between; margin-bottom: 6px;
+  font-size: 0.82rem;
+}
+.nutrition-name { color: var(--text-secondary); }
+.nutrition-val { font-weight: 600; }
+.nutrition-bar {
+  width: 100%; height: 8px; background: rgba(148,163,184,0.08);
+  border-radius: 4px; overflow: hidden;
+}
+.nutrition-fill {
+  height: 100%; border-radius: 4px;
+  transition: width 1.5s ease;
+}
+
+/* Sleep Chart */
+.sleep-chart { display: flex; flex-direction: column; gap: 12px; }
+.sleep-stage {
+  display: flex; align-items: center; gap: 12px; font-size: 0.82rem;
+}
+.sleep-stage-bar-wrapper { flex: 1; height: 14px; background: rgba(148,163,184,0.08); border-radius: 7px; overflow: hidden; }
+.sleep-stage-bar { height: 100%; border-radius: 7px; transition: width 1.5s ease; }
+.sleep-stage-label { width: 70px; color: var(--text-secondary); }
+.sleep-stage-val { width: 50px; text-align: right; font-weight: 600; }
+.sleep-total {
+  margin-top: 8px; padding: 12px; border-radius: var(--radius-sm);
+  background: rgba(139,92,246,0.08); text-align: center;
+  font-size: 0.85rem;
+}
+.sleep-total span { font-size: 1.3rem; font-weight: 700; color: var(--accent-purple); }
+
+/* AI Chat */
+.chat-section {
+  margin-bottom: 24px;
+}
+.chat-container {
+  background: var(--bg-card); backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color); border-radius: var(--radius);
+  overflow: hidden;
+}
+.chat-messages {
+  padding: 20px 24px; max-height: 300px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
+.chat-bubble { max-width: 80%; font-size: 0.85rem; line-height: 1.65; }
+.chat-bubble.bot {
+  align-self: flex-start; padding: 12px 16px; border-radius: 4px 16px 16px 16px;
+  background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.12);
+}
+.chat-bubble.user {
+  align-self: flex-end; padding: 12px 16px; border-radius: 16px 4px 16px 16px;
+  background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.15);
+}
+.chat-input-area {
+  display: flex; gap: 10px; padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+}
+.chat-input {
+  flex: 1; padding: 12px 16px; border: 1px solid var(--border-color);
+  border-radius: 12px; background: rgba(148,163,184,0.05);
+  color: var(--text-primary); font-family: inherit; font-size: 0.85rem;
+  outline: none; transition: border-color 0.3s;
+}
+.chat-input:focus { border-color: var(--accent-green); }
+.chat-input::placeholder { color: var(--text-muted); }
+.chat-send {
+  width: 44px; height: 44px; border-radius: 12px; border: none;
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+  color: white; cursor: pointer; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s, box-shadow 0.3s;
+}
+.chat-send:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--accent-green-glow); }
+
+/* Quick pills */
+.quick-pills {
+  display: flex; gap: 8px; padding: 0 20px 16px; flex-wrap: wrap;
+}
+.quick-pill {
+  padding: 6px 14px; border-radius: 20px; font-size: 0.75rem;
+  background: rgba(148,163,184,0.06); border: 1px solid var(--border-color);
+  color: var(--text-secondary); cursor: pointer; transition: all 0.3s;
+}
+.quick-pill:hover {
+  background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2);
+  color: var(--accent-green);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .main-grid, .bottom-grid { grid-template-columns: 1fr; }
+  .score-container { flex-direction: column; align-items: center; }
+  .score-details { width: 100%; }
+}
+@media (max-width: 640px) {
+  .app-container { padding: 12px; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; }
+  .header { flex-direction: column; gap: 12px; }
+}
+
+/* Animations */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in { animation: fadeSlideUp 0.6s ease forwards; }
+.animate-delay-1 { animation-delay: 0.1s; opacity: 0; }
+.animate-delay-2 { animation-delay: 0.2s; opacity: 0; }
+.animate-delay-3 { animation-delay: 0.3s; opacity: 0; }
+.animate-delay-4 { animation-delay: 0.4s; opacity: 0; }
+
+/* Refresh button */
+.refresh-btn {
+  background: rgba(148,163,184,0.06); border: 1px solid var(--border-color);
+  color: var(--text-secondary); padding: 8px 12px; border-radius: 10px;
+  font-size: 0.78rem; cursor: pointer; transition: all 0.3s;
+  display: flex; align-items: center; gap: 6px;
+}
+.refresh-btn:hover { background: rgba(16,185,129,0.1); color: var(--accent-green); }
+.refresh-btn.spinning svg { animation: spin 1s linear; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="bg-animation">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+
+<div class="app-container">
+  <!-- Header -->
+  <header class="header animate-in">
+    <div class="header-left">
+      <div class="logo">💚</div>
+      <div class="header-title">
+        <h1>AI 健康管理助手</h1>
+        <p>智能监测 · 个性化健康方案</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        实时监测中
+      </div>
+      <button class="refresh-btn" onclick="refreshAllData()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        刷新数据
+      </button>
+      <div class="avatar">👤</div>
+    </div>
+  </header>
+
+  <!-- Metrics Cards -->
+  <div class="metrics-grid animate-in animate-delay-1" id="metricsGrid">
+    <div class="metric-card green" onclick="selectMetric('heart')">
+      <div class="metric-header">
+        <div class="metric-icon green">❤️</div>
+        <div class="metric-trend up">↑ 3%</div>
+      </div>
+      <div class="metric-value"><span id="heartRate">72</span> <span class="metric-unit">BPM</span></div>
+      <div class="metric-label">心率</div>
+      <div class="metric-bar"><div class="metric-bar-fill green" style="width:72%"></div></div>
+    </div>
+    <div class="metric-card blue" onclick="selectMetric('bp')">
+      <div class="metric-header">
+        <div class="metric-icon blue">🩸</div>
+        <div class="metric-trend stable">→ 稳定</div>
+      </div>
+      <div class="metric-value"><span id="bloodPressure">120/80</span></div>
+      <div class="metric-label">血压 (mmHg)</div>
+      <div class="metric-bar"><div class="metric-bar-fill blue" style="width:65%"></div></div>
+    </div>
+    <div class="metric-card orange" onclick="selectMetric('spo2')">
+      <div class="metric-header">
+        <div class="metric-icon orange">🫁</div>
+        <div class="metric-trend up">↑ 1%</div>
+      </div>
+      <div class="metric-value"><span id="spo2">98</span> <span class="metric-unit">%</span></div>
+      <div class="metric-label">血氧饱和度</div>
+      <div class="metric-bar"><div class="metric-bar-fill orange" style="width:98%"></div></div>
+    </div>
+    <div class="metric-card purple" onclick="selectMetric('sleep')">
+      <div class="metric-header">
+        <div class="metric-icon purple">😴</div>
+        <div class="metric-trend down">↓ 5%</div>
+      </div>
+      <div class="metric-value"><span id="sleepHours">7.2</span> <span class="metric-unit">小时</span></div>
+      <div class="metric-label">昨日睡眠</div>
+      <div class="metric-bar"><div class="metric-bar-fill purple" style="width:90%"></div></div>
+    </div>
+    <div class="metric-card cyan" onclick="selectMetric('steps')">
+      <div class="metric-header">
+        <div class="metric-icon cyan">🏃</div>
+        <div class="metric-trend up">↑ 12%</div>
+      </div>
+      <div class="metric-value"><span id="steps">8,456</span></div>
+      <div class="metric-label">今日步数</div>
+      <div class="metric-bar"><div class="metric-bar-fill cyan" style="width:84%"></div></div>
+    </div>
+    <div class="metric-card red" onclick="selectMetric('calories')">
+      <div class="metric-header">
+        <div class="metric-icon red">🔥</div>
+        <div class="metric-trend up">↑ 8%</div>
+      </div>
+      <div class="metric-value"><span id="calories">1,856</span> <span class="metric-unit">kcal</span></div>
+      <div class="metric-label">消耗热量</div>
+      <div class="metric-bar"><div class="metric-bar-fill red" style="width:74%"></div></div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="main-grid animate-in animate-delay-2">
+    <!-- Heart Rate Chart -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent-red)"></span> 实时心率监测</div>
+      <div class="heart-chart-container">
+        <canvas id="heartChart" class="heart-chart-canvas"></canvas>
+      </div>
+      <div class="heart-stats">
+        <div class="heart-stat">
+          <div class="heart-stat-value" style="color:var(--accent-green)">62</div>
+          <div class="heart-stat-label">静息心率</div>
+        </div>
+        <div class="heart-stat">
+          <div class="heart-stat-value" style="color:var(--accent-red)">135</div>
+          <div class="heart-stat-label">最高心率</div>
+        </div>
+        <div class="heart-stat">
+          <div class="heart-stat-value" style="color:var(--accent-blue)">78</div>
+          <div class="heart-stat-label">平均心率</div>
+        </div>
+        <div class="heart-stat">
+          <div class="heart-stat-value" style="color:var(--accent-purple)">92%</div>
+          <div class="heart-stat-label">心率变异性</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Score -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span> 综合健康评分</div>
+      <div class="score-container">
+        <div class="score-ring">
+          <svg viewBox="0 0 120 120">
+            <circle class="score-ring-bg" cx="60" cy="60" r="50"/>
+            <circle class="score-ring-fill" cx="60" cy="60" r="50"
+              stroke="url(#scoreGrad)" id="scoreRing"
+              stroke-dasharray="314" stroke-dashoffset="314"/>
+            <defs>
+              <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:var(--accent-green)"/>
+                <stop offset="100%" style="stop-color:var(--accent-cyan)"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="score-ring-center">
+            <div class="score-number" id="scoreNumber">0</div>
+            <div class="score-label">综合评分</div>
+          </div>
+        </div>
+        <div class="score-details">
+          <div class="score-item">
+            <span class="score-item-name"><span class="score-item-dot" style="background:var(--accent-green)"></span>心血管</span>
+            <span class="score-item-val" style="color:var(--accent-green)">92</span>
+          </div>
+          <div class="score-item">
+            <span class="score-item-name"><span class="score-item-dot" style="background:var(--accent-blue)"></span>呼吸系统</span>
+            <span class="score-item-val" style="color:var(--accent-blue)">88</span>
+          </div>
+          <div class="score-item">
+            <span class="score-item-name"><span class="score-item-dot" style="background:var(--accent-purple)"></span>睡眠质量</span>
+            <span class="score-item-val" style="color:var(--accent-purple)">85</span>
+          </div>
+          <div class="score-item">
+            <span class="score-item-name"><span class="score-item-dot" style="background:var(--accent-orange)"></span>运动活力</span>
+            <span class="score-item-val" style="color:var(--accent-orange)">78</span>
+          </div>
+          <div class="score-item">
+            <span class="score-item-name"><span class="score-item-dot" style="background:var(--accent-cyan)"></span>营养均衡</span>
+            <span class="score-item-val" style="color:var(--accent-cyan)">82</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Grid -->
+  <div class="bottom-grid animate-in animate-delay-3">
+    <!-- Activity -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent-blue)"></span> 活动记录</div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--accent-green)"></div>
+          <div class="timeline-content">
+            <div>完成晨跑 5.2 公里</div>
+            <div class="timeline-time">07:30 · 消耗 320 kcal</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--accent-blue)"></div>
+          <div class="timeline-content">
+            <div>饮水 500ml</div>
+            <div class="timeline-time">09:15 · 今日累计 1.2L</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--accent-orange)"></div>
+          <div class="timeline-content">
+            <div>午餐 - 轻食沙拉 + 鸡胸肉</div>
+            <div class="timeline-time">12:00 · 约 520 kcal</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--accent-purple)"></div>
+          <div class="timeline-content">
+            <div>午间冥想 15 分钟</div>
+            <div class="timeline-time">13:00 · 压力指数降低 20%</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--accent-cyan)"></div>
+          <div class="timeline-content">
+            <div>下午步行 2.1 公里</div>
+            <div class="timeline-time">16:30 · 消耗 150 kcal</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nutrition -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent-orange)"></span> 今日营养摄入</div>
+      <div class="nutrition-bars">
+        <div class="nutrition-item">
+          <div class="nutrition-header">
+            <span class="nutrition-name">蛋白质</span>
+            <span class="nutrition-val">86g / 100g</span>
+          </div>
+          <div class="nutrition-bar"><div class="nutrition-fill" style="width:86%;background:linear-gradient(90deg,#10b981,#06b6d4)"></div></div>
+        </div>
+        <div class="nutrition-item">
+          <div class="nutrition-header">
+            <span class="nutrition-name">碳水化合物</span>
+            <span class="nutrition-val">180g / 250g</span>
+          </div>
+          <div class="nutrition-bar"><div class="nutrition-fill" style="width:72%;background:linear-gradient(90deg,#3b82f6,#8b5cf6)"></div></div>
+        </div>
+        <div class="nutrition-item">
+          <div class="nutrition-header">
+            <span class="nutrition-name">脂肪</span>
+            <span class="nutrition-val">45g / 65g</span>
+          </div>
+          <div class="nutrition-bar"><div class="nutrition-fill" style="width:69%;background:linear-gradient(90deg,#f59e0b,#ef4444)"></div></div>
+        </div>
+        <div class="nutrition-item">
+          <div class="nutrition-header">
+            <span class="nutrition-name">膳食纤维</span>
+            <span class="nutrition-val">18g / 30g</span>
+          </div>
+          <div class="nutrition-bar"><div class="nutrition-fill" style="width:60%;background:linear-gradient(90deg,#06b6d4,#3b82f6)"></div></div>
+        </div>
+        <div class="nutrition-item">
+          <div class="nutrition-header">
+            <span class="nutrition-name">水分</span>
+            <span class="nutrition-val">1.2L / 2.5L</span>
+          </div>
+          <div class="nutrition-bar"><div class="nutrition-fill" style="width:48%;background:linear-gradient(90deg,#8b5cf6,#ec4899)"></div></div>
+        </div>
+        <div class="nutrition-item">
+          <div class="nutrition-header">
+            <span class="nutrition-name">维生素</span>
+            <span class="nutrition-val">75%</span>
+          </div>
+          <div class="nutrition-bar"><div class="nutrition-fill" style="width:75%;background:linear-gradient(90deg,#10b981,#f59e0b)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sleep -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent-purple)"></span> 昨晚睡眠分析</div>
+      <div class="sleep-chart">
+        <div class="sleep-stage">
+          <span class="sleep-stage-label">深度睡眠</span>
+          <div class="sleep-stage-bar-wrapper">
+            <div class="sleep-stage-bar" style="width:35%;background:linear-gradient(90deg,#6366f1,#8b5cf6)"></div>
+          </div>
+          <span class="sleep-stage-val">2.5h</span>
+        </div>
+        <div class="sleep-stage">
+          <span class="sleep-stage-label">浅度睡眠</span>
+          <div class="sleep-stage-bar-wrapper">
+            <div class="sleep-stage-bar" style="width:55%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)"></div>
+          </div>
+          <span class="sleep-stage-val">3.2h</span>
+        </div>
+        <div class="sleep-stage">
+          <span class="sleep-stage-label">REM 快速眼动</span>
+          <div class="sleep-stage-bar-wrapper">
+            <div class="sleep-stage-bar" style="width:25%;background:linear-gradient(90deg,#c084fc,#e879f9)"></div>
+          </div>
+          <span class="sleep-stage-val">1.2h</span>
+        </div>
+        <div class="sleep-stage">
+          <span class="sleep-stage-label">清醒时间</span>
+          <div class="sleep-stage-bar-wrapper">
+            <div class="sleep-stage-bar" style="width:8%;background:linear-gradient(90deg,#f59e0b,#ef4444)"></div>
+          </div>
+          <span class="sleep-stage-val">0.3h</span>
+        </div>
+        <div class="sleep-total">
+          总睡眠 <span>7.2 小时</span> · 睡眠质量评分 <span>85</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Chat Section -->
+  <div class="chat-section animate-in animate-delay-4">
+    <div class="section-title">
+      <div class="icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green)">🤖</div>
+      AI 健康顾问 - 智能对话
+    </div>
+    <div class="chat-container">
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-bubble bot">
+          你好！我是你的 AI 健康管理助手。根据今天的身体数据分析，我为你生成了以下个性化建议：<br><br>
+          📊 今天整体状态良好，心率正常，血氧饱和度优秀。<br>
+          💧 当前饮水量略低于推荐值，建议在下午补充 800ml 水分。<br>
+          🏃 运动量达标，步数已超过 8000 步，继续保持！<br>
+          😴 昨晚深度睡眠占比 35%，建议今晚睡前减少屏幕使用时间以提升睡眠质量。
+        </div>
+        <div class="chat-bubble bot">
+          需要我为你制定本周的运动计划，或者分析某项具体的健康指标吗？
+        </div>
+      </div>
+      <div class="quick-pills">
+        <span class="quick-pill" onclick="sendQuickMsg('生成本周运动计划')">生成本周运动计划</span>
+        <span class="quick-pill" onclick="sendQuickMsg('分析我的心率数据')">分析我的心率数据</span>
+        <span class="quick-pill" onclick="sendQuickMsg('饮食建议')">饮食建议</span>
+        <span class="quick-pill" onclick="sendQuickMsg('如何改善睡眠质量')">如何改善睡眠质量</span>
+        <span class="quick-pill" onclick="sendQuickMsg('压力管理建议')">压力管理建议</span>
+      </div>
+      <div class="chat-input-area">
+        <input class="chat-input" id="chatInput" placeholder="输入你的健康问题..." onkeydown="if(event.key==='Enter')sendMessage()">
+        <button class="chat-send" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== Heart Rate Chart =====================
+const heartCanvas = document.getElementById('heartChart');
+const heartCtx = heartCanvas.getContext('2d');
+let heartData = [];
+const MAX_POINTS = 100;
+
+function initHeartData() {
+  heartData = [];
+  for (let i = 0; i < MAX_POINTS; i++) {
+    heartData.push(72 + (Math.random() - 0.5) * 8);
+  }
+}
+
+function drawHeartChart() {
+  const w = heartCanvas.width = heartCanvas.parentElement.clientWidth;
+  const h = heartCanvas.height = heartCanvas.parentElement.clientHeight;
+  heartCtx.clearRect(0, 0, w, h);
+
+  const min = 55, max = 100;
+  const step = w / (MAX_POINTS - 1);
+
+  // Grid lines
+  heartCtx.strokeStyle = 'rgba(148,163,184,0.06)';
+  heartCtx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    const y = (h / 5) * i + 10;
+    heartCtx.beginPath(); heartCtx.moveTo(0, y); heartCtx.lineTo(w, y); heartCtx.stroke();
+  }
+
+  // Gradient fill
+  const grad = heartCtx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(239, 68, 68, 0.15)');
+  grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+
+  heartCtx.beginPath();
+  heartCtx.moveTo(0, h);
+  for (let i = 0; i < heartData.length; i++) {
+    const x = i * step;
+    const y = h - ((heartData[i] - min) / (max - min)) * (h - 20);
+    if (i === 0) heartCtx.lineTo(x, y);
+    else {
+      const prevX = (i - 1) * step;
+      const prevY = h - ((heartData[i-1] - min) / (max - min)) * (h - 20);
+      const cpx = (prevX + x) / 2;
+      heartCtx.bezierCurveTo(cpx, prevY, cpx, y, x, y);
+    }
+  }
+  heartCtx.lineTo(w, h);
+  heartCtx.closePath();
+  heartCtx.fillStyle = grad;
+  heartCtx.fill();
+
+  // Line
+  heartCtx.beginPath();
+  for (let i = 0; i < heartData.length; i++) {
+    const x = i * step;
+    const y = h - ((heartData[i] - min) / (max - min)) * (h - 20);
+    if (i === 0) heartCtx.moveTo(x, y);
+    else {
+      const prevX = (i - 1) * step;
+      const prevY = h - ((heartData[i-1] - min) / (max - min)) * (h - 20);
+      const cpx = (prevX + x) / 2;
+      heartCtx.bezierCurveTo(cpx, prevY, cpx, y, x, y);
+    }
+  }
+  const lineGrad = heartCtx.createLinearGradient(0, 0, w, 0);
+  lineGrad.addColorStop(0, '#ef4444');
+  lineGrad.addColorStop(1, '#f97316');
+  heartCtx.strokeStyle = lineGrad;
+  heartCtx.lineWidth = 2.5;
+  heartCtx.stroke();
+
+  // Glowing dot at end
+  const lastX = (heartData.length - 1) * step;
+  const lastY = h - ((heartData[heartData.length-1] - min) / (max - min)) * (h - 20);
+  heartCtx.beginPath();
+  heartCtx.arc(lastX, lastY, 6, 0, Math.PI * 2);
+  heartCtx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+  heartCtx.fill();
+  heartCtx.beginPath();
+  heartCtx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+  heartCtx.fillStyle = '#ef4444';
+  heartCtx.fill();
+}
+
+function updateHeartData() {
+  const last = heartData[heartData.length - 1];
+  const next = Math.max(58, Math.min(95, last + (Math.random() - 0.5) * 6));
+  heartData.push(next);
+  if (heartData.length > MAX_POINTS) heartData.shift();
+
+  document.getElementById('heartRate').textContent = Math.round(next);
+  drawHeartChart();
+}
+
+// ===================== Health Score Animation =====================
+function animateScore(targetScore) {
+  const ring = document.getElementById('scoreRing');
+  const numEl = document.getElementById('scoreNumber');
+  const circumference = 314;
+  const offset = circumference - (targetScore / 100) * circumference;
+
+  let current = 0;
+  const duration = 2000;
+  const startTime = performance.now();
+
+  function tick(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    current = Math.round(targetScore * eased);
+    numEl.textContent = current;
+    ring.style.strokeDashoffset = circumference - (current / 100) * circumference;
+
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ===================== Real-time Data Updates =====================
+function randomInRange(base, range) {
+  return base + (Math.random() - 0.5) * range;
+}
+
+function updateMetrics() {
+  const hr = Math.round(randomInRange(72, 10));
+  document.getElementById('heartRate').textContent = hr;
+
+  const sys = Math.round(randomInRange(120, 10));
+  const dia = Math.round(randomInRange(80, 8));
+  document.getElementById('bloodPressure').textContent = `${sys}/${dia}`;
+
+  const spo2 = Math.round(randomInRange(98, 2));
+  document.getElementById('spo2').textContent = Math.min(100, Math.max(94, spo2));
+
+  const steps = parseInt(document.getElementById('steps').textContent.replace(',', ''));
+  const newSteps = steps + Math.round(Math.random() * 30);
+  document.getElementById('steps').textContent = newSteps.toLocaleString();
+
+  const cal = parseInt(document.getElementById('calories').textContent.replace(',', ''));
+  const newCal = cal + Math.round(Math.random() * 5);
+  document.getElementById('calories').textContent = newCal.toLocaleString();
+}
+
+// ===================== Chat System =====================
+const aiResponses = {
+  '生成本周运动计划': `根据你的身体状况，我为你制定了本周运动计划：
+
+<strong>周一</strong>：晨跑 5km（有氧训练）· 预计消耗 350kcal
+<strong>周二</strong>：上肢力量训练 45min · 哑铃卧推、引体向上
+<strong>周三</strong>：瑜伽拉伸 30min · 恢复性训练
+<strong>周四</strong>：HIIT 高强度间歇 20min · 预计消耗 280kcal
+<strong>周五</strong>：游泳 40min · 全身有氧
+<strong>周六</strong>：户外徒步 8km · 低强度长时间有氧
+<strong>周日</strong>：休息日 · 轻度拉伸、冥想
+
+注意：你的静息心率 62 BPM 表明心肺功能良好，可以适当增加高强度训练。`,
+
+  '分析我的心率数据': `过去 24 小时心率分析：
+
+📈 <strong>最高心率</strong>：135 BPM（出现在 07:45 晨跑时）
+📉 <strong>最低心率</strong>：58 BPM（出现在 03:20 深度睡眠时）
+💓 <strong>平均心率</strong>：78 BPM（正常范围）
+🔄 <strong>心率变异性(HRV)</strong>：92%（优秀）
+
+<strong>AI 评估</strong>：你的心率数据整体处于健康范围。静息心率 62 BPM 表明心脏泵血效率高。心率恢复速度良好（运动后 3 分钟心率下降超过 40 BPM），心肺耐力优秀。
+
+⚠️ 建议：注意午后 14:00-15:00 心率偏高（平均 88 BPM），可能与咖啡因摄入有关，建议减少下午茶咖啡因含量。`,
+
+  '饮食建议': `基于你的身体数据和今日营养分析，我的建议：
+
+🥗 <strong>当前缺口</strong>：膳食纤维（仅达标的 60%）、水分（仅 48%）
+
+<strong>推荐晚餐方案</strong>：
+• 主食：糙米饭 1 碗（约 150g）· 补充复合碳水
+• 蛋白质：清蒸鲈鱼 200g · 优质蛋白 + Omega-3
+• 蔬菜：西兰花 + 胡萝卜 · 补充膳食纤维和维生素A
+• 汤品：紫菜蛋花汤 · 补充碘和蛋白质
+
+<strong>下午加餐建议</strong>：坚果 30g + 苹果 1 个
+
+💧 <strong>重要提醒</strong>：你今天的饮水量仅 1.2L，建议在接下来的 4 小时内再补充 800-1000ml 纯水。`,
+
+  '如何改善睡眠质量': `针对你昨晚睡眠数据的分析：
+
+📊 <strong>当前问题</strong>：
+• 深度睡眠 35%（理想值 40%+）
+• 入睡期间有 0.3 小时清醒
+• REM 睡眠占比偏低
+
+<strong>改善方案</strong>：
+
+🌙 <strong>环境优化</strong>：
+• 室温控制在 18-22°C
+• 卧室完全遮光
+• 使用白噪音辅助入睡
+
+📱 <strong>习惯调整</strong>：
+• 睡前 1.5 小时停止使用电子设备
+• 22:30 开始固定睡前仪式
+• 避免在 20:00 后进食
+
+🧘 <strong>放松技巧</strong>：
+• 4-7-8 呼吸法（吸气 4 秒、屏息 7 秒、呼气 8 秒）
+• 渐进式肌肉放松
+• 睡前 15 分钟冥想
+
+维生素C 和镁的补充可能也有助于提升深度睡眠比例。`,
+
+  '压力管理建议': `根据你的生理指标综合分析：
+
+📈 <strong>压力指标</strong>：
+• 心率变异性 92%（良好）
+• 午间冥想使压力指数下降 20%
+• 全天皮质醇水平预估正常偏高
+
+<strong>推荐减压方案</strong>：
+
+💆 <strong>即时缓解</strong>（感到压力时）：
+• 3 分钟深呼吸练习（4-4-4-4 箱式呼吸法）
+• 5 分钟正念冥想
+• 短暂散步 10 分钟
+
+🌿 <strong>长期策略</strong>：
+• 每日固定 15 分钟冥想（推荐早起后）
+• 每周 2-3 次瑜伽练习
+• 保持规律运动习惯（你做得很好！）
+
+⚠️ <strong>注意事项</strong>：你的数据表明工作日下午压力有所升高，建议在 14:00 设置一个放松提醒，进行 5 分钟的呼吸练习。
+`
+};
+
+function sendQuickMsg(text) {
+  const input = document.getElementById('chatInput');
+  input.value = text;
+  sendMessage();
+}
+
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const messages = document.getElementById('chatMessages');
+
+  // Add user message
+  const userBubble = document.createElement('div');
+  userBubble.className = 'chat-bubble user';
+  userBubble.textContent = text;
+  messages.appendChild(userBubble);
+  input.value = '';
+
+  messages.scrollTop = messages.scrollHeight;
+
+  // Show typing indicator
+  const typing = document.createElement('div');
+  typing.className = 'ai-typing';
+  typing.innerHTML = 'AI 正在分析 <span class="ai-typing-dot"></span><span class="ai-typing-dot"></span><span class="ai-typing-dot"></span>';
+  messages.appendChild(typing);
+  messages.scrollTop = messages.scrollHeight;
+
+  setTimeout(() => {
+    typing.remove();
+    const botBubble = document.createElement('div');
+    botBubble.className = 'chat-bubble bot';
+
+    let response = aiResponses[text];
+    if (!response) {
+      response = generateGenericResponse(text);
+    }
+    botBubble.innerHTML = response;
+    messages.appendChild(botBubble);
+    messages.scrollTop = messages.scrollHeight;
+  }, 1200 + Math.random() * 800);
+}
+
+function generateGenericResponse(input) {
+  const responses = [
+    `我理解你关于「${input}」的问题。根据你的健康数据分析：
+
+📊 当前你的身体状态整体良好，综合评分 86 分。
+💪 建议继续保持当前的运动习惯和饮食规律。
+🔬 如果需要更详细的专项分析，我建议重点关注心血管指标和睡眠质量。
+
+需要我为你进行更深入的分析吗？`,
+    `关于「${input}」，我来帮你分析一下：
+
+根据你近期 7 天的健康数据趋势：
+📈 运动量呈上升趋势（步数增长 12%）
+❤️ 心血管指标稳定在健康范围
+😴 睡眠质量有提升空间
+
+建议从运动、饮食和作息三个方面综合调整。你希望我重点分析哪个方面？`,
+    `收到！让我基于你最新的身体数据来分析「${input}」：
+
+🔬 数据概览：心率 72 BPM（正常）、血氧 98%（优秀）、步数 8400+（良好）
+⚠️ 需要关注：饮水偏少、膳食纤维不足
+
+我会持续监测你的数据变化，并在发现异常时主动提醒你。有任何其他问题随时问我！`
+  ];
+  return responses[Math.floor(Math.random() * responses.length)];
+}
+
+// ===================== Refresh All Data =====================
+function refreshAllData() {
+  const btn = document.querySelector('.refresh-btn');
+  btn.classList.add('spinning');
+  setTimeout(() => btn.classList.remove('spinning'), 1000);
+
+  updateMetrics();
+  initHeartData();
+  drawHeartChart();
+  animateScore(Math.round(randomInRange(86, 6)));
+}
+
+// ===================== Metric Selection =====================
+function selectMetric(type) {
+  const messages = document.getElementById('chatMessages');
+  const questions = {
+    heart: '请详细分析我的心率数据',
+    bp: '我的血压是否在正常范围',
+    spo2: '血氧数据有什么需要注意的吗',
+    sleep: '如何改善睡眠质量',
+    steps: '今天的运动量够吗',
+    calories: '今日热量消耗分析'
+  };
+
+  const input = document.getElementById('chatInput');
+  input.value = questions[type] || '';
+  sendMessage();
+}
+
+// ===================== Init =====================
+initHeartData();
+drawHeartChart();
+
+// Animate health score
+setTimeout(() => animateScore(86), 500);
+
+// Real-time updates
+setInterval(updateHeartData, 1000);
+setInterval(updateMetrics, 5000);
+
+// Resize handler
+window.addEventListener('resize', drawHeartChart);
+</script>
+</body>
+</html>
