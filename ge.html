@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>磁力连线粒子背景</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      overflow: hidden;
+      background: #0a0a0f;
+    }
+    
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    let particles = [];
+    let mouse = { x: null, y: null, radius: 150 };
+    
+    const config = {
+      particleCount: 80,
+      connectionDistance: 150,
+      particleSpeed: 1.5,
+      particleSize: 3,
+      mouseRepelStrength: 8,
+      lineWidth: 2,
+      particleColor: '100, 180, 255',
+      lineColor: '100, 180, 255'
+    };
+    
+    class Particle {
+      constructor() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.vx = (Math.random() - 0.5) * config.particleSpeed;
+        this.vy = (Math.random() - 0.5) * config.particleSpeed;
+        this.size = config.particleSize + Math.random() * 2;
+        this.baseSize = this.size;
+      }
+      
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        
+        if (this.x < 0 || this.x > width) this.vx *= -1;
+        if (this.y < 0 || this.y > height) this.vy *= -1;
+        
+        if (mouse.x !== null && mouse.y !== null) {
+          const dx = this.x - mouse.x;
+          const dy = this.y - mouse.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < mouse.radius) {
+            const force = (mouse.radius - distance) / mouse.radius;
+            const angle = Math.atan2(dy, dx);
+            this.vx += Math.cos(angle) * force * config.mouseRepelStrength * 0.1;
+            this.vy += Math.sin(angle) * force * config.mouseRepelStrength * 0.1;
+            
+            this.size = this.baseSize + force * 3;
+          } else {
+            this.size = this.baseSize;
+          }
+        }
+        
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        if (speed > config.particleSpeed * 2) {
+          this.vx = (this.vx / speed) * config.particleSpeed * 2;
+          this.vy = (this.vy / speed) * config.particleSpeed * 2;
+        }
+      }
+      
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${config.particleColor}, 0.8)`;
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${config.particleColor}, 0.1)`;
+        ctx.fill();
+      }
+    }
+    
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    
+    function init() {
+      resize();
+      particles = [];
+      for (let i = 0; i < config.particleCount; i++) {
+        particles.push(new Particle());
+      }
+    }
+    
+    function drawConnections() {
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < config.connectionDistance) {
+            const opacity = 1 - (distance / config.connectionDistance);
+            const lineWidth = opacity * config.lineWidth;
+            
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(${config.lineColor}, ${opacity * 0.6})`;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+            
+            if (distance < config.connectionDistance * 0.5) {
+              const glowIntensity = opacity * 0.3;
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `rgba(${config.lineColor}, ${glowIntensity})`;
+              ctx.lineWidth = lineWidth * 3;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+    }
+    
+    function drawMouseTrail() {
+      if (mouse.x !== null && mouse.y !== null) {
+        const gradient = ctx.createRadialGradient(
+          mouse.x, mouse.y, 0,
+          mouse.x, mouse.y, mouse.radius
+        );
+        gradient.addColorStop(0, 'rgba(100, 180, 255, 0.1)');
+        gradient.addColorStop(1, 'rgba(100, 180, 255, 0)');
+        
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, mouse.radius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
+    }
+    
+    function animate() {
+      ctx.fillStyle = 'rgba(10, 10, 15, 0.1)';
+      ctx.fillRect(0, 0, width, height);
+      
+      drawMouseTrail();
+      
+      particles.forEach(particle => {
+        particle.update();
+        particle.draw();
+      });
+      
+      drawConnections();
+      
+      requestAnimationFrame(animate);
+    }
+    
+    canvas.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+    
+    canvas.addEventListener('mouseleave', () => {
+      mouse.x = null;
+      mouse.y = null;
+    });
+    
+    canvas.addEventListener('touchmove', (e) => {
+      mouse.x = e.touches[0].clientX;
+      mouse.y = e.touches[0].clientY;
+    });
+    
+    canvas.addEventListener('touchend', () => {
+      mouse.x = null;
+      mouse.y = null;
+    });
+    
+    window.addEventListener('resize', resize);
+    
+    init();
+    animate();
+  </script>
+</body>
+</html>
