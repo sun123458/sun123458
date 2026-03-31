@@ -1,158 +1,218 @@
-# Activity Booking System Prototype - Specification
+# Scientific Calculator - SPEC.md
 
-## 1. Project Overview
+## 1. Concept & Vision
 
-- **Project Name**: 活动预订系统原型 (Activity Booking System Prototype)
-- **Type**: Single HTML file web application
-- **Core Functionality**: A complete event booking system with calendar view, interactive seat selection, QR code tickets, and admin dashboard
-- **Target Users**: Event attendees and event organizers
+A sophisticated scientific calculator that combines retro-futuristic aesthetics with modern functionality. The calculator evokes the feel of a high-end scientific instrument from the 1980s—think HP-42S meets a space-age control panel. It should feel precise, powerful, and satisfying to use, with smooth animations and a responsive interface that makes complex calculations feel effortless.
 
-## 2. Visual & Rendering Specification
+## 2. Design Language
 
-### Layout Structure
-- **Header**: Logo, navigation (Events, My Bookings, Admin Dashboard), user info
-- **Main Content**: Three main views - Events Calendar, Event Details/Seat Selection, My Bookings
-- **Sidebar**: Filters (date range, venue, category)
-- **Footer**: Contact info, links
+### Aesthetic Direction
+Retro-futuristic scientific instrument aesthetic. Inspired by vintage oscilloscopes and professional measurement equipment—precise grid lines, monospace displays, glowing elements against dark backgrounds.
 
 ### Color Palette
-- Primary: `#6366f1` (Indigo)
-- Secondary: `#8b5cf6` (Purple)
-- Accent: `#f59e0b` (Amber)
-- Background: `#0f172a` (Dark slate)
-- Surface: `#1e293b` (Slate)
-- Text Primary: `#f8fafc`
-- Text Secondary: `#94a3b8`
-- Success: `#10b981`
-- Error: `#ef4444`
-- Selected Seat: `#22c55e` (Green)
-- Occupied Seat: `#ef4444` (Red)
-- Available Seat: `#6366f1` (Indigo)
+
+**Dark Theme (Default)**
+- Background: `#0d1117`
+- Surface: `#161b22`
+- Display: `#0a0f14`
+- Primary: `#58a6ff`
+- Accent: `#7ee787`
+- Operator: `#ff7b72`
+- Function: `#d2a8ff`
+- Number: `#c9d1d9`
+- Grid: `rgba(88, 166, 255, 0.1)`
+
+**Light Theme**
+- Background: `#f6f8fa`
+- Surface: `#ffffff`
+- Display: `#f0f3f6`
+- Primary: `#0969da`
+- Accent: `#1a7f37`
+- Operator: `#cf222e`
+- Function: `#8250df`
+- Number: `#24292f`
+- Grid: `rgba(9, 105, 218, 0.1)`
+
+**Retro Theme**
+- Background: `#2d2a24`
+- Surface: `#3d3830`
+- Display: `#1a1814`
+- Primary: `#f0c040`
+- Accent: `#80ff80`
+- Operator: `#ff8080`
+- Function: `#80c0ff`
+- Number: `#e8d8b8`
+- Grid: `rgba(240, 192, 64, 0.15)`
 
 ### Typography
-- Font Family: "SF Pro Display", "PingFang SC", -apple-system, sans-serif
-- Headings: Bold, gradient text effect
-- Body: Regular weight, high contrast
+- Display: `'IBM Plex Mono', 'Fira Code', monospace` - for all numeric displays
+- Buttons: `'Space Grotesk', sans-serif` - for UI elements
+- Font sizes: Display 2.5rem, History 0.9rem, Buttons 1.1rem
 
-### Visual Effects
-- Glassmorphism cards with backdrop blur
-- Subtle box shadows
-- Smooth transitions (0.3s ease)
-- Gradient backgrounds on interactive elements
+### Spatial System
+- Button size: 60px × 50px (desktop), flexible on mobile
+- Button gap: 6px
+- Container padding: 20px
+- Border radius: 8px for containers, 6px for buttons
 
-## 3. Feature Specification
+### Motion Philosophy
+- Button press: scale(0.95) with 100ms ease-out
+- Result display: subtle pulse animation on new result
+- Theme transition: 300ms smooth color transitions
+- History items: slide-in from right, 200ms
+- Graph drawing: animated point-by-point reveal
 
-### 3.1 Calendar View
-- Monthly calendar grid display
-- Days with events highlighted with colored dots
-- Click on day to see events for that date
-- Navigation arrows to change months
-- Today indicator
+## 3. Layout & Structure
 
-### 3.2 Activity/Event Display
-- Event cards showing: title, date/time, venue, category, available seats
-- Event categories: 音乐会 (Concert), 戏剧 (Theater), 体育 (Sports), 展览 (Exhibition), 喜剧 (Comedy)
-- Venues: 国家大剧院, 工人体育场, 梅赛德斯奔驰中心, 上海体育馆
+### Main Layout
+```
+┌─────────────────────────────────────────────────────────┐
+│  [Theme Toggle: ☀/🌙/🎲]           SCIENTIFIC CALC      │
+├─────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  Expression: sin(45) + log(100)                │   │
+│  │  Result:   1.69897                              │   │
+│  └─────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────┤
+│  [sin] [cos] [tan] [log] [ln]  │  [x²] [xʸ] [√] [π] [e] │
+│  [7 ] [8 ] [9 ] [÷ ] [← ]     │  [C ] [AC] [( ] [) ]   │
+│  [4 ] [5 ] [6 ] [× ] [^ ]     │  [hist] [graph] [= ]   │
+│  [1 ] [2 ] [3 ] [- ] [% ]     │                        │
+│  [0 ] [.] [±] [+]             │                        │
+├─────────────────────────────────────────────────────────┤
+│  HISTORY                                                │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ sin(45) + log(100) = 1.69897                   │   │
+│  │ 2^10 = 1024                                    │   │
+│  │ sqrt(2) = 1.41421                             │   │
+│  └─────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────┤
+│  FUNCTION PLOTTER                                       │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ y = [________________] [Plot]                  │   │
+│  │                                              ┐  │   │
+│  │                                              │  │   │
+│  │              Canvas Plot Area               │  │   │
+│  │                                              │  │   │
+│  └──────────────────────────────────────────────┘  │   │
+└─────────────────────────────────────────────────────────┘
+```
 
-### 3.3 Interactive Seat Selection
-- SVG-based venue layout showing seats
-- Different sections: VIP, A, B, C (with different pricing)
-- Hover effect on seats showing section, row, seat number, price
-- Click to select/deselect seats
-- Selected seats highlighted in green
-- Occupied seats shown in red (disabled)
-- Running total display
-- Legend for seat status
+### Responsive Strategy
+- Desktop (>768px): Two-column layout with history panel
+- Tablet (768px): Stacked layout, full-width buttons
+- Mobile (<480px): Compact buttons, collapsible history/graph sections
 
-### 3.4 Booking Flow
-1. User selects event from calendar/list
-2. User selects seats on SVG map
-3. User fills in booking form (name, email, phone)
-4. On "Book" - generate QR code ticket
-5. Display ticket with QR code and booking details
-6. mailto: link to send reminder email
+## 4. Features & Interactions
 
-### 3.5 QR Code Ticket
-- Generated using qrcode.js library
-- Contains: booking reference, event name, date, venue, seat info
-- Styled ticket card with event details
+### Core Calculator
+- **Basic operations**: +, -, ×, ÷, ^, %
+- **Scientific functions**: sin, cos, tan, asin, acos, atan, log (base 10), ln (natural log)
+- **Constants**: π (pi), e (Euler's number)
+- **Functions**: sqrt, abs, factorial (!), 10^x (10 power), 2^x, nCr, nPr
+- **Parentheses**: Full support for nested expressions
+- **Degree/Radian toggle**: Toggle between deg and rad for trig functions
 
-### 3.6 Filtering System
-- Date filter: Date picker for start/end date
-- Venue filter: Dropdown with all venues
-- Category filter: Dropdown with all categories
-- Clear filters button
-- Real-time filter updates
+### Shunting-yard Algorithm Implementation
+- Tokenizes input into: numbers, operators, functions, parentheses
+- Handles implicit multiplication: `2π` → `2×π`
+- Supports operator precedence: parentheses > functions > ^ > ×÷ > +-
+- Outputs: Reverse Polish Notation (RPN) for evaluation
+- Handles unary minus: `-5+3` correctly interpreted
 
-### 3.7 Admin Dashboard
-- Statistics cards: Total Bookings, Total Revenue, Popular Events, Occupancy Rate
-- Charts: Bookings by category (bar chart), Revenue by venue (horizontal bar)
-- Recent bookings table
-- Event management: View all events with booking counts
+### Error Handling
+- Division by zero: Display "Cannot divide by zero"
+- Invalid expression: Display "Invalid expression"
+- Overflow (>1e15): Display in scientific notation
+- Underflow (<1e-10): Display as 0 or scientific notation
+- Unmatched parentheses: "Missing parenthesis"
 
-### 3.8 Timezone Handling
-- All times displayed with local timezone
-- Timezone selector in header
-- Events stored in UTC, converted for display
-- Shows timezone indicator next to times
+### Keyboard Support
+- `0-9`, `.`: Number input
+- `+`, `-`, `*`, `/`, `^`: Operators
+- `Enter` or `=`: Calculate
+- `Backspace`: Delete last character
+- `Escape` or `c`: Clear current input
+- `(` and `)`: Parentheses
+- `s`: sin, `c`: cos, `t`: tan, `l`: log, `n`: ln
+- `q`: sqrt, `p`: pi
+- `h`: Toggle history panel
+- `g`: Toggle graph panel
 
-### 3.9 My Bookings
-- List of user's booked tickets
-- QR code display for each booking
-- Cancel booking option
-- Send reminder email button
+### History Log
+- Stores last 20 calculations
+- Click to reuse any previous expression
+- Clear history button
+- Persists in localStorage
 
-## 4. Technical Specification
+### Function Plotter
+- Input field for function (e.g., `x^2`, `sin(x)`, `log(x)`)
+- Canvas rendering with coordinate grid
+- Auto-scaling based on function values
+- Plot bounds: x ∈ [-10, 10] by default
+- Multiple functions can be overlaid (different colors)
+- Clear plot button
 
-### Libraries
-- QRCode.js for QR code generation (CDN)
-- No framework - Vanilla JavaScript
-- CSS Grid and Flexbox for layout
-- CSS Custom Properties for theming
+## 5. Component Inventory
 
-### Data Structure
+### Display Component
+- Shows current expression (editable)
+- Shows calculated result
+- States: empty, typing, result, error
+- Error state: red text with shake animation
+
+### Button Component
+- States: default, hover, active, disabled
+- Categories: number (white/gray), operator (orange/red), function (purple), special (blue)
+- Hover: slight brightness increase, subtle glow
+- Active: scale down, color darken
+- Disabled: 50% opacity
+
+### History Item Component
+- Shows expression and result
+- Click: loads expression into display
+- Delete: removes from history
+- Hover: highlight background
+
+### Graph Canvas Component
+- Coordinate grid with labels
+- Axis lines with tick marks
+- Function curve with glow effect
+- Zoom controls (+/- buttons)
+
+### Theme Toggle Component
+- Three-state toggle: light → dark → retro
+- Animated icon transition
+- Persists choice in localStorage
+
+## 6. Technical Approach
+
+### Architecture
+- Single HTML file with embedded CSS and JavaScript
+- Vanilla JavaScript with ES6+ features
+- Modular code structure:
+  - `CalculatorEngine`: Shunting-yard and evaluation logic
+  - `Plotter`: Canvas-based graph rendering
+  - `UIController`: DOM manipulation and event handling
+  - `ThemeManager`: Theme switching and persistence
+  - `HistoryManager`: Calculation history
+
+### Key Algorithms
+- **Shunting-yard**: Convert infix to RPN using Dijkstra's algorithm
+- **RPN evaluation**: Stack-based evaluation of RPN tokens
+- **Graph rendering**: Canvas 2D context with path drawing
+- **Expression parsing**: Regex-based tokenizer for numbers, operators, functions
+
+### Data Model
 ```javascript
-Event: {
-  id, title, description, date, time, venue, category,
-  duration, timezone, seatMap: { sections: [...] }
-}
-
-Section: {
-  id, name, price, rows: [{ seats: [...] }]
-}
-
-Seat: {
-  id, row, number, status: 'available' | 'occupied' | 'selected'
-}
-
-Booking: {
-  id, eventId, seats: [...], customerName, email, phone,
-  bookingRef, createdAt, qrCodeData
+{
+  expression: string,
+  result: number | null,
+  isError: boolean,
+  timestamp: Date
 }
 ```
 
-### State Management
-- LocalStorage for persisting bookings
-- JavaScript Map/Set for runtime state
-- Event-driven updates
-
-## 5. Responsive Breakpoints
-- Mobile: < 640px (single column, simplified seat map)
-- Tablet: 640px - 1024px (two columns)
-- Desktop: > 1024px (full layout with sidebar)
-
-## 6. Acceptance Criteria
-
-1. Calendar displays current month with event indicators
-2. Clicking a date shows events for that day
-3. Events can be filtered by date, venue, category
-4. Seat selection SVG is interactive and shows seat info on hover
-5. Selected seats update total price in real-time
-6. Booking form validates all fields
-7. QR code generates on successful booking
-8. Ticket displays with all booking details
-9. mailto: link opens email client with pre-filled content
-10. Admin dashboard shows accurate statistics
-11. All times display with correct timezone
-12. Layout is fully responsive
-13. No console errors on any interaction
+### Storage
+- Theme preference: localStorage `calc_theme`
+- History: localStorage `calc_history` (JSON array, max 20)
