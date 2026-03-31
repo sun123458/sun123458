@@ -1,218 +1,117 @@
-# Scientific Calculator - SPEC.md
+# 捕虫大师 (Bug Catcher Master)
 
-## 1. Concept & Vision
+## Project Overview
+- **Project Name**: 捕虫大师
+- **Type**: 2D Top-down Pixel Art Game
+- **Core Functionality**: A nostalgic pixel art bug catching game where players explore a meadow, interact with NPCs, and catch various bugs
+- **Target Users**: Casual gamers who enjoy retro-style games
 
-A sophisticated scientific calculator that combines retro-futuristic aesthetics with modern functionality. The calculator evokes the feel of a high-end scientific instrument from the 1980s—think HP-42S meets a space-age control panel. It should feel precise, powerful, and satisfying to use, with smooth animations and a responsive interface that makes complex calculations feel effortless.
+## Visual & Rendering Specification
 
-## 2. Design Language
+### Scene Setup
+- **View**: Top-down 2D perspective
+- **Canvas Size**: 640x480 pixels (scaled 2x for crisp pixels)
+- **Pixel Scale**: 4x upscaling for authentic pixel art look
+- **Background**: Grass texture with subtle pattern variation
 
-### Aesthetic Direction
-Retro-futuristic scientific instrument aesthetic. Inspired by vintage oscilloscopes and professional measurement equipment—precise grid lines, monospace displays, glowing elements against dark backgrounds.
+### Art Style
+- **Pixel Art**: 16x16 base sprite size
+- **Color Palette**: Limited 16-color palette inspired by Game Boy Color
+  - Grass Green: #3b5a2c, #5a8a3c
+  - Dirt Brown: #8b5a2b, #a06830
+  - Water Blue: #306090, #5090c0
+  - UI Brown: #5a3a1a, #8a5a2a
+  - Text: #f8f8f0, #2a2a20
 
-### Color Palette
+### Sprites (16x16 pixels each)
+1. **Player**: Green cap character with 4-directional walk cycles (4 frames each)
+2. **NPCs**: 
+   - Old Man (blue outfit) - buggy enthusiast
+   - Girl (pink outfit) - flower lover
+   - Scientist (white coat) - bug researcher
+3. **Bugs**:
+   - Butterfly (yellow/orange wings)
+   - Beetle (green shell)
+   - Firefly (yellow glow)
+4. **Bug Net**: Swing animation (3 frames)
+5. **Trees**: Dark green circular canopy
+6. **Rocks**: Gray/brown stones
+7. **Flowers**: Red, yellow, purple small flowers
 
-**Dark Theme (Default)**
-- Background: `#0d1117`
-- Surface: `#161b22`
-- Display: `#0a0f14`
-- Primary: `#58a6ff`
-- Accent: `#7ee787`
-- Operator: `#ff7b72`
-- Function: `#d2a8ff`
-- Number: `#c9d1d9`
-- Grid: `rgba(88, 166, 255, 0.1)`
+### UI Elements
+- **Bug Counter**: Top-left, shows "🐛 X/20" with pixel font
+- **Dialog Box**: Bottom of screen, 80% width, dark brown border, parchment background
+- **Interaction Prompt**: "Press E" appears near NPCs
+- **Catch Effect**: Star burst animation on successful catch
 
-**Light Theme**
-- Background: `#f6f8fa`
-- Surface: `#ffffff`
-- Display: `#f0f3f6`
-- Primary: `#0969da`
-- Accent: `#1a7f37`
-- Operator: `#cf222e`
-- Function: `#8250df`
-- Number: `#24292f`
-- Grid: `rgba(9, 105, 218, 0.1)`
+## Game World Specification
 
-**Retro Theme**
-- Background: `#2d2a24`
-- Surface: `#3d3830`
-- Display: `#1a1814`
-- Primary: `#f0c040`
-- Accent: `#80ff80`
-- Operator: `#ff8080`
-- Function: `#80c0ff`
-- Number: `#e8d8b8`
-- Grid: `rgba(240, 192, 64, 0.15)`
+### Map Layout (40x30 tiles, 16x16 each = 640x480)
+- **Grass Base**: Default ground
+- **Trees**: 8-12 scattered, impassable
+- **Rocks**: 6-8 scattered, impassable
+- **Flowers**: 10-15 decorative, passable
+- **Pond**: Small water feature in corner, impassable
+- **Path**: Dirt path leading to different areas
 
-### Typography
-- Display: `'IBM Plex Mono', 'Fira Code', monospace` - for all numeric displays
-- Buttons: `'Space Grotesk', sans-serif` - for UI elements
-- Font sizes: Display 2.5rem, History 0.9rem, Buttons 1.1rem
+### NPC Placement
+1. Old Man: Center-right area
+2. Girl: Bottom-left near flowers
+3. Scientist: Top area near a tree
 
-### Spatial System
-- Button size: 60px × 50px (desktop), flexible on mobile
-- Button gap: 6px
-- Container padding: 20px
-- Border radius: 8px for containers, 6px for buttons
+## Interaction Specification
 
-### Motion Philosophy
-- Button press: scale(0.95) with 100ms ease-out
-- Result display: subtle pulse animation on new result
-- Theme transition: 300ms smooth color transitions
-- History items: slide-in from right, 200ms
-- Graph drawing: animated point-by-point reveal
+### Player Controls
+- **Arrow Keys / WASD**: Move in 4 directions
+- **E Key**: Interact with NPCs (when nearby)
+- **Space**: Swing bug net (when facing a bug)
 
-## 3. Layout & Structure
+### Movement System
+- Grid-based movement with smooth interpolation
+- Walk speed: 2 pixels per frame
+- 4-directional facing (independent of movement direction for interaction)
+- Walking animation: 4 frames, 150ms per frame
 
-### Main Layout
-```
-┌─────────────────────────────────────────────────────────┐
-│  [Theme Toggle: ☀/🌙/🎲]           SCIENTIFIC CALC      │
-├─────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  Expression: sin(45) + log(100)                │   │
-│  │  Result:   1.69897                              │   │
-│  └─────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────┤
-│  [sin] [cos] [tan] [log] [ln]  │  [x²] [xʸ] [√] [π] [e] │
-│  [7 ] [8 ] [9 ] [÷ ] [← ]     │  [C ] [AC] [( ] [) ]   │
-│  [4 ] [5 ] [6 ] [× ] [^ ]     │  [hist] [graph] [= ]   │
-│  [1 ] [2 ] [3 ] [- ] [% ]     │                        │
-│  [0 ] [.] [±] [+]             │                        │
-├─────────────────────────────────────────────────────────┤
-│  HISTORY                                                │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ sin(45) + log(100) = 1.69897                   │   │
-│  │ 2^10 = 1024                                    │   │
-│  │ sqrt(2) = 1.41421                             │   │
-│  └─────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────┤
-│  FUNCTION PLOTTER                                       │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ y = [________________] [Plot]                  │   │
-│  │                                              ┐  │   │
-│  │                                              │  │   │
-│  │              Canvas Plot Area               │  │   │
-│  │                                              │  │   │
-│  └──────────────────────────────────────────────┘  │   │
-└─────────────────────────────────────────────────────────┘
-```
+### NPC Interaction
+- Proximity detection: 32 pixels radius
+- Visual prompt appears when in range
+- Each NPC has unique dialogue (3-4 lines each)
+- Dialogue advances with E key press
 
-### Responsive Strategy
-- Desktop (>768px): Two-column layout with history panel
-- Tablet (768px): Stacked layout, full-width buttons
-- Mobile (<480px): Compact buttons, collapsible history/graph sections
+### Bug Catching System
+- **Spawn Rate**: New bug every 5-8 seconds
+- **Max Bugs**: 5 on screen at once
+- **Catch Range**: 24 pixels from player
+- **Catch Direction**: Must be facing the bug
+- **Success Rate**: 100% if facing correct direction, 0% otherwise
+- **Catch Animation**: 500ms net swing, then bug disappears
 
-## 4. Features & Interactions
+## Audio Specification
+- No audio (keeping it simple as per requirements)
 
-### Core Calculator
-- **Basic operations**: +, -, ×, ÷, ^, %
-- **Scientific functions**: sin, cos, tan, asin, acos, atan, log (base 10), ln (natural log)
-- **Constants**: π (pi), e (Euler's number)
-- **Functions**: sqrt, abs, factorial (!), 10^x (10 power), 2^x, nCr, nPr
-- **Parentheses**: Full support for nested expressions
-- **Degree/Radian toggle**: Toggle between deg and rad for trig functions
+## Acceptance Criteria
 
-### Shunting-yard Algorithm Implementation
-- Tokenizes input into: numbers, operators, functions, parentheses
-- Handles implicit multiplication: `2π` → `2×π`
-- Supports operator precedence: parentheses > functions > ^ > ×÷ > +-
-- Outputs: Reverse Polish Notation (RPN) for evaluation
-- Handles unary minus: `-5+3` correctly interpreted
+### Visual
+- [ ] Canvas renders at 640x480, scaled 2x
+- [ ] All sprites display as 16x16 pixel art
+- [ ] Player walking animation plays in movement direction
+- [ ] Grass background has subtle variation
+- [ ] Trees and rocks block player movement
 
-### Error Handling
-- Division by zero: Display "Cannot divide by zero"
-- Invalid expression: Display "Invalid expression"
-- Overflow (>1e15): Display in scientific notation
-- Underflow (<1e-10): Display as 0 or scientific notation
-- Unmatched parentheses: "Missing parenthesis"
+### Gameplay
+- [ ] Player moves smoothly with arrow keys/WASD
+- [ ] Player cannot walk through obstacles
+- [ ] Player faces 4 directions (up/down/left/right)
+- [ ] Three NPCs visible and positioned correctly
+- [ ] "Press E" prompt appears near NPCs
+- [ ] Dialogue box shows when interacting with NPC
+- [ ] Space bar swings net (visual feedback)
+- [ ] Bugs spawn randomly on grass areas
+- [ ] Bugs can be caught when player faces them and presses Space
+- [ ] Bug counter increments on successful catch
+- [ ] Counter persists (e.g., "Caught: 5 bugs")
 
-### Keyboard Support
-- `0-9`, `.`: Number input
-- `+`, `-`, `*`, `/`, `^`: Operators
-- `Enter` or `=`: Calculate
-- `Backspace`: Delete last character
-- `Escape` or `c`: Clear current input
-- `(` and `)`: Parentheses
-- `s`: sin, `c`: cos, `t`: tan, `l`: log, `n`: ln
-- `q`: sqrt, `p`: pi
-- `h`: Toggle history panel
-- `g`: Toggle graph panel
-
-### History Log
-- Stores last 20 calculations
-- Click to reuse any previous expression
-- Clear history button
-- Persists in localStorage
-
-### Function Plotter
-- Input field for function (e.g., `x^2`, `sin(x)`, `log(x)`)
-- Canvas rendering with coordinate grid
-- Auto-scaling based on function values
-- Plot bounds: x ∈ [-10, 10] by default
-- Multiple functions can be overlaid (different colors)
-- Clear plot button
-
-## 5. Component Inventory
-
-### Display Component
-- Shows current expression (editable)
-- Shows calculated result
-- States: empty, typing, result, error
-- Error state: red text with shake animation
-
-### Button Component
-- States: default, hover, active, disabled
-- Categories: number (white/gray), operator (orange/red), function (purple), special (blue)
-- Hover: slight brightness increase, subtle glow
-- Active: scale down, color darken
-- Disabled: 50% opacity
-
-### History Item Component
-- Shows expression and result
-- Click: loads expression into display
-- Delete: removes from history
-- Hover: highlight background
-
-### Graph Canvas Component
-- Coordinate grid with labels
-- Axis lines with tick marks
-- Function curve with glow effect
-- Zoom controls (+/- buttons)
-
-### Theme Toggle Component
-- Three-state toggle: light → dark → retro
-- Animated icon transition
-- Persists choice in localStorage
-
-## 6. Technical Approach
-
-### Architecture
-- Single HTML file with embedded CSS and JavaScript
-- Vanilla JavaScript with ES6+ features
-- Modular code structure:
-  - `CalculatorEngine`: Shunting-yard and evaluation logic
-  - `Plotter`: Canvas-based graph rendering
-  - `UIController`: DOM manipulation and event handling
-  - `ThemeManager`: Theme switching and persistence
-  - `HistoryManager`: Calculation history
-
-### Key Algorithms
-- **Shunting-yard**: Convert infix to RPN using Dijkstra's algorithm
-- **RPN evaluation**: Stack-based evaluation of RPN tokens
-- **Graph rendering**: Canvas 2D context with path drawing
-- **Expression parsing**: Regex-based tokenizer for numbers, operators, functions
-
-### Data Model
-```javascript
-{
-  expression: string,
-  result: number | null,
-  isError: boolean,
-  timestamp: Date
-}
-```
-
-### Storage
-- Theme preference: localStorage `calc_theme`
-- History: localStorage `calc_history` (JSON array, max 20)
+### Technical
+- [ ] No console errors
+- [ ] Smooth 60fps performance
+- [ ] Game loop runs continuously

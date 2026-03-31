@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>捕虫大师 - Bug Catcher Master</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Press Start 2P', monospace;
+            overflow: hidden;
+        }
+        
+        h1 {
+            color: #f8f8f0;
+            font-size: 24px;
+            margin-bottom: 16px;
+            text-shadow: 4px 4px 0 #2a2a20;
+            letter-spacing: 2px;
+        }
+        
+        #game-container {
+            position: relative;
+            border: 8px solid #5a3a1a;
+            border-radius: 4px;
+            box-shadow: 0 0 0 4px #8a5a2a, 0 8px 32px rgba(0,0,0,0.5);
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        
+        #gameCanvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        #bug-counter {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            color: #f8f8f0;
+            font-size: 14px;
+            text-shadow: 2px 2px 0 #2a2a20, -1px -1px 0 #2a2a20, 1px -1px 0 #2a2a20, -1px 1px 0 #2a2a20;
+        }
+        
+        #dialog-box {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            background: linear-gradient(180deg, #f8e8c8 0%, #e8d4a8 100%);
+            border: 4px solid #5a3a1a;
+            border-radius: 4px;
+            padding: 16px;
+            display: none;
+            box-shadow: inset 0 0 0 2px #c8b080;
+        }
+        
+        #dialog-name {
+            color: #5a3a1a;
+            font-size: 10px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        
+        #dialog-text {
+            color: #2a2a20;
+            font-size: 10px;
+            line-height: 1.8;
+            min-height: 40px;
+        }
+        
+        #dialog-prompt {
+            color: #8a5a2a;
+            font-size: 8px;
+            text-align: right;
+            margin-top: 8px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        #interaction-prompt {
+            position: absolute;
+            color: #f8f8f0;
+            font-size: 8px;
+            text-shadow: 2px 2px 0 #2a2a20;
+            display: none;
+            pointer-events: none;
+        }
+        
+        #controls-hint {
+            color: #8a8a70;
+            font-size: 10px;
+            margin-top: 16px;
+            text-align: center;
+        }
+        
+        .catch-effect {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            pointer-events: none;
+            animation: catchPop 0.4s ease-out forwards;
+        }
+        
+        @keyframes catchPop {
+            0% { transform: scale(0); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <h1>捕虫大师</h1>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="640" height="480"></canvas>
+        <div id="ui-layer">
+            <div id="bug-counter">🐛 × 0</div>
+            <div id="interaction-prompt">按 E 互动</div>
+            <div id="dialog-box">
+                <div id="dialog-name"></div>
+                <div id="dialog-text"></div>
+                <div id="dialog-prompt">▼ 按 E 继续</div>
+            </div>
+        </div>
+    </div>
+    <div id="controls-hint">方向键移动 | E 互动 | 空格 捕虫</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        const TILE_SIZE = 16;
+        const MAP_WIDTH = 40;
+        const MAP_HEIGHT = 30;
+
+        const COLORS = {
+            grass1: '#3b5a2c',
+            grass2: '#4a6a3c',
+            grass3: '#2a4a1c',
+            dirt: '#8b5a2b',
+            dirtLight: '#a06830',
+            water: '#306090',
+            waterLight: '#5090c0',
+            tree: '#2a5a1c',
+            treeDark: '#1a4a0c',
+            rock: '#6a6a6a',
+            rockDark: '#4a4a4a',
+            flower1: '#e84040',
+            flower2: '#f8e040',
+            flower3: '#a040e8'
+        };
+
+        const SPRITE_SIZE = 16;
+        const PIXEL_SCALE = 1;
+
+        const sprites = {};
+        const spriteImages = {};
+
+        function createPixelSprite(width, height, drawFn) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+            drawFn(ctx);
+            return canvas;
+        }
+
+        function drawPixel(ctx, x, y, color, size = 1) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, size, size);
+        }
+
+        function initSprites() {
+            sprites.player = [];
+            const playerColors = {
+                skin: '#f8c8a0',
+                hair: '#4a3020',
+                cap: '#3cb858',
+                shirt: '#4080d0',
+                pants: '#304080',
+                shoes: '#503020'
+            };
+
+            for (let dir = 0; dir < 4; dir++) {
+                sprites.player[dir] = [];
+                for (let frame = 0; frame < 4; frame++) {
+                    const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                        const offset = frame % 2 === 1 ? 1 : 0;
+                        const legOffset = frame % 2 === 1 ? 1 : -1;
+                        
+                        drawPixel(ctx, 6, 2, playerColors.hair);
+                        drawPixel(ctx, 5, 3, playerColors.hair);
+                        drawPixel(ctx, 6, 3, playerColors.hair);
+                        drawPixel(ctx, 7, 3, playerColors.hair);
+                        drawPixel(ctx, 6, 3, playerColors.cap);
+                        drawPixel(ctx, 5, 4, playerColors.cap);
+                        drawPixel(ctx, 6, 4, playerColors.cap);
+                        drawPixel(ctx, 7, 4, playerColors.cap);
+                        drawPixel(ctx, 5, 5, playerColors.skin);
+                        drawPixel(ctx, 6, 5, playerColors.skin);
+                        drawPixel(ctx, 7, 5, playerColors.skin);
+                        drawPixel(ctx, 5, 6, playerColors.skin);
+                        drawPixel(ctx, 6, 6, playerColors.skin);
+                        drawPixel(ctx, 7, 6, playerColors.skin);
+                        drawPixel(ctx, 5, 7, playerColors.shirt);
+                        drawPixel(ctx, 6, 7, playerColors.shirt);
+                        drawPixel(ctx, 7, 7, playerColors.shirt);
+                        drawPixel(ctx, 4 + offset, 8, playerColors.shirt);
+                        drawPixel(ctx, 5, 8, playerColors.shirt);
+                        drawPixel(ctx, 6, 8, playerColors.shirt);
+                        drawPixel(ctx, 7, 8, playerColors.shirt);
+                        drawPixel(ctx, 8 - offset, 8, playerColors.shirt);
+                        drawPixel(ctx, 5 + legOffset, 9, playerColors.pants);
+                        drawPixel(ctx, 6 + legOffset, 9, playerColors.pants);
+                        drawPixel(ctx, 7 - legOffset, 9, playerColors.pants);
+                        drawPixel(ctx, 8 - legOffset, 9, playerColors.pants);
+                        drawPixel(ctx, 5 + legOffset, 10, playerColors.pants);
+                        drawPixel(ctx, 6 + legOffset, 10, playerColors.pants);
+                        drawPixel(ctx, 7 - legOffset, 10, playerColors.pants);
+                        drawPixel(ctx, 8 - legOffset, 10, playerColors.pants);
+                        drawPixel(ctx, 5 + legOffset, 11, playerColors.shoes);
+                        drawPixel(ctx, 6 + legOffset, 11, playerColors.shoes);
+                        drawPixel(ctx, 7 - legOffset, 11, playerColors.shoes);
+                        drawPixel(ctx, 8 - legOffset, 11, playerColors.shoes);
+                    });
+                    sprites.player[dir].push(s);
+                }
+            }
+
+            sprites.playerIdle = [];
+            for (let dir = 0; dir < 4; dir++) {
+                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                    const playerColors = {
+                        skin: '#f8c8a0',
+                        hair: '#4a3020',
+                        cap: '#3cb858',
+                        shirt: '#4080d0',
+                        pants: '#304080',
+                        shoes: '#503020'
+                    };
+                    drawPixel(ctx, 6, 2, playerColors.hair);
+                    drawPixel(ctx, 5, 3, playerColors.hair);
+                    drawPixel(ctx, 6, 3, playerColors.hair);
+                    drawPixel(ctx, 7, 3, playerColors.hair);
+                    drawPixel(ctx, 6, 3, playerColors.cap);
+                    drawPixel(ctx, 5, 4, playerColors.cap);
+                    drawPixel(ctx, 6, 4, playerColors.cap);
+                    drawPixel(ctx, 7, 4, playerColors.cap);
+                    drawPixel(ctx, 5, 5, playerColors.skin);
+                    drawPixel(ctx, 6, 5, playerColors.skin);
+                    drawPixel(ctx, 7, 5, playerColors.skin);
+                    drawPixel(ctx, 5, 6, playerColors.skin);
+                    drawPixel(ctx, 6, 6, playerColors.skin);
+                    drawPixel(ctx, 7, 6, playerColors.skin);
+                    drawPixel(ctx, 5, 7, playerColors.shirt);
+                    drawPixel(ctx, 6, 7, playerColors.shirt);
+                    drawPixel(ctx, 7, 7, playerColors.shirt);
+                    drawPixel(ctx, 4, 8, playerColors.shirt);
+                    drawPixel(ctx, 5, 8, playerColors.shirt);
+                    drawPixel(ctx, 6, 8, playerColors.shirt);
+                    drawPixel(ctx, 7, 8, playerColors.shirt);
+                    drawPixel(ctx, 8, 8, playerColors.shirt);
+                    drawPixel(ctx, 5, 9, playerColors.pants);
+                    drawPixel(ctx, 6, 9, playerColors.pants);
+                    drawPixel(ctx, 7, 9, playerColors.pants);
+                    drawPixel(ctx, 8, 9, playerColors.pants);
+                    drawPixel(ctx, 5, 10, playerColors.pants);
+                    drawPixel(ctx, 6, 10, playerColors.pants);
+                    drawPixel(ctx, 7, 10, playerColors.pants);
+                    drawPixel(ctx, 8, 10, playerColors.pants);
+                    drawPixel(ctx, 5, 11, playerColors.shoes);
+                    drawPixel(ctx, 6, 11, playerColors.shoes);
+                    drawPixel(ctx, 7, 11, playerColors.shoes);
+                    drawPixel(ctx, 8, 11, playerColors.shoes);
+                });
+                sprites.playerIdle.push(s);
+            }
+
+            sprites.npcs = [];
+            const npcConfigs = [
+                { name: '老爷爷', cap: '#4080d0', shirt: '#3060a0', skin: '#f8d0b0' },
+                { name: '小女孩', cap: '#e860a0', shirt: '#f8a0c0', skin: '#fce0d0' },
+                { name: '科学家', cap: '#e0e0e0', shirt: '#f8f8f8', skin: '#f8d0b0' }
+            ];
+
+            npcConfigs.forEach((config, idx) => {
+                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                    drawPixel(ctx, 6, 2, config.skin);
+                    drawPixel(ctx, 5, 3, config.skin);
+                    drawPixel(ctx, 6, 3, config.skin);
+                    drawPixel(ctx, 7, 3, config.skin);
+                    drawPixel(ctx, 5, 4, config.cap);
+                    drawPixel(ctx, 6, 4, config.cap);
+                    drawPixel(ctx, 7, 4, config.cap);
+                    drawPixel(ctx, 4, 5, config.cap);
+                    drawPixel(ctx, 5, 5, config.cap);
+                    drawPixel(ctx, 6, 5, config.skin);
+                    drawPixel(ctx, 7, 5, config.skin);
+                    drawPixel(ctx, 8, 5, config.cap);
+                    drawPixel(ctx, 5, 6, config.skin);
+                    drawPixel(ctx, 6, 6, config.skin);
+                    drawPixel(ctx, 7, 6, config.skin);
+                    drawPixel(ctx, 5, 7, config.shirt);
+                    drawPixel(ctx, 6, 7, config.shirt);
+                    drawPixel(ctx, 7, 7, config.shirt);
+                    drawPixel(ctx, 4, 8, config.shirt);
+                    drawPixel(ctx, 5, 8, config.shirt);
+                    drawPixel(ctx, 6, 8, config.shirt);
+                    drawPixel(ctx, 7, 8, config.shirt);
+                    drawPixel(ctx, 8, 8, config.shirt);
+                    drawPixel(ctx, 5, 9, '#3050a0');
+                    drawPixel(ctx, 6, 9, '#3050a0');
+                    drawPixel(ctx, 7, 9, '#3050a0');
+                    drawPixel(ctx, 8, 9, '#3050a0');
+                    drawPixel(ctx, 5, 10, '#3050a0');
+                    drawPixel(ctx, 6, 10, '#3050a0');
+                    drawPixel(ctx, 7, 10, '#3050a0');
+                    drawPixel(ctx, 8, 10, '#3050a0');
+                    drawPixel(ctx, 5, 11, '#503020');
+                    drawPixel(ctx, 6, 11, '#503020');
+                    drawPixel(ctx, 7, 11, '#503020');
+                    drawPixel(ctx, 8, 11, '#503020');
+                });
+                sprites.npcs.push(s);
+            });
+
+            sprites.bugs = [];
+            const bugConfigs = [
+                { body: '#f8e040', wing: '#f8a040' },
+                { body: '#40a040', wing: '#60c060' },
+                { body: '#f8f080', wing: '#ffffa0' }
+            ];
+
+            bugConfigs.forEach((config, idx) => {
+                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                    drawPixel(ctx, 7, 6, '#202020');
+                    drawPixel(ctx, 8, 6, '#202020');
+                    drawPixel(ctx, 6, 7, config.body);
+                    drawPixel(ctx, 7, 7, config.body);
+                    drawPixel(ctx, 8, 7, config.body);
+                    drawPixel(ctx, 9, 7, config.body);
+                    drawPixel(ctx, 5, 8, config.wing);
+                    drawPixel(ctx, 6, 8, config.wing);
+                    drawPixel(ctx, 7, 8, config.body);
+                    drawPixel(ctx, 8, 8, config.body);
+                    drawPixel(ctx, 9, 8, config.wing);
+                    drawPixel(ctx, 10, 8, config.wing);
+                    drawPixel(ctx, 6, 9, config.body);
+                    drawPixel(ctx, 7, 9, config.body);
+                    drawPixel(ctx, 8, 9, config.body);
+                    drawPixel(ctx, 9, 9, config.body);
+                    drawPixel(ctx, 7, 10, config.body);
+                    drawPixel(ctx, 8, 10, config.body);
+                    if (idx === 2) {
+                        drawPixel(ctx, 5, 7, '#ffff00', 2);
+                        drawPixel(ctx, 10, 7, '#ffff00', 2);
+                        drawPixel(ctx, 4, 8, '#ffff00', 2);
+                        drawPixel(ctx, 11, 8, '#ffff00', 2);
+                    }
+                });
+                sprites.bugs.push(s);
+            });
+
+            sprites.tree = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                drawPixel(ctx, 6, 12, '#5a3020');
+                drawPixel(ctx, 7, 12, '#5a3020');
+                drawPixel(ctx, 7, 11, '#5a3020');
+                drawPixel(ctx, 5, 6, COLORS.treeDark);
+                drawPixel(ctx, 6, 5, COLORS.treeDark);
+                drawPixel(ctx, 7, 5, COLORS.treeDark);
+                drawPixel(ctx, 8, 6, COLORS.treeDark);
+                drawPixel(ctx, 4, 7, COLORS.treeDark);
+                drawPixel(ctx, 5, 7, COLORS.tree);
+                drawPixel(ctx, 6, 7, COLORS.tree);
+                drawPixel(ctx, 7, 7, COLORS.tree);
+                drawPixel(ctx, 8, 7, COLORS.tree);
+                drawPixel(ctx, 9, 7, COLORS.treeDark);
+                drawPixel(ctx, 5, 8, COLORS.tree);
+                drawPixel(ctx, 6, 8, COLORS.tree);
+                drawPixel(ctx, 7, 8, COLORS.tree);
+                drawPixel(ctx, 8, 8, COLORS.tree);
+                drawPixel(ctx, 9, 8, COLORS.tree);
+                drawPixel(ctx, 6, 9, COLORS.tree);
+                drawPixel(ctx, 7, 9, COLORS.tree);
+                drawPixel(ctx, 8, 9, COLORS.tree);
+                drawPixel(ctx, 7, 10, COLORS.tree);
+                drawPixel(ctx, 8, 10, COLORS.treeDark);
+                drawPixel(ctx, 6, 11, COLORS.treeDark);
+                drawPixel(ctx, 9, 11, COLORS.treeDark);
+            });
+
+            sprites.rock = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                drawPixel(ctx, 5, 9, COLORS.rockDark);
+                drawPixel(ctx, 6, 8, COLORS.rockDark);
+                drawPixel(ctx, 7, 8, COLORS.rock);
+                drawPixel(ctx, 8, 8, COLORS.rock);
+                drawPixel(ctx, 9, 8, COLORS.rockDark);
+                drawPixel(ctx, 5, 9, COLORS.rock);
+                drawPixel(ctx, 6, 9, COLORS.rock);
+                drawPixel(ctx, 7, 9, COLORS.rock);
+                drawPixel(ctx, 8, 9, COLORS.rock);
+                drawPixel(ctx, 9, 9, COLORS.rock);
+                drawPixel(ctx, 6, 10, COLORS.rock);
+                drawPixel(ctx, 7, 10, COLORS.rock);
+                drawPixel(ctx, 8, 10, COLORS.rock);
+                drawPixel(ctx, 7, 11, COLORS.rockDark);
+                drawPixel(ctx, 8, 11, COLORS.rockDark);
+            });
+
+            sprites.flowers = [];
+            const flowerColors = [COLORS.flower1, COLORS.flower2, COLORS.flower3];
+            flowerColors.forEach(color => {
+                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                    drawPixel(ctx, 8, 11, '#3a6a2c');
+                    drawPixel(ctx, 8, 12, '#3a6a2c');
+                    drawPixel(ctx, 7, 8, color);
+                    drawPixel(ctx, 8, 8, color);
+                    drawPixel(ctx, 9, 8, color);
+                    drawPixel(ctx, 6, 9, color);
+                    drawPixel(ctx, 7, 9, '#ffff80');
+                    drawPixel(ctx, 8, 9, '#ffff80');
+                    drawPixel(ctx, 9, 9, color);
+                    drawPixel(ctx, 10, 9, color);
+                    drawPixel(ctx, 7, 10, color);
+                    drawPixel(ctx, 8, 10, color);
+                    drawPixel(ctx, 9, 10, color);
+                });
+                sprites.flowers.push(s);
+            });
+
+            sprites.water = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                drawPixel(ctx, 0, 0, COLORS.water);
+                drawPixel(ctx, 1, 0, COLORS.water);
+                drawPixel(ctx, 2, 0, COLORS.waterLight);
+                drawPixel(ctx, 3, 0, COLORS.water);
+                drawPixel(ctx, 4, 0, COLORS.water);
+                drawPixel(ctx, 5, 0, COLORS.waterLight);
+                drawPixel(ctx, 6, 0, COLORS.water);
+                drawPixel(ctx, 7, 0, COLORS.water);
+                drawPixel(ctx, 0, 1, COLORS.waterLight);
+                drawPixel(ctx, 1, 1, COLORS.water);
+                drawPixel(ctx, 2, 1, COLORS.water);
+                drawPixel(ctx, 3, 1, COLORS.waterLight);
+                drawPixel(ctx, 4, 1, COLORS.water);
+                drawPixel(ctx, 5, 1, COLORS.water);
+                drawPixel(ctx, 6, 1, COLORS.waterLight);
+                drawPixel(ctx, 7, 1, COLORS.water);
+            });
+
+            sprites.net = [];
+            for (let i = 0; i < 3; i++) {
+                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
+                    const angle = (i / 3) * Math.PI - Math.PI / 2;
+                    const cx = 8 + Math.cos(angle) * 5;
+                    const cy = 8 + Math.sin(angle) * 5;
+                    
+                    for (let r = 2; r < 6; r++) {
+                        for (let a = 0; a < 8; a++) {
+                            const px = Math.round(cx + Math.cos(a * Math.PI / 4) * r);
+                            const py = Math.round(cy + Math.sin(a * Math.PI / 4) * r);
+                            if (px >= 0 && px < 16 && py >= 0 && py < 16) {
+                                if (Math.random() > 0.3) {
+                                    drawPixel(ctx, px, py, '#a08060');
+                                }
+                            }
+                        }
+                    }
+                    
+                    for (let ox = -1; ox <= 1; ox++) {
+                        for (let oy = -1; oy <= 1; oy++) {
+                            if (Math.random() > 0.5) {
+                                const px = Math.round(cx + ox);
+                                const py = Math.round(cy + oy);
+                                if (px >= 0 && px < 16 && py >= 0 && py < 16) {
+                                    drawPixel(ctx, px, py, '#a08060');
+                                }
+                            }
+                        }
+                    }
+                    
+                    const stickX = Math.round(8 + Math.cos(angle) * 5);
+                    const stickY = Math.round(8 + Math.sin(angle) * 5);
+                    for (let i = 0; i < 8; i++) {
+                        const sx = Math.round(stickX + (12 - stickX) * (i / 7));
+                        const sy = Math.round(stickY + (14 - stickY) * (i / 7));
+                        drawPixel(ctx, sx, sy, '#8a5a30');
+                    }
+                });
+                sprites.net.push(s);
+            }
+        }
+
+        const npcDialogues = [
+            {
+                name: '老爷爷',
+                lines: [
+                    '啊，年轻人！你也喜欢捕虫吗？',
+                    '我年轻时可是这一带有名的捕虫王！',
+                    '听说夜里能在河边抓到稀有的萤火虫...',
+                    '加油吧，年轻人！'
+                ]
+            },
+            {
+                name: '小女孩',
+                lines: [
+                    '大哥哥/大姐姐！这些花好漂亮！',
+                    '我看到好多漂亮的蝴蝶在花丛里飞来飞去~',
+                    '如果你抓到蝴蝶，能让我看看吗？',
+                    '这些花和蝴蝶都好可爱呀！'
+                ]
+            },
+            {
+                name: '科学家',
+                lines: [
+                    '你好，我是昆虫研究员。',
+                    '我对这个地区的甲虫进行了长期观察...',
+                    '有些甲虫是非常珍稀的物种！',
+                    '愿你的捕虫之旅收获满满。'
+                ]
+            }
+        ];
+
+        const gameMap = [];
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            gameMap[y] = [];
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                gameMap[y][x] = { type: 'grass', variant: Math.floor(Math.random() * 3) };
+            }
+        }
+
+        for (let x = 0; x < MAP_WIDTH; x++) {
+            gameMap[MAP_HEIGHT - 1][x].type = 'dirt';
+            gameMap[0][x].type = 'dirt';
+        }
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            gameMap[y][0].type = 'dirt';
+            gameMap[y][MAP_WIDTH - 1].type = 'dirt';
+        }
+
+        for (let i = 5; i < 12; i++) {
+            gameMap[MAP_HEIGHT - 2][i].type = 'dirt';
+        }
+
+        const obstacles = [];
+
+        const treePositions = [
+            [5, 3], [8, 5], [3, 8], [12, 4], [15, 7],
+            [25, 3], [30, 5], [35, 4], [8, 15], [28, 12],
+            [33, 15], [5, 22], [35, 20]
+        ];
+        treePositions.forEach(([x, y]) => {
+            obstacles.push({ x: x * TILE_SIZE, y: y * TILE_SIZE, type: 'tree', width: TILE_SIZE, height: TILE_SIZE });
+            gameMap[y][x].type = 'tree';
+        });
+
+        const rockPositions = [
+            [10, 8], [18, 6], [22, 10], [28, 8], [32, 12],
+            [12, 18], [25, 15], [30, 20]
+        ];
+        rockPositions.forEach(([x, y]) => {
+            obstacles.push({ x: x * TILE_SIZE, y: y * TILE_SIZE, type: 'rock', width: TILE_SIZE, height: TILE_SIZE });
+            gameMap[y][x].type = 'rock';
+        });
+
+        for (let y = 2; y < 6; y++) {
+            for (let x = 2; x < 5; x++) {
+                gameMap[y][x].type = 'water';
+                obstacles.push({ x: x * TILE_SIZE, y: y * TILE_SIZE, type: 'water', width: TILE_SIZE, height: TILE_SIZE });
+            }
+        }
+
+        const flowerPositions = [
+            [14, 10], [16, 12], [20, 8], [24, 14], [27, 10],
+            [10, 20], [15, 22], [18, 25], [22, 18], [28, 22],
+            [32, 18], [8, 12], [30, 25], [34, 22]
+        ];
+        flowerPositions.forEach(([x, y]) => {
+            gameMap[y][x].type = 'flower';
+            gameMap[y][x].flowerColor = Math.floor(Math.random() * 3);
+        });
+
+        const npcs = [
+            { x: 22 * TILE_SIZE, y: 12 * TILE_SIZE, type: 0 },
+            { x: 8 * TILE_SIZE, y: 24 * TILE_SIZE, type: 1 },
+            { x: 15 * TILE_SIZE, y: 4 * TILE_SIZE, type: 2 }
+        ];
+
+        const player = {
+            x: 20 * TILE_SIZE,
+            y: 20 * TILE_SIZE,
+            width: SPRITE_SIZE,
+            height: SPRITE_SIZE,
+            direction: 0,
+            moving: false,
+            animFrame: 0,
+            animTimer: 0,
+            speed: 2
+        };
+
+        let bugs = [];
+        let bugCount = 0;
+        let lastBugSpawn = 0;
+        const BUG_SPAWN_INTERVAL = 5000;
+        const MAX_BUGS = 5;
+
+        let netSwinging = false;
+        let netFrame = 0;
+        let netTimer = 0;
+        const NET_SWING_DURATION = 400;
+
+        let dialogue = {
+            active: false,
+            npcIndex: -1,
+            lineIndex: 0
+        };
+
+        let nearbyNPC = -1;
+        let nearbyBug = -1;
+
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
+            if (e.code === 'KeyE') {
+                if (dialogue.active) {
+                    dialogue.lineIndex++;
+                    if (dialogue.lineIndex >= npcDialogues[dialogue.npcIndex].lines.length) {
+                        dialogue.active = false;
+                        document.getElementById('dialog-box').style.display = 'none';
+                    } else {
+                        document.getElementById('dialog-text').textContent = npcDialogues[dialogue.npcIndex].lines[dialogue.lineIndex];
+                    }
+                } else if (nearbyNPC >= 0) {
+                    dialogue.active = true;
+                    dialogue.npcIndex = nearbyNPC;
+                    dialogue.lineIndex = 0;
+                    const db = document.getElementById('dialog-box');
+                    db.style.display = 'block';
+                    document.getElementById('dialog-name').textContent = npcDialogues[dialogue.npcIndex].name;
+                    document.getElementById('dialog-text').textContent = npcDialogues[dialogue.npcIndex].lines[dialogue.lineIndex];
+                }
+            }
+            
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!netSwinging && nearbyBug >= 0 && !dialogue.active) {
+                    netSwinging = true;
+                    netFrame = 0;
+                    netTimer = 0;
+                    
+                    const bug = bugs[nearbyBug];
+                    if (bug) {
+                        const dx = bug.x - player.x;
+                        const dy = bug.y - player.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < 40) {
+                            let facingBug = false;
+                            switch (player.direction) {
+                                case 0: facingBug = dy < 0 && Math.abs(dx) < dy; break;
+                                case 1: facingBug = dx > 0 && Math.abs(dy) < dx; break;
+                                case 2: facingBug = dy > 0 && Math.abs(dx) < dy; break;
+                                case 3: facingBug = dx < 0 && Math.abs(dy) < Math.abs(dx); break;
+                            }
+                            
+                            if (facingBug) {
+                                setTimeout(() => {
+                                    bugs.splice(nearbyBug, 1);
+                                    bugCount++;
+                                    document.getElementById('bug-counter').textContent = `🐛 × ${bugCount}`;
+                                    showCatchEffect(bug.x, bug.y);
+                                }, 200);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        function showCatchEffect(x, y) {
+            const effect = document.createElement('div');
+            effect.className = 'catch-effect';
+            effect.innerHTML = '✨';
+            effect.style.left = (x + player.width / 2 - 16) + 'px';
+            effect.style.top = (y + player.height / 2 - 16) + 'px';
+            document.getElementById('ui-layer').appendChild(effect);
+            setTimeout(() => effect.remove(), 400);
+        }
+
+        function spawnBug() {
+            if (bugs.length >= MAX_BUGS) return;
+            
+            let attempts = 0;
+            while (attempts < 50) {
+                const x = (2 + Math.floor(Math.random() * (MAP_WIDTH - 4))) * TILE_SIZE;
+                const y = (2 + Math.floor(Math.random() * (MAP_HEIGHT - 4))) * TILE_SIZE;
+                
+                let valid = true;
+                for (const obs of obstacles) {
+                    if (Math.abs(x - obs.x) < TILE_SIZE * 2 && Math.abs(y - obs.y) < TILE_SIZE * 2) {
+                        valid = false;
+                        break;
+                    }
+                }
+                
+                for (const npc of npcs) {
+                    if (Math.abs(x - npc.x) < TILE_SIZE * 3 && Math.abs(y - npc.y) < TILE_SIZE * 3) {
+                        valid = false;
+                        break;
+                    }
+                }
+                
+                if (valid) {
+                    bugs.push({
+                        x, y,
+                        type: Math.floor(Math.random() * 3),
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        timer: 0,
+                        frame: 0
+                    });
+                    return;
+                }
+                attempts++;
+            }
+        }
+
+        function checkCollision(x, y, width, height) {
+            for (const obs of obstacles) {
+                if (x < obs.x + obs.width &&
+                    x + width > obs.x &&
+                    y < obs.y + obs.height &&
+                    y + height > obs.y) {
+                    return true;
+                }
+            }
+            
+            for (const npc of npcs) {
+                if (x < npc.x + SPRITE_SIZE &&
+                    x + width > npc.x &&
+                    y < npc.y + SPRITE_SIZE &&
+                    y + height > npc.y) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function updateBugs(deltaTime) {
+            for (const bug of bugs) {
+                bug.timer += deltaTime;
+                if (bug.timer > 1000) {
+                    bug.vx = (Math.random() - 0.5) * 0.8;
+                    bug.vy = (Math.random() - 0.5) * 0.8;
+                    bug.timer = 0;
+                }
+                
+                const newX = bug.x + bug.vx;
+                const newY = bug.y + bug.vy;
+                
+                let canMove = true;
+                for (const obs of obstacles) {
+                    if (newX < obs.x + obs.width &&
+                        newX + SPRITE_SIZE > obs.x &&
+                        newY < obs.y + obs.height &&
+                        newY + SPRITE_SIZE > obs.y) {
+                        canMove = false;
+                        bug.vx = -bug.vx;
+                        bug.vy = -bug.vy;
+                        break;
+                    }
+                }
+                
+                if (canMove) {
+                    bug.x = Math.max(TILE_SIZE, Math.min(newX, (MAP_WIDTH - 1) * TILE_SIZE));
+                    bug.y = Math.max(TILE_SIZE, Math.min(newY, (MAP_HEIGHT - 1) * TILE_SIZE));
+                }
+                
+                bug.frame = Math.floor(Date.now() / 200) % 2;
+            }
+        }
+
+        function updatePlayer(deltaTime) {
+            if (dialogue.active || netSwinging) return;
+            
+            let dx = 0, dy = 0;
+            
+            if (keys['ArrowUp'] || keys['KeyW']) { dy = -1; player.direction = 0; }
+            if (keys['ArrowDown'] || keys['KeyS']) { dy = 1; player.direction = 2; }
+            if (keys['ArrowLeft'] || keys['KeyA']) { dx = -1; player.direction = 3; }
+            if (keys['ArrowRight'] || keys['KeyD']) { dx = 1; player.direction = 1; }
+            
+            if (dx !== 0 || dy !== 0) {
+                player.moving = true;
+                
+                const newX = player.x + dx * player.speed;
+                const newY = player.y + dy * player.speed;
+                
+                if (!checkCollision(newX, player.y, player.width, player.height)) {
+                    player.x = newX;
+                }
+                if (!checkCollision(player.x, newY, player.width, player.height)) {
+                    player.y = newY;
+                }
+                
+                player.animTimer += deltaTime;
+                if (player.animTimer > 150) {
+                    player.animFrame = (player.animFrame + 1) % 4;
+                    player.animTimer = 0;
+                }
+            } else {
+                player.moving = false;
+                player.animFrame = 0;
+            }
+        }
+
+        function updateNet(deltaTime) {
+            if (netSwinging) {
+                netTimer += deltaTime;
+                if (netTimer > NET_SWING_DURATION / 3) {
+                    netFrame++;
+                    netTimer = 0;
+                    if (netFrame >= 3) {
+                        netSwinging = false;
+                        netFrame = 0;
+                    }
+                }
+            }
+        }
+
+        function updateNPCProximity() {
+            nearbyNPC = -1;
+            nearbyBug = -1;
+            
+            const prompt = document.getElementById('interaction-prompt');
+            
+            for (let i = 0; i < npcs.length; i++) {
+                const npc = npcs[i];
+                const dist = Math.sqrt(Math.pow(player.x - npc.x, 2) + Math.pow(player.y - npc.y, 2));
+                if (dist < 50) {
+                    nearbyNPC = i;
+                    break;
+                }
+            }
+            
+            for (let i = 0; i < bugs.length; i++) {
+                const bug = bugs[i];
+                const dist = Math.sqrt(Math.pow(player.x - bug.x, 2) + Math.pow(player.y - bug.y, 2));
+                if (dist < 40) {
+                    nearbyBug = i;
+                    break;
+                }
+            }
+            
+            if (nearbyNPC >= 0 && !dialogue.active) {
+                prompt.style.display = 'block';
+                prompt.style.left = (npcs[nearbyNPC].x - 10) + 'px';
+                prompt.style.top = (npcs[nearbyNPC].y - 20) + 'px';
+            } else if (nearbyBug >= 0 && !dialogue.active) {
+                prompt.style.display = 'block';
+                prompt.style.left = (bugs[nearbyBug].x - 10) + 'px';
+                prompt.style.top = (bugs[nearbyBug].y - 20) + 'px';
+                prompt.textContent = '按空格捕虫';
+            } else {
+                prompt.style.display = 'none';
+                prompt.textContent = '按 E 互动';
+            }
+        }
+
+        function drawMap() {
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    const tile = gameMap[y][x];
+                    const px = x * TILE_SIZE;
+                    const py = y * TILE_SIZE;
+                    
+                    switch (tile.type) {
+                        case 'grass':
+                            ctx.fillStyle = [COLORS.grass1, COLORS.grass2, COLORS.grass3][tile.variant];
+                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                            break;
+                        case 'dirt':
+                            ctx.fillStyle = (x + y) % 2 === 0 ? COLORS.dirt : COLORS.dirtLight;
+                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                            break;
+                        case 'tree':
+                            ctx.fillStyle = COLORS.grass1;
+                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                            ctx.drawImage(sprites.tree, px, py);
+                            break;
+                        case 'rock':
+                            ctx.fillStyle = COLORS.grass1;
+                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                            ctx.drawImage(sprites.rock, px, py);
+                            break;
+                        case 'water':
+                            ctx.drawImage(sprites.water, px, py);
+                            break;
+                        case 'flower':
+                            ctx.fillStyle = COLORS.grass2;
+                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                            ctx.drawImage(sprites.flowers[tile.flowerColor], px, py);
+                            break;
+                    }
+                }
+            }
+        }
+
+        function drawNPCs() {
+            for (let i = 0; i < npcs.length; i++) {
+                ctx.drawImage(sprites.npcs[npcs[i].type], npcs[i].x, npcs[i].y);
+            }
+        }
+
+        function drawBugs() {
+            for (const bug of bugs) {
+                ctx.drawImage(sprites.bugs[bug.type], bug.x, bug.y);
+            }
+        }
+
+        function drawPlayer() {
+            const sprite = player.moving ? 
+                sprites.player[player.direction][player.animFrame] : 
+                sprites.playerIdle[player.direction];
+            ctx.drawImage(sprite, player.x, player.y);
+            
+            if (netSwinging) {
+                let netX = player.x;
+                let netY = player.y;
+                
+                switch (player.direction) {
+                    case 0: netY -= TILE_SIZE; break;
+                    case 1: netX += TILE_SIZE; break;
+                    case 2: netY += TILE_SIZE; break;
+                    case 3: netX -= TILE_SIZE; break;
+                }
+                
+                ctx.drawImage(sprites.net[netFrame], netX, netY);
+            }
+        }
+
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            
+            if (timestamp - lastBugSpawn > BUG_SPAWN_INTERVAL + Math.random() * 3000) {
+                spawnBug();
+                lastBugSpawn = timestamp;
+            }
+            
+            updatePlayer(deltaTime);
+            updateBugs(deltaTime);
+            updateNet(deltaTime);
+            updateNPCProximity();
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawMap();
+            drawNPCs();
+            drawBugs();
+            drawPlayer();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        initSprites();
+        for (let i = 0; i < 3; i++) {
+            spawnBug();
+        }
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
