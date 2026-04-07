@@ -1,232 +1,241 @@
-// app.js - 主应用：场景初始化、渲染循环、模块协调
-class VirtualFittingRoom {
-  constructor() {
-    this.scene = null;
-    this.camera = null;
-    this.renderer = null;
-    this.controls = null;
-    this.bodyModel = null;
-    this.garmentFactory = null;
-    this.currentGarment = null;
-    this.isAnimating = false;
-    this.transitionState = null;
-    this.clostand = null;
+/**
+ * App 主控制器
+ * 绑定 UI 交互、驱动 RouteEngine 渲染
+ */
 
-    this.init();
-  }
+(function () {
+  'use strict';
 
-  init() {
-    // 场景
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf0f0f5);
-    this.scene.fog = new THREE.Fog(0xf0f0f5, 8, 20);
+  /* ====== DOM 引用 ====== */
+  const originInput  = document.getElementById('originInput');
+  const destInput    = document.getElementById('destInput');
+  const clearOrigin  = document.getElementById('clearOrigin');
+  const clearDest    = document.getElementById('clearDest');
+  const swapBtn      = document.getElementById('swapBtn');
+  const searchBtn    = document.getElementById('searchBtn');
+  const routeCards   = document.getElementById('routeCards');
+  const detailPanel  = document.getElementById('detailPanel');
+  const detailTitle  = document.getElementById('detailTitle');
+  const detailSteps  = document.getElementById('detailSteps');
+  const backBtn      = document.getElementById('backBtn');
+  const mapLegend    = document.getElementById('mapLegend');
 
-    // 相机
-    this.camera = new THREE.PerspectiveCamera(
-      45, window.innerWidth / window.innerHeight, 0.1, 100
-    );
-    this.camera.position.set(0, 1.0, 3.0);
-    this.camera.lookAt(0, 0.85, 0);
+  /* ====== 状态 ====== */
+  let routeEngine = null;
+  let currentData = null;
+  let activeMode  = null;
 
-    // 渲染器
-    const canvas = document.getElementById('renderCanvas');
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: canvas,
-      antialias: true,
-      alpha: false
-    });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+  /* ====== 初始化 ====== */
+  function init() {
+    routeEngine = new RouteEngine('map');
 
-    // 灯光
-    this._setupLights();
+    // 绑定事件
+    searchBtn.addEventListener('click', handleSearch);
+    swapBtn.addEventListener('click', handleSwap);
+    clearOrigin.addEventListener('click', () => { originInput.value = ''; originInput.focus(); });
+    clearDest.addEventListener('click', () => { destInput.value = ''; destInput.focus(); });
+    backBtn.addEventListener('click', hideDetail);
 
-    // 地面
-    this._setupGround();
+    // 回车搜索
+    originInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleSearch(); });
+    destInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleSearch(); });
 
-    // 展台
-    this._setupPlatform();
-
-    // OrbitControls
-    this._setupControls();
-
-    // 人体模型
-    this.bodyModel = new BodyModel(this.scene, {
-      height: 1.75,
-      build: 0.5
+    // 图例交互
+    mapLegend.querySelectorAll('.legend-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const mode = item.dataset.mode;
+        selectMode(mode);
+      });
     });
 
-    // 服装工厂
-    this.garmentFactory = new GarmentFactory();
-
-    // 窗口大小调整
-    window.addEventListener('resize', () => this._onResize());
-
-    // 开始渲染
-    this._animate();
+    // 自动触发首次搜索
+    handleSearch();
   }
 
-  _setupLights() {
-    // 环境光
-    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-    this.scene.add(ambient);
+  /* ====== 搜索 ====== */
+  function handleSearch() {
+    const origin = originInput.value.trim();
+    const dest = destInput.value.trim();
 
-    // 主灯（模拟摄影灯光）
-    const mainLight = new THREE.DirectionalLight(0xfff5ee, 1.2);
-    mainLight.position.set(3, 5, 3);
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 2048;
-    mainLight.shadow.mapSize.height = 2048;
-    mainLight.shadow.camera.near = 0.1;
-    mainLight.shadow.camera.far = 20;
-    mainLight.shadow.camera.left = -3;
-    mainLight.shadow.camera.right = 3;
-    mainLight.shadow.camera.top = 3;
-    mainLight.shadow.camera.bottom = -1;
-    mainLight.shadow.bias = -0.001;
-    this.scene.add(mainLight);
+    if (!origin || !dest) {
+      routeCards.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📍</div>
+          <div class="empty-text">请输入起点和终点<br>开始路线规划</div>
+        </div>`;
+      routeEngine.clearAll();
+      return;
+    }
 
-    // 填充光
-    const fillLight = new THREE.DirectionalLight(0xccddff, 0.4);
-    fillLight.position.set(-2, 3, -1);
-    this.scene.add(fillLight);
+    // 加载状态
+    searchBtn.classList.add('loading');
+    searchBtn.textContent = '规划中...';
+    routeCards.innerHTML = '';
 
-    // 背光/轮廓光
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    rimLight.position.set(0, 2, -3);
-    this.scene.add(rimLight);
+    // 模拟网络延迟
+    setTimeout(() => {
+      currentData = generateAllRoutes(origin, dest);
+      routeEngine.renderRoutes(currentData);
+      renderCards(currentData.routes);
 
-    // 底补光
-    const bottomLight = new THREE.PointLight(0xffeedd, 0.3, 5);
-    bottomLight.position.set(0, 0.2, 1);
-    this.scene.add(bottomLight);
+      // 默认选中最快路线
+      const fastest = currentData.routes.find(r => r.isFastest);
+      if (fastest) selectMode(fastest.mode);
+
+      searchBtn.classList.remove('loading');
+      searchBtn.textContent = '规划路线';
+    }, 600);
   }
 
-  _setupGround() {
-    // 地面网格
-    const groundGeo = new THREE.PlaneGeometry(20, 20);
-    const groundMat = new THREE.MeshStandardMaterial({
-      color: 0xe8e8ea,
-      roughness: 0.9,
-      metalness: 0.0
+  /* ====== 交换起终点 ====== */
+  function handleSwap() {
+    const tmp = originInput.value;
+    originInput.value = destInput.value;
+    destInput.value = tmp;
+    if (originInput.value) handleSearch();
+  }
+
+  /* ====== 渲染路线卡片 ====== */
+  function renderCards(routes) {
+    const maxDuration = Math.max(...routes.map(r => r.duration));
+
+    routeCards.innerHTML = routes.map(route => {
+      const modeIcon  = { walking: '🚶', cycling: '🚴', driving: '🚗' }[route.mode];
+      const modeLabel = { walking: '步行', cycling: '骑行', driving: '驾车' }[route.mode];
+      const progressPercent = (route.duration / maxDuration * 100).toFixed(0);
+
+      let tags = '';
+      if (route.isFastest) tags += '<span class="route-tag tag-fastest">最快</span>';
+      if (route.isShortest) tags += '<span class="route-tag tag-shortest">最短</span>';
+
+      return `
+        <div class="route-card" data-mode="${route.mode}" tabindex="0">
+          <div class="route-card-header">
+            <div class="route-mode">
+              <span class="mode-icon icon-${route.mode}">${modeIcon}</span>
+              <span>${modeLabel}</span>
+            </div>
+            <div>${tags}</div>
+          </div>
+          <div class="route-stats">
+            <div class="stat-item">
+              <span>⏱</span>
+              <span class="stat-value">${formatDuration(route.duration)}</span>
+            </div>
+            <div class="stat-item">
+              <span>📏</span>
+              <span class="stat-value">${route.distance} km</span>
+            </div>
+            <div class="stat-item">
+              <span>🚦</span>
+              <span class="stat-value">${route.trafficLights} 个</span>
+            </div>
+          </div>
+          <div class="route-progress">
+            <div class="route-progress-bar progress-${route.mode}" style="width:0%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 进度条入场动画
+    requestAnimationFrame(() => {
+      routeCards.querySelectorAll('.route-progress-bar').forEach((bar, i) => {
+        const percent = (routes[i].duration / maxDuration * 100).toFixed(0);
+        setTimeout(() => { bar.style.width = percent + '%'; }, 100 + i * 100);
+      });
     });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.01;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
-  }
 
-  _setupPlatform() {
-    // 圆形展台
-    const platformGeo = new THREE.CylinderGeometry(0.6, 0.65, 0.05, 32);
-    const platformMat = new THREE.MeshStandardMaterial({
-      color: 0xd0d0d5,
-      roughness: 0.6,
-      metalness: 0.1
+    // 卡片点击事件
+    routeCards.querySelectorAll('.route-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const mode = card.dataset.mode;
+        selectMode(mode);
+        showDetail(mode);
+      });
+
+      // 键盘访问
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter') card.click();
+      });
     });
-    this.clostand = new THREE.Mesh(platformGeo, platformMat);
-    this.clostand.position.y = 0.025;
-    this.clostand.receiveShadow = true;
-    this.clostand.castShadow = true;
-    this.scene.add(this.clostand);
   }
 
-  _setupControls() {
-    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, 0.85, 0);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.08;
-    this.controls.rotateSpeed = 0.6;
-    this.controls.minDistance = 1.5;
-    this.controls.maxDistance = 6;
-    this.controls.minPolarAngle = 0.2;
-    this.controls.maxPolarAngle = Math.PI - 0.2;
-    this.controls.enablePan = false;
-    this.controls.update();
-  }
+  /* ====== 选中路线模式 ====== */
+  function selectMode(mode) {
+    activeMode = mode;
+    routeEngine.highlightRoute(mode);
 
-  // 执行试穿
-  tryOn(type, color) {
-    // 淡出旧服装
-    if (this.currentGarment) {
-      this._removeGarment();
-    }
-
-    // 创建新服装
-    const garment = this.garmentFactory.create(type, this.bodyModel, color);
-    this.currentGarment = garment;
-    this.currentGarmentType = type;
-    this.scene.add(garment.mesh);
-
-    // 设置淡入
-    this.isAnimating = true;
-    this.simFrames = 0;
-
-    return garment;
-  }
-
-  _removeGarment() {
-    if (this.currentGarment) {
-      this.scene.remove(this.currentGarment.mesh);
-      this.currentGarment.mesh.geometry.dispose();
-      this.currentGarment.mesh.material.dispose();
-      this.currentGarment.physics.reset();
-      this.currentGarment = null;
-    }
-  }
-
-  // 更新服装颜色
-  changeColor(color) {
-    if (this.currentGarment) {
-      this.garmentFactory.updateColor(this.currentGarment, color);
-    }
-  }
-
-  // 更新体型
-  updateBody(params) {
-    this.bodyModel.updateParams(params);
-
-    // 重新试穿当前服装
-    if (this.currentGarment && this.currentGarmentType) {
-      const currentType = this.currentGarmentType;
-      const currentColor = this.currentGarment.mesh.material.color.getHex();
-      this._removeGarment();
-      this.tryOn(currentType, currentColor);
-    }
-  }
-
-  // 渲染循环
-  _animate() {
-    requestAnimationFrame(() => this._animate());
-
-    // 物理更新
-    if (this.currentGarment && this.isAnimating) {
-      this.simFrames++;
-      // 模拟稳定后降低更新频率（节省性能）
-      if (this.simFrames <= 120 || this.simFrames % 3 === 0) {
-        const colliders = this.bodyModel.getColliders();
-        this.currentGarment.physics.update(colliders);
-        this.garmentFactory.updateGeometry(this.currentGarment);
+    // 更新卡片激活状态
+    routeCards.querySelectorAll('.route-card').forEach(card => {
+      card.classList.remove('active-walking', 'active-cycling', 'active-driving');
+      if (card.dataset.mode === mode) {
+        card.classList.add(`active-${mode}`);
       }
-    }
-
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
+    });
   }
 
-  _onResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-}
+  /* ====== 显示详细指引 ====== */
+  function showDetail(mode) {
+    if (!currentData) return;
 
-// 入口
-window.addEventListener('DOMContentLoaded', () => {
-  window.app = new VirtualFittingRoom();
-});
+    const route = currentData.routes.find(r => r.mode === mode);
+    if (!route) return;
+
+    const modeColor = { walking: '#10b981', cycling: '#3b82f6', driving: '#f59e0b' }[mode];
+    const modeLabel = { walking: '步行', cycling: '骑行', driving: '驾车' }[mode];
+
+    detailTitle.innerHTML = `<span style="color:${modeColor}">${modeLabel}路线</span> 详细指引`;
+
+    detailSteps.innerHTML = route.steps.map((step, i) => {
+      const isFirst = i === 0;
+      const isLast = i === route.steps.length - 1;
+      const dotClass = isFirst ? 'dot-start' : isLast ? 'dot-end' : '';
+
+      return `
+        <div class="step-item" data-step="${i}">
+          <div class="step-connector">
+            <span class="step-dot ${dotClass}"></span>
+            ${!isLast ? '<span class="step-line"></span>' : ''}
+          </div>
+          <div class="step-content">
+            <div class="step-instruction">${step.instruction}</div>
+            <div class="step-meta">
+              <span>${step.distance} km</span>
+              <span>${step.duration} 分钟</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    detailPanel.classList.add('visible');
+
+    // 步骤点击高亮对应路段
+    detailSteps.querySelectorAll('.step-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const idx = parseInt(item.dataset.step);
+        const segment = route.steps[idx];
+        if (segment && segment.pathSegment) {
+          routeEngine.highlightSegment(segment.pathSegment, modeColor);
+        }
+      });
+    });
+  }
+
+  /* ====== 隐藏详细指引 ====== */
+  function hideDetail() {
+    detailPanel.classList.remove('visible');
+  }
+
+  /* ====== 工具函数 ====== */
+  function formatDuration(mins) {
+    if (mins < 60) return `${mins} 分钟`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}min` : `${h}h`;
+  }
+
+  /* ====== 启动 ====== */
+  document.addEventListener('DOMContentLoaded', init);
+})();

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多路线规划对比</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 顶栏 -->
+    <header class="app-header">
+      <div class="logo">🗺️ 多路线规划对比</div>
+    </header>
+
+    <div class="main-layout">
+      <!-- 左侧面板 -->
+      <aside class="side-panel">
+        <!-- 搜索输入 -->
+        <div class="search-section">
+          <div class="search-inputs">
+            <div class="input-group origin-group">
+              <span class="input-dot dot-green"></span>
+              <input type="text" id="originInput" placeholder="输入起点" value="天安门" />
+              <button class="btn-clear" id="clearOrigin" title="清除">✕</button>
+            </div>
+            <button class="btn-swap" id="swapBtn" title="交换起终点">⇅</button>
+            <div class="input-group dest-group">
+              <span class="input-dot dot-red"></span>
+              <input type="text" id="destInput" placeholder="输入终点" value="颐和园" />
+              <button class="btn-clear" id="clearDest" title="清除">✕</button>
+            </div>
+          </div>
+          <button class="btn-search" id="searchBtn">规划路线</button>
+        </div>
+
+        <!-- 路线概览卡片 -->
+        <div class="route-cards" id="routeCards">
+          <!-- 动态生成 -->
+        </div>
+
+        <!-- 详细指引面板 -->
+        <div class="detail-panel" id="detailPanel">
+          <div class="detail-header">
+            <button class="btn-back" id="backBtn">← 返回</button>
+            <span class="detail-title" id="detailTitle">详细指引</span>
+          </div>
+          <div class="detail-steps" id="detailSteps">
+            <!-- 动态生成 -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- 地图区域 -->
+      <div class="map-container">
+        <div id="map"></div>
+        <!-- 路线图例 -->
+        <div class="map-legend" id="mapLegend">
+          <div class="legend-item" data-mode="walking">
+            <span class="legend-line line-walking"></span>
+            <span>步行</span>
+          </div>
+          <div class="legend-item" data-mode="cycling">
+            <span class="legend-line line-cycling"></span>
+            <span>骑行</span>
+          </div>
+          <div class="legend-item" data-mode="driving">
+            <span class="legend-line line-driving"></span>
+            <span>驾车</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="mock-data.js"></script>
+  <script src="route-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
