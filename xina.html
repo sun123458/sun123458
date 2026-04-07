@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多路线规划对比</title>
+<!--
+  使用前请替换下方的 YOUR_AMAP_KEY 为你的高德地图 JS API Key
+  获取方式：https://console.amap.com/dev/key/app
+  注意：安全密钥（securityJsCode）也需一并配置
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --walk-color: #34C759;
+    --ride-color: #007AFF;
+    --drive-color: #FF9500;
+    --bg: #f5f5f7;
+    --card-bg: #ffffff;
+    --text: #1d1d1f;
+    --text-secondary: #86868b;
+    --shadow: 0 2px 12px rgba(0,0,0,.08);
+    --radius: 12px;
+    --transition: .3s cubic-bezier(.4,0,.2,1);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ===== App Layout ===== */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ===== Search Bar ===== */
+  .search-bar {
+    background: var(--card-bg);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow);
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .input-group {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .input-group .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .input-group .dot.origin { background: var(--walk-color); }
+  .input-group .dot.dest   { background: #FF3B30; }
+
+  .input-group input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    color: var(--text);
+  }
+
+  .input-group input::placeholder { color: var(--text-secondary); }
+
+  .search-btn {
+    background: #007AFF;
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition);
+  }
+
+  .search-btn:hover { background: #0056CC; }
+  .search-btn:disabled { background: #b0b0b6; cursor: not-allowed; }
+
+  /* ===== Autocomplete Dropdown ===== */
+  .ac-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 18px;
+    right: 0;
+    background: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.12);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 999;
+    display: none;
+  }
+
+  .ac-dropdown.show { display: block; }
+
+  .ac-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background .15s;
+  }
+
+  .ac-item:hover { background: #f0f5ff; }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item .ac-name { color: var(--text); }
+  .ac-item .ac-addr { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+
+  /* ===== Main Content ===== */
+  .main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .map-wrap {
+    flex: 1;
+    position: relative;
+  }
+
+  #map { width: 100%; height: 100%; }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    width: 360px;
+    background: var(--card-bg);
+    box-shadow: -2px 0 12px rgba(0,0,0,.06);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    z-index: 5;
+    transition: transform var(--transition);
+  }
+
+  .sidebar-title {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 16px 20px 8px;
+    color: var(--text);
+  }
+
+  /* ===== Route Cards ===== */
+  .route-card {
+    margin: 8px 16px;
+    padding: 16px;
+    border-radius: var(--radius);
+    background: var(--bg);
+    cursor: pointer;
+    transition: all var(--transition);
+    border: 2px solid transparent;
+    position: relative;
+  }
+
+  .route-card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .route-card.active { border-color: var(--active-color); background: #fff; }
+
+  .route-card .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .route-card .type-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+  }
+
+  .route-card .type-name { font-weight: 600; font-size: 15px; }
+
+  .route-card .metrics {
+    display: flex;
+    gap: 16px;
+  }
+
+  .route-card .metric {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .route-card .metric-value {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .route-card .metric-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .route-card .error-msg {
+    color: #FF3B30;
+    font-size: 13px;
+  }
+
+  /* ===== Loading ===== */
+  .route-card .loading-spinner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid #e0e0e0;
+    border-top-color: #007AFF;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== Detail Drawer ===== */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.3);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition);
+  }
+
+  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .detail-drawer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 60vh;
+    background: var(--card-bg);
+    border-radius: 16px 16px 0 0;
+    z-index: 101;
+    transform: translateY(100%);
+    transition: transform var(--transition);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .detail-drawer.open { transform: translateY(0); }
+
+  .drawer-handle {
+    width: 36px;
+    height: 4px;
+    background: #d1d1d6;
+    border-radius: 2px;
+    margin: 10px auto 6px;
+    flex-shrink: 0;
+  }
+
+  .drawer-header {
+    padding: 8px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #f0f0f0;
+    flex-shrink: 0;
+  }
+
+  .drawer-header h3 { font-size: 16px; }
+
+  .drawer-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 20px 24px;
+  }
+
+  .step-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  .step-item:last-child { border-bottom: none; }
+
+  .step-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .step-content { flex: 1; }
+  .step-instruction { font-size: 14px; line-height: 1.5; }
+  .step-distance { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 768px) {
+    .main-content { flex-direction: column; }
+    .sidebar {
+      width: 100%;
+      max-height: 40vh;
+      box-shadow: 0 -2px 12px rgba(0,0,0,.06);
+    }
+    .search-bar { flex-wrap: wrap; }
+    .input-group { min-width: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Search Bar -->
+  <div class="search-bar">
+    <div class="input-group">
+      <span class="dot origin"></span>
+      <input id="originInput" type="text" placeholder="输入起点" autocomplete="off">
+      <div class="ac-dropdown" id="originDropdown"></div>
+    </div>
+    <div class="input-group">
+      <span class="dot dest"></span>
+      <input id="destInput" type="text" placeholder="输入终点" autocomplete="off">
+      <div class="ac-dropdown" id="destDropdown"></div>
+    </div>
+    <button class="search-btn" id="searchBtn" disabled>规划路线</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="map-wrap">
+      <div id="map"></div>
+    </div>
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-title">路线对比</div>
+      <div id="routeCards"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Drawer -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="detail-drawer" id="detailDrawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <h3 id="drawerTitle">详细指引</h3>
+    <button class="drawer-close" id="drawerClose">&times;</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<script>
+  /* =========================================================
+   *  Configuration — 替换为你的高德地图 Key
+   * ========================================================= */
+  const AMAP_KEY = 'YOUR_AMAP_KEY';
+  const AMAP_SECRET = 'YOUR_AMAP_SECRET';
+
+  /* =========================================================
+   *  Route type definitions
+   * ========================================================= */
+  const ROUTE_TYPES = [
+    { key: 'walking', name: '步行', icon: '🚶', color: '#34C759', plugin: 'Walking' },
+    { key: 'riding', name: '骑行', icon: '🚴', color: '#007AFF', plugin: 'Riding' },
+    { key: 'driving', name: '驾车', icon: '🚗', color: '#FF9500', plugin: 'Driving' },
+  ];
+
+  /* =========================================================
+   *  State
+   * ========================================================= */
+  let map, geocoder;
+  let originPoi = null, destPoi = null;
+  let routeResults = {};       // { walking: result, riding: result, driving: result }
+  let routePolylines = {};     // { walking: [polyline, ...], ... }
+  let routeOverlays = {};      // extra overlays per route type
+  let originMarker, destMarker;
+  let activeRoute = null;      // currently selected route key
+
+  /* =========================================================
+   *  Load AMap JS API dynamically
+   * ========================================================= */
+  function loadAMapAPI() {
+    return new Promise((resolve, reject) => {
+      if (AMAP_KEY === 'YOUR_AMAP_KEY') {
+        reject(new Error('请先在 index.html 中配置你的高德地图 Key（搜索 YOUR_AMAP_KEY 替换）'));
+        return;
+      }
+      window._AMapSecurityConfig = { securityJsCode: AMAP_SECRET };
+      const s = document.createElement('script');
+      s.src = `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}&plugin=AMap.AutoComplete,AMap.Geocoder,AMap.Walking,AMap.Riding,AMap.Driving`;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('高德地图 JS API 加载失败，请检查 Key 和网络'));
+      document.head.appendChild(s);
+    });
+  }
+
+  /* =========================================================
+   *  Initialization
+   * ========================================================= */
+  async function init() {
+    try {
+      await loadAMapAPI();
+    } catch (e) {
+      alert(e.message);
+      return;
+    }
+
+    map = new AMap.Map('map', {
+      zoom: 12,
+      center: [116.397428, 39.90923],
+      viewMode: '2D',
+    });
+
+    geocoder = new AMap.Geocoder();
+
+    setupAutocomplete('originInput', 'originDropdown', poi => {
+      originPoi = poi;
+      checkReady();
+    });
+
+    setupAutocomplete('destInput', 'destDropdown', poi => {
+      destPoi = poi;
+      checkReady();
+    });
+
+    document.getElementById('searchBtn').addEventListener('click', planAllRoutes);
+
+    document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
+    document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+  }
+
+  /* =========================================================
+   *  Autocomplete
+   * ========================================================= */
+  function setupAutocomplete(inputId, dropdownId, onSelect) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+    const auto = new AMap.AutoComplete({ city: '全国' });
+
+    let debounceTimer;
+    input.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const kw = input.value.trim();
+        if (!kw) { dropdown.classList.remove('show'); return; }
+        auto.search(kw, (status, result) => {
+          if (status !== 'complete' || !result.tips) {
+            dropdown.classList.remove('show');
+            return;
+          }
+          const tips = result.tips.filter(t => t.location);
+          if (!tips.length) { dropdown.classList.remove('show'); return; }
+          dropdown.innerHTML = tips.map((t, i) =>
+            `<div class="ac-item" data-idx="${i}">
+              <div class="ac-name">${t.name}</div>
+              ${t.district ? `<div class="ac-addr">${t.district}${t.address || ''}</div>` : ''}
+            </div>`
+          ).join('');
+          dropdown.classList.add('show');
+          dropdown._tips = tips;
+        });
+      }, 300);
+    });
+
+    dropdown.addEventListener('click', e => {
+      const item = e.target.closest('.ac-item');
+      if (!item) return;
+      const tip = dropdown._tips[+item.dataset.idx];
+      input.value = tip.name;
+      dropdown.classList.remove('show');
+      onSelect({ name: tip.name, location: tip.location });
+    });
+
+    document.addEventListener('click', e => {
+      if (!dropdown.contains(e.target) && e.target !== input) {
+        dropdown.classList.remove('show');
+      }
+    });
+  }
+
+  /* =========================================================
+   *  Ready check
+   * ========================================================= */
+  function checkReady() {
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = !(originPoi && destPoi);
+  }
+
+  /* =========================================================
+   *  Plan all 3 routes in parallel
+   * ========================================================= */
+  function planAllRoutes() {
+    if (!originPoi || !destPoi) return;
+
+    // Reset previous
+    clearRoutes();
+    activeRoute = null;
+
+    // Add markers
+    if (originMarker) map.remove(originMarker);
+    if (destMarker) map.remove(destMarker);
+
+    originMarker = new AMap.Marker({
+      position: originPoi.location,
+      label: { content: '起', direction: 'top' },
+    });
+    destMarker = new AMap.Marker({
+      position: destPoi.location,
+      label: { content: '终', direction: 'top' },
+    });
+    map.add([originMarker, destMarker]);
+
+    // Show loading cards
+    renderLoadingCards();
+
+    const origin = originPoi.location;
+    const dest = destPoi.location;
+
+    // Plan each route type
+    planWalking(origin, dest);
+    planRiding(origin, dest);
+    planDriving(origin, dest);
+  }
+
+  /* =========================================================
+   *  Walking
+   * ========================================================= */
+  function planWalking(origin, dest) {
+    const walking = new AMap.Walking({ map: null, autoFitView: false });
+    walking.search(origin, dest, (status, result) => {
+      if (status === 'complete' && result.routes && result.routes.length) {
+        routeResults.walking = result;
+        drawRoute('walking', result.routes[0]);
+      } else {
+        routeResults.walking = null;
+        updateCard('walking', null);
+      }
+    });
+  }
+
+  /* =========================================================
+   *  Riding
+   * ========================================================= */
+  function planRiding(origin, dest) {
+    const riding = new AMap.Riding({ map: null, autoFitView: false });
+    riding.search(origin, dest, (status, result) => {
+      if (status === 'complete' && result.routes && result.routes.length) {
+        routeResults.riding = result;
+        drawRoute('riding', result.routes[0]);
+      } else {
+        routeResults.riding = null;
+        updateCard('riding', null);
+      }
+    });
+  }
+
+  /* =========================================================
+   *  Driving
+   * ========================================================= */
+  function planDriving(origin, dest) {
+    const driving = new AMap.Driving({ map: null, autoFitView: false });
+    driving.search(origin, dest, (status, result) => {
+      if (status === 'complete' && result.routes && result.routes.length) {
+        routeResults.driving = result;
+        drawRoute('driving', result.routes[0]);
+      } else {
+        routeResults.driving = null;
+        updateCard('driving', null);
+      }
+    });
+  }
+
+  /* =========================================================
+   *  Draw route polyline
+   * ========================================================= */
+  function drawRoute(routeKey, route) {
+    const config = ROUTE_TYPES.find(r => r.key === routeKey);
+    const path = extractPath(routeKey, route);
+
+    if (!path || !path.length) {
+      updateCard(routeKey, null);
+      return;
+    }
+
+    const polyline = new AMap.Polyline({
+      path,
+      strokeColor: config.color,
+      strokeWeight: 6,
+      strokeOpacity: 0.8,
+      lineJoin: 'round',
+      lineCap: 'round',
+      cursor: 'pointer',
+      zIndex: routeKey === 'driving' ? 10 : routeKey === 'riding' ? 20 : 30,
+    });
+
+    polyline.on('click', () => {
+      selectRoute(routeKey);
+      openDrawer(routeKey);
+    });
+
+    map.add(polyline);
+    routePolylines[routeKey] = [polyline];
+
+    // Auto-select first completed route
+    if (!activeRoute) {
+      selectRoute(routeKey);
+    }
+
+    // Update card
+    updateCard(routeKey, route);
+  }
+
+  /* =========================================================
+   *  Extract path from different route types
+   * ========================================================= */
+  function extractPath(routeKey, route) {
+    const points = [];
+
+    if (routeKey === 'walking') {
+      (route.steps || []).forEach(step => {
+        if (step.path) points.push(...step.path);
+      });
+    } else if (routeKey === 'riding') {
+      (route.rides || []).forEach(ride => {
+        (ride.steps || []).forEach(step => {
+          if (step.path) points.push(...step.path);
+        });
+      });
+    } else if (routeKey === 'driving') {
+      (route.steps || []).forEach(step => {
+        if (step.path) points.push(...step.path);
+      });
+    }
+
+    return points;
+  }
+
+  /* =========================================================
+   *  Clear all routes from map
+   * ========================================================= */
+  function clearRoutes() {
+    Object.values(routePolylines).flat().forEach(p => map.remove(p));
+    Object.values(routeOverlays).flat().forEach(o => map.remove(o));
+    routePolylines = {};
+    routeOverlays = {};
+    routeResults = {};
+  }
+
+  /* =========================================================
+   *  Select a route — highlight & fit view
+   * ========================================================= */
+  function selectRoute(routeKey) {
+    activeRoute = routeKey;
+    const config = ROUTE_TYPES.find(r => r.key === routeKey);
+
+    // Update polyline styles
+    Object.entries(routePolylines).forEach(([key, polylines]) => {
+      polylines.forEach(p => {
+        p.setOptions({
+          strokeOpacity: key === routeKey ? 0.9 : 0.2,
+          strokeWeight: key === routeKey ? 8 : 5,
+          zIndex: key === routeKey ? 50 : 10,
+        });
+      });
+    });
+
+    // Fit view to selected route
+    const polylines = routePolylines[routeKey];
+    if (polylines && polylines.length) {
+      map.setFitView(polylines, false, [80, 80, 80, 80], 18);
+    }
+
+    // Update card active state
+    document.querySelectorAll('.route-card').forEach(card => {
+      card.classList.toggle('active', card.dataset.type === routeKey);
+      if (card.dataset.type === routeKey) {
+        card.style.setProperty('--active-color', config.color);
+      }
+    });
+  }
+
+  /* =========================================================
+   *  Render loading cards
+   * ========================================================= */
+  function renderLoadingCards() {
+    const container = document.getElementById('routeCards');
+    container.innerHTML = ROUTE_TYPES.map(r => `
+      <div class="route-card" data-type="${r.key}" style="--active-color: ${r.color}">
+        <div class="card-header">
+          <div class="type-icon" style="background:${r.color}">${r.icon}</div>
+          <div class="type-name">${r.name}</div>
+        </div>
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <span>路线规划中...</span>
+        </div>
+      </div>
+    `).join('');
+
+    // Bind click to select
+    container.querySelectorAll('.route-card').forEach(card => {
+      card.addEventListener('click', () => {
+        if (routeResults[card.dataset.type] !== undefined) {
+          selectRoute(card.dataset.type);
+        }
+      });
+    });
+  }
+
+  /* =========================================================
+   *  Update single card with route data
+   * ========================================================= */
+  function updateCard(routeKey, route) {
+    const card = document.querySelector(`.route-card[data-type="${routeKey}"]`);
+    if (!card) return;
+
+    const config = ROUTE_TYPES.find(r => r.key === routeKey);
+
+    if (!route) {
+      card.innerHTML = `
+        <div class="card-header">
+          <div class="type-icon" style="background:${config.color}">${config.icon}</div>
+          <div class="type-name">${config.name}</div>
+        </div>
+        <div class="error-msg">未找到可用路线</div>
+      `;
+      return;
+    }
+
+    const info = extractRouteInfo(routeKey, route);
+    const trafficLightCount = routeKey === 'driving' ? extractTrafficLights(route) : null;
+
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="type-icon" style="background:${config.color}">${config.icon}</div>
+        <div class="type-name">${config.name}</div>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-value" style="color:${config.color}">${info.time}</span>
+          <span class="metric-label">预计耗时</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">${info.distance}</span>
+          <span class="metric-label">总距离</span>
+        </div>
+        ${trafficLightCount !== null ? `
+        <div class="metric">
+          <span class="metric-value">${trafficLightCount}</span>
+          <span class="metric-label">红绿灯</span>
+        </div>` : ''}
+      </div>
+    `;
+
+    // Restore active state
+    if (activeRoute === routeKey) {
+      card.classList.add('active');
+      card.style.setProperty('--active-color', config.color);
+    }
+
+    // Re-bind click
+    card.addEventListener('click', () => {
+      selectRoute(routeKey);
+    });
+
+    // Double-click to open details
+    card.addEventListener('dblclick', () => {
+      openDrawer(routeKey);
+    });
+  }
+
+  /* =========================================================
+   *  Extract route info (time & distance)
+   * ========================================================= */
+  function extractRouteInfo(routeKey, route) {
+    let timeSeconds = 0, distanceMeters = 0;
+
+    if (routeKey === 'walking') {
+      timeSeconds = route.time || 0;
+      distanceMeters = route.distance || 0;
+    } else if (routeKey === 'riding') {
+      timeSeconds = route.time || 0;
+      distanceMeters = route.distance || 0;
+    } else if (routeKey === 'driving') {
+      timeSeconds = route.time || 0;
+      distanceMeters = route.distance || 0;
+    }
+
+    return {
+      time: formatDuration(timeSeconds),
+      distance: formatDistance(distanceMeters),
+    };
+  }
+
+  function formatDuration(seconds) {
+    if (seconds < 60) return `${seconds}秒`;
+    const m = Math.floor(seconds / 60);
+    if (m < 60) return `${m}分钟`;
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    return rm ? `${h}小时${rm}分` : `${h}小时`;
+  }
+
+  function formatDistance(meters) {
+    if (meters < 1000) return `${meters}米`;
+    return `${(meters / 1000).toFixed(1)}公里`;
+  }
+
+  /* =========================================================
+   *  Extract traffic lights count from driving route
+   * ========================================================= */
+  function extractTrafficLights(route) {
+    // Try traffic_lights field first
+    if (route.traffic_lights !== undefined) {
+      return route.traffic_lights;
+    }
+    // Count from steps
+    let count = 0;
+    (route.steps || []).forEach(step => {
+      if (step.traffic_lights) count += step.traffic_lights;
+    });
+    return count || '-';
+  }
+
+  /* =========================================================
+   *  Detail Drawer
+   * ========================================================= */
+  function openDrawer(routeKey) {
+    const config = ROUTE_TYPES.find(r => r.key === routeKey);
+    const result = routeResults[routeKey];
+    if (!result) return;
+
+    document.getElementById('drawerTitle').textContent = `${config.name}路线 — 详细指引`;
+    document.getElementById('drawerBody').innerHTML = buildStepList(routeKey, result);
+
+    document.getElementById('drawerOverlay').classList.add('open');
+    document.getElementById('detailDrawer').classList.add('open');
+  }
+
+  function closeDrawer() {
+    document.getElementById('drawerOverlay').classList.remove('open');
+    document.getElementById('detailDrawer').classList.remove('open');
+  }
+
+  function buildStepList(routeKey, result) {
+    const route = result.routes ? result.routes[0] : result;
+    let steps = [];
+
+    if (routeKey === 'walking') {
+      steps = (route.steps || []).map(step => ({
+        instruction: step.instruction || step.action || '',
+        distance: step.distance,
+      }));
+    } else if (routeKey === 'riding') {
+      (route.rides || []).forEach(ride => {
+        (ride.steps || []).forEach(step => {
+          steps.push({
+            instruction: step.instruction || step.action || '',
+            distance: step.distance,
+          });
+        });
+      });
+    } else if (routeKey === 'driving') {
+      steps = (route.steps || []).map(step => ({
+        instruction: step.instruction || step.action || '',
+        distance: step.distance,
+      }));
+    }
+
+    if (!steps.length) return '<div style="color:var(--text-secondary);text-align:center;padding:20px;">暂无详细指引</div>';
+
+    return steps.map((step, i) => `
+      <div class="step-item">
+        <div class="step-icon">${i + 1}</div>
+        <div class="step-content">
+          <div class="step-instruction">${step.instruction}</div>
+          <div class="step-distance">${step.distance ? formatDistance(step.distance) : ''}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  /* =========================================================
+   *  Boot
+   * ========================================================= */
+  init();
+</script>
+
+</body>
+</html>
