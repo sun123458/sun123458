@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>简易地图 - Leaflet</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+    #map { width: 100vw; height: 100vh; }
+
+    /* ---- 顶栏 ---- */
+    .topbar {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 1000; display: flex; gap: 6px;
+      background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+      padding: 6px 12px; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.15);
+    }
+    .topbar button {
+      border: none; padding: 7px 16px; border-radius: 7px; cursor: pointer;
+      font-size: 13px; font-weight: 500; color: #444;
+      background: #f0f0f0; transition: all .2s;
+    }
+    .topbar button:hover { background: #e0e0e0; }
+    .topbar button.active { background: #007bff; color: #fff; }
+
+    /* ---- 定位按钮 ---- */
+    .locate-btn {
+      position: absolute; bottom: 30px; right: 14px; z-index: 1000;
+      width: 44px; height: 44px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+      box-shadow: 0 2px 8px rgba(0,0,0,.2); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .15s;
+    }
+    .locate-btn:hover { transform: scale(1.1); }
+    .locate-btn svg { width: 22px; height: 22px; fill: #007bff; }
+    .locate-btn.loading svg { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- 弹窗美化 ---- */
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px; padding: 0; overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,.18);
+    }
+    .leaflet-popup-content { margin: 0; width: 260px !important; }
+    .popup-card { font-size: 14px; }
+    .popup-card img {
+      width: 100%; height: 120px; object-fit: cover; display: block;
+    }
+    .popup-card .info { padding: 10px 14px; }
+    .popup-card .info h3 { margin: 0 0 4px; font-size: 15px; color: #222; }
+    .popup-card .info p { margin: 0; color: #666; font-size: 13px; line-height: 1.5; }
+    .popup-card .info .tag {
+      display: inline-block; margin-top: 6px; padding: 2px 8px;
+      background: #e8f4ff; color: #007bff; border-radius: 4px; font-size: 12px;
+    }
+    .leaflet-popup-tip { box-shadow: 0 4px 20px rgba(0,0,0,.18); }
+  </style>
+</head>
+<body>
+
+  <!-- 底图切换栏 -->
+  <div class="topbar" id="basemapBar">
+    <button class="active" data-layer="street">街道</button>
+    <button data-layer="satellite">卫星</button>
+    <button data-layer="terrain">地形</button>
+    <button data-layer="dark">暗色</button>
+  </div>
+
+  <!-- 定位按钮 -->
+  <button class="locate-btn" id="locateBtn" title="定位到当前位置">
+    <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3A8.99 8.99 0 0013 3.06V1h-2v2.06A8.99 8.99 0 003.06 11H1v2h2.06A8.99 8.99 0 0011 20.94V23h2v-2.06A8.99 8.99 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
+  </button>
+
+  <div id="map"></div>
+
+<script>
+// ========== 底图图层 ==========
+const tileLayers = {
+  street:    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri'
+  }),
+  terrain:   L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenTopoMap'
+  }),
+  dark:      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; CartoDB'
+  })
+};
+
+// ========== 初始化地图 ==========
+const map = L.map('map', {
+  center: [39.9042, 116.4074],   // 北京
+  zoom: 5,
+  layers: [tileLayers.street]
+});
+
+let currentLayer = tileLayers.street;
+
+// ========== 标记数据 ==========
+const markers = [
+  {
+    lat: 39.9042, lng: 116.4074,
+    name: '北京天安门',
+    desc: '中华人民共和国的象征，世界最大的城市中心广场。',
+    tag: '地标',
+    img: 'https://picsum.photos/seed/beijing/400/200'
+  },
+  {
+    lat: 31.2304, lng: 121.4737,
+    name: '上海外滩',
+    desc: '上海最具标志性的城市景观带，万国建筑博览群。',
+    tag: '景点',
+    img: 'https://picsum.photos/seed/shanghai/400/200'
+  },
+  {
+    lat: 22.5431, lng: 114.0579,
+    name: '深圳市民中心',
+    desc: '深圳市行政文化中心，改革开放的窗口城市。',
+    tag: '城市',
+    img: 'https://picsum.photos/seed/shenzhen/400/200'
+  },
+  {
+    lat: 30.5728, lng: 104.0668,
+    name: '成都天府广场',
+    desc: '天府之国的核心地标，休闲之都的文化心脏。',
+    tag: '地标',
+    img: 'https://picsum.photos/seed/chengdu/400/200'
+  },
+  {
+    lat: 34.2619, lng: 108.9428,
+    name: '西安钟楼',
+    desc: '中国现存最完整的古代钟楼，十三朝古都的标志。',
+    tag: '古迹',
+    img: 'https://picsum.photos/seed/xian/400/200'
+  },
+  {
+    lat: 25.0389, lng: 102.7183,
+    name: '昆明翠湖',
+    desc: '春城昆明的城市绿洲，四季如春的休闲胜地。',
+    tag: '风景区',
+    img: 'https://picsum.photos/seed/kunming/400/200'
+  }
+];
+
+// ========== 自定义图标 ==========
+const icon = L.divIcon({
+  className: '',
+  html: `<svg width="32" height="42" viewBox="0 0 32 42">
+           <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 26 16 26s16-14 16-26C32 7.16 24.84 0 16 0z" fill="#007bff"/>
+           <circle cx="16" cy="15" r="6" fill="#fff"/>
+         </svg>`,
+  iconSize: [32, 42],
+  iconAnchor: [16, 42],
+  popupAnchor: [0, -42]
+});
+
+// ========== 添加标记 ==========
+markers.forEach(m => {
+  const popupHTML = `
+    <div class="popup-card">
+      <img src="${m.img}" alt="${m.name}" />
+      <div class="info">
+        <h3>${m.name}</h3>
+        <p>${m.desc}</p>
+        <span class="tag">${m.tag}</span>
+      </div>
+    </div>`;
+
+  L.marker([m.lat, m.lng], { icon })
+    .addTo(map)
+    .bindPopup(popupHTML, { maxWidth: 280, closeButton: true });
+});
+
+// ========== 底图切换 ==========
+document.getElementById('basemapBar').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const key = btn.dataset.layer;
+  if (!tileLayers[key] || tileLayers[key] === currentLayer) return;
+
+  map.removeLayer(currentLayer);
+  currentLayer = tileLayers[key];
+  map.addLayer(currentLayer);
+
+  document.querySelectorAll('#basemapBar button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+});
+
+// ========== 定位功能 ==========
+const locateBtn = document.getElementById('locateBtn');
+
+locateBtn.addEventListener('click', () => {
+  locateBtn.classList.add('loading');
+
+  map.locate({ setView: true, maxZoom: 14, timeout: 8000 });
+});
+
+map.on('locationfound', e => {
+  locateBtn.classList.remove('loading');
+
+  // 定位标记
+  const locIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:18px;height:18px;background:#007bff;border:3px solid #fff;
+      border-radius:50%;box-shadow:0 0 8px rgba(0,123,255,.5);
+    "></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+
+  L.marker(e.latlng, { icon: locIcon })
+    .addTo(map)
+    .bindPopup(`<b>你的位置</b><br/>${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`)
+    .openPopup();
+
+  // 精度圈
+  L.circle(e.latlng, { radius: e.accuracy / 2, color: '#007bff', fillOpacity: 0.08, weight: 1 })
+    .addTo(map);
+});
+
+map.on('locationerror', () => {
+  locateBtn.classList.remove('loading');
+  alert('定位失败，请检查浏览器定位权限。');
+});
+</script>
+</body>
+</html>
