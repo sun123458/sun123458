@@ -41,7 +41,8 @@
                             <option value="🏔️">🏔️ 山脉</option>
                         </select>
                     </div>
-                    <p class="hint">点击地图添加标记，或使用搜索定位</p>
+                    <button id="addAttractionBtn" class="btn-primary">➕ 添加景点</button>
+                    <p class="hint">先点击地图选择位置，然后填写信息</p>
                 </div>
 
                 <div class="sidebar-section">
@@ -55,7 +56,12 @@
 
                 <div class="sidebar-section">
                     <h3>已添加景点</h3>
-                    <ul id="attractionsList" class="attractions-list"></ul>
+                    <ul id="attractionsList" class="attractions-list">
+                        <div class="empty-state">
+                            <div class="icon">📍</div>
+                            <p>还没有添加任何景点</p>
+                        </div>
+                    </ul>
                 </div>
 
                 <div class="sidebar-section">
@@ -101,7 +107,7 @@
     <script src="app.js"></script>
     <script>
         // 注册 Service Worker
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then(reg => console.log('Service Worker 注册成功'))
