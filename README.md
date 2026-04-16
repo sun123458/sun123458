@@ -1,262 +1,127 @@
-# AR增强现实展厅应用
+# 交互式旅行地图 - Leaflet + OpenStreetMap
 
-基于Web技术的AR增强现实展厅应用，让用户通过手机或平板设备的摄像头扫描特定图像标记，在真实空间中展示3D展品模型。
+一个基于 Leaflet 和 OpenStreetMap 的交互式旅行地图应用，支持添加景点标记、显示信息窗口、路线距离计算和 PWA 离线缓存功能。
 
 ## 功能特性
 
-- ✅ 基于图像标记的AR识别（使用Hiro标记）
-- ✅ 3D模型展示（支持GLTF格式）
-- ✅ 多展品切换功能
-- ✅ 交互式UI界面
-- ✅ 响应式设计（支持移动端）
-- ✅ 加载进度显示
-- ✅ 标记识别状态提示
-- ✅ 触摸手势支持（左右滑动切换展品）
+### 🗺️ 核心功能
+- **交互式地图**：基于 OpenStreetMap 的高质量地图显示
+- **景点标记**：点击地图任意位置添加景点
+- **信息窗口**：显示景点名称、描述和坐标信息
+- **自定义图标**：支持多种景点类型图标（景点、住宿、餐饮、购物等）
 
-## 技术栈
+### 📏 路线规划
+- **路线计算**：使用 OSRM 路由服务计算实际驾车路线
+- **距离显示**：显示总距离和预计时间
+- **路线可视化**：在地图上绘制路线路径
+- **直线距离**：路由服务不可用时使用 Haversine 公式计算
 
-- **Three.js r128**: 3D渲染引擎
-- **AR.js 3.3.2**: AR增强现实框架
-- **HTML5**: 页面结构
-- **原生JavaScript**: 无需构建工具
+### 📱 PWA 支持
+- **离线使用**：Service Worker 缓存静态资源和地图瓦片
+- **可安装**：支持安装到主屏幕，像原生应用一样使用
+- **后台同步**：支持离线数据同步
 
-## 项目结构
+### 💾 数据管理
+- **本地存储**：景点数据自动保存到 localStorage
+- **导出/导入**：支持 JSON 格式的数据导出和导入
+- **数据持久化**：页面刷新后数据不丢失
 
-```
-ar-gallery/
-├── index.html              # 主入口文件
-├── README.md              # 项目说明文档
-├── css/
-│   └── style.css          # 样式文件
-├── js/
-│   ├── app.js            # 主应用逻辑（AR场景初始化、渲染）
-│   ├── gallery.js        # 展厅管理器（展品状态管理）
-│   └── models.js         # 3D模型配置数据
-├── data/
-│   └── camera_para.dat   # AR相机参数文件
-└── assets/
-    └── models/            # 存放3D模型文件（GLTF格式）
-        ├── exhibit1.gltf   # 古代陶罐模型
-        ├── exhibit2.gltf   # 青铜器皿模型
-        └── exhibit3.gltf   # 古代玉器模型
-```
+### 🔍 其他功能
+- **地点搜索**：使用 Nominatim API 搜索全球地点
+- **用户定位**：获取并显示用户当前位置
+- **响应式设计**：支持桌面和移动设备
 
 ## 快速开始
 
-### 1. 安装本地服务器
+### 方法一：直接打开
+1. 确保所有文件在同一目录下
+2. 使用 HTTP 服务器打开（PWA 需要 HTTPS 或 localhost）
 
-由于AR应用需要访问摄像头和加载外部资源，必须通过HTTP服务器运行。选择以下任一方式：
-
-**方式A: 使用Python**
+### 方法二：使用 Python HTTP 服务器
 ```bash
-# Python 3
 python3 -m http.server 8000
-
-# 或 Python 2
-python -m SimpleHTTPServer 8000
 ```
+然后在浏览器访问 `http://localhost:8000`
 
-**方式B: 使用Node.js (http-server)**
+### 方法三：使用 Node.js http-server
 ```bash
-# 安装
-npm install -g http-server
-
-# 运行
-http-server -p 8000
+npx http-server -p 8000
 ```
 
-**方式C: 使用VS Code Live Server扩展**
-- 安装Live Server扩展
-- 右键点击index.html
-- 选择"Open with Live Server"
+## 使用指南
 
-### 2. 在移动设备上访问
+### 添加景点
+1. **点击地图**：点击地图上任意位置选择景点位置
+2. **填写信息**：输入景点名称、描述，选择图标类型
+3. **自动保存**：输入名称后景点会自动添加到列表
 
-1. 确保移动设备和电脑连接到同一Wi-Fi网络
-2. 查看电脑的本地IP地址（例如：192.168.1.100）
-3. 在移动设备浏览器中访问：`http://192.168.1.100:8000`
-4. 授予摄像头权限
-5. 将摄像头对准Hiro标记图案
+### 搜索地点
+1. 在搜索框输入地点名称
+2. 点击搜索按钮或按回车
+3. 点击搜索结果可直接定位
 
-### 3. Hiro标记
+### 计算路线
+1. 至少添加 2 个景点
+2. 点击"计算路线距离"按钮
+3. 系统会自动计算并显示路线
 
-点击以下链接查看和打印Hiro标记：
-- [Hiro标记图案](https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/hiro.png)
-- [Hiro Pattern文件](https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/pattern-hiro.patt)
+### 导出/导入数据
+- **导出**：点击"导出数据"按钮，保存 JSON 文件
+- **导入**：点击"导入数据"按钮，选择之前导出的 JSON 文件
 
-**建议**：
-- 打印在A4纸上，标记大小至少10cm x 10cm
-- 确保打印区域边缘清晰
-- 在光线充足的环境中使用
-- 保持摄像头距离标记30-50cm
+## 文件结构
 
-## 展品配置
-
-展品配置文件位于 `js/models.js`：
-
-```javascript
-const exhibits = [
-    {
-        id: 'hiro',                    // 唯一标识
-        pattern: 'hiro',              // AR标记类型
-        name: '古代陶罐',             // 展品名称
-        description: '...',            // 展品描述
-        modelPath: 'assets/models/exhibit1.gltf',  // 模型路径
-        thumbnail: 'assets/thumbnails/exhibit1.jpg', // 缩略图
-        scale: 1.0,                    // 缩放系数
-        position: { x: 0, y: 0.5, z: 0 } // 模型位置
-    },
-    // 更多展品...
-];
+```
+.
+├── index.html      # 主页面
+├── styles.css      # 样式文件
+├── app.js          # 应用主逻辑
+├── sw.js           # Service Worker (PWA 离线缓存)
+├── manifest.json   # PWA 清单文件
+└── README.md       # 说明文档
 ```
 
-## 自定义3D模型
+## 技术栈
 
-### 模型格式要求
+- **Leaflet**：开源交互式地图库
+- **OpenStreetMap**：免费地图数据源
+- **Nominatim API**：地点搜索服务
+- **OSRM**：开源路由引擎
+- **Service Worker API**：离线缓存
+- **localStorage**：本地数据存储
 
-- **格式**: GLTF或GLB
-- **单位**: 建议使用米作为单位
-- **尺寸**: 模型最大尺寸建议不超过2个单位
-- **材质**: 支持PBR材质
-- **优化**:
-  - 面数控制在5000以内（保证流畅运行）
-  - 使用压缩纹理
-  - 合并相同材质的网格
+## 浏览器支持
 
-### 模型转换工具
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+- Opera 76+
 
-常用的模型格式转换工具：
-- [Blender](https://www.blender.org/) - 导出为GLTF
-- [glTF-Validator](https://github.com/KhronosGroup/glTF-Validator) - 验证模型
-- [gltf-pipeline](https://github.com/CesiumGS/gltf-pipeline) - 优化压缩
+## 注意事项
 
-### 添加新展品
+1. **PWA 要求**：PWA 功能需要通过 HTTPS 或 localhost 访问
+2. **网络依赖**：搜索和路由功能需要网络连接
+3. **地图瓦片缓存**：访问过的地图区域会自动缓存，支持离线查看
+4. **数据备份**：建议定期导出数据进行备份
 
-1. 将GLTF模型文件放入 `assets/models/` 目录
-2. 在 `js/models.js` 中添加展品配置：
+## API 使用
 
-```javascript
-{
-    id: 'new-exhibit',
-    name: '新展品名称',
-    description: '展品描述文本',
-    modelPath: 'assets/models/new-model.gltf',
-    scale: 1.0,
-    position: { x: 0, y: 0.5, z: 0 }
-}
-```
+本项目使用以下免费 API：
 
-## 浏览器兼容性
+- **OpenStreetMap 瓦片**：`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`
+- **Nominatim 搜索**：`https://nominatim.openstreetmap.org/search`
+- **OSRM 路由**：`https://router.project-osrm.org/route`
 
-### 移动端支持
-
-- ✅ Chrome (Android) 推荐
-- ✅ Safari (iOS) 推荐
-- ⚠️ 其他浏览器可能需要用户特殊配置
-
-### 功能要求
-
-- WebGL 2.0 支持
-- 摄像头访问权限
-- HTTPS或本地网络环境
-
-## 故障排查
-
-### 问题1: 无法识别标记
-
-**解决方案**:
-- 确保光线充足
-- 调整摄像头距离（30-50cm）
-- 确保标记平整，无遮挡
-- 使用高清打印的标记
-- 清理摄像头镜头
-
-### 问题2: 摄像头无法启动
-
-**解决方案**:
-- 确保使用HTTPS或本地IP访问
-- 检查浏览器权限设置
-- 如果是iOS，确保使用Safari
-- 如果是Android，使用Chrome浏览器
-
-### 问题3: 模型加载失败
-
-**解决方案**:
-- 检查模型文件路径是否正确
-- 使用GLTF验证工具检查模型文件
-- 查看浏览器控制台的错误信息
-- 确保通过HTTP服务器访问（不是file://协议）
-
-### 问题4: 性能卡顿
-
-**解决方案**:
-- 降低模型面数
-- 减少场景中的光源数量
-- 使用GLB格式（压缩的二进制GLTF）
-- 关闭不必要的后台应用
-
-## 扩展功能建议
-
-### 1. 添加语音讲解
-```javascript
-// 在app.js的_loadCurrentModel方法中添加
-const speak = new SpeechSynthesisUtterance(exhibit.description);
-speechSynthesis.speak(speak);
-```
-
-### 2. 添加手势交互
-- 双指缩放模型
-- 单指旋转模型
-- 长按显示详细信息
-
-### 3. 支持多种标记
-- 使用AR.js Pattern Maker创建自定义标记
-- 为每个展品分配不同的标记图案
-
-### 4. 添加导航引导
-- 在展厅中添加虚拟箭头
-- 指导用户到下一个展品
-
-## 性能优化
-
-### 模型优化
-```
-使用 gltf-pipeline 压缩模型:
-npx gltf-pipeline -i model.gltf -o model.glb -d
-```
-
-### 渲染优化
-- 已启用：`antialias: true`
-- 已实现：加载进度显示
-- 已实现：标记丢失时停止渲染模型
-
-## 开发与调试
-
-### 查看日志
-在移动设备上：
-- Chrome: `chrome://inspect` → 需要USB调试
-- Safari: Mac→Safari→开发→[设备名称]
-
-### 本地测试
-1. 在浏览器控制台查看错误信息
-2. 检查Network标签确认资源加载
-3. 使用WebGL inspector调试渲染问题
+请遵守各 API 的使用条款和速率限制。
 
 ## 许可证
 
-MIT License - 欢迎自由使用和修改
+MIT License
 
-## 参考资源
+## 更新日志
 
-- [AR.js官方文档](https://ar-js-org.github.io/AR.js-Docs/)
-- [Three.js文档](https://threejs.org/docs/)
-- [GLTF格式规范](https://www.khronos.org/gltf/)
-- [Hiro标记下载](https://github.com/AR-js-org/AR.js/tree/master/data/data)
-
-## 贡献
-
-欢迎提交问题和改进建议！
-
----
-
-**Happy AR Creating!** 🎨📱✨
+### v1.0.0 (2024-04-16)
+- 初始版本发布
+- 支持景点标记和路线计算
+- 实现 PWA 离线缓存功能
+- 支持数据导出/导入
