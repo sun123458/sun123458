@@ -1,470 +1,203 @@
-// ===== 倒计时功能 =====
-class Countdown {
-    constructor(endTime, containerId, options = {}) {
-        this.endTime = new Date(endTime).getTime();
-        this.container = document.getElementById(containerId);
-        this.options = {
-            hours: document.getElementById('hours'),
-            minutes: document.getElementById('minutes'),
-            seconds: document.getElementById('seconds'),
-            ...options
-        };
-        this.init();
+// 知识库数据
+const plantKnowledge = {
+   浇水: {
+        keywords: ['浇水', '水', '干', '湿', 'frequency'],
+        answers: [
+            '💧 **浇水原则：**"见干见湿"是关键！\n\n**通用规则：**\n- 将手指插入土壤2-3cm，感觉干燥再浇水\n- 浇水要浇透，直到水从盆底流出\n- 不同植物需水量差异很大\n\n**常见植物浇水频率：**\n- 🌵 多肉：7-10天一次\n- 🪴 龟背竹：每周1-2次\n- 🍃 绿萝：保持土壤微湿\n- 🌸 蝴蝶兰：保持介质湿润但不积水',
+            '🌊 **浇水小贴士：**\n\n1. 避免中午高温时浇水，清晨或傍晚最佳\n2. 使用室温水，避免直接用自来水（可晾晒1-2天）\n3. 叶面如有灰尘可用湿布擦拭\n4. 冬季减少浇水频率，春季植物生长期可适当增加'
+        ]
+    },
+   施肥: {
+        keywords: ['施肥', '肥料', '营养', '肥料', '肥'],
+        answers: [
+            '🌱 **施肥指南：**\n\n**施肥时机：**\n- 春季（3-5月）和秋季（9-11月）是施肥黄金期\n- 夏季高温和冬季休眠期减少或停止施肥\n- 开花前追施磷钾肥\n\n**常见肥料类型：**\n- 💩 有机肥：腐熟的动物粪便、堆肥\n- 💊 复合肥：氮磷钾均衡\n- 💎 液体肥：稀释后使用，见效快\n\n**注意事项：**\n- 薄肥勤施，宁少勿多\n- 施肥后第二天浇一次透水',
+            '🧪 **不同植物施肥建议：**\n\n**观叶植物（龟背竹、绿萝）：**\n- 以氮肥为主，促进叶片生长\n- 每月施一次稀薄液肥\n\n**开花植物（蝴蝶兰）：**\n- 孕蕾期增施磷钾肥\n- 花期停止施肥\n\n**多肉植物：**\n- 需肥量少，春秋季偶尔施一次即可\n- 选择低浓度多肉专用肥'
+        ]
+    },
+   光照: {
+        keywords: ['光照', '太阳', '阳光', '光', '亮'],
+        answers: [
+            '☀️ **光照需求指南：**\n\n**喜阳植物：**\n- 🌻 向日葵、茉莉、月季\n- 需要每天6小时以上直射光\n\n**喜阴植物：**\n- 🪴 龟背竹、绿萝、蕨类\n- 散射光或室内明亮处即可\n\n**中性植物：**\n- 🌵 多肉、吊兰\n- 适应性强，半阴或全阳都能适应',
+            '🏠 **室内养护光照建议：**\n\n1. **南向窗台：** 光照最强，适合喜阳植物\n2. **东向窗台：** 早晨柔和阳光，适合大多数植物\n3. **西向窗台：** 下午阳光较强，需适当遮阴\n4. **北向窗台：** 光照较弱，适合耐阴植物\n\n💡 冬季光照不足时，可考虑使用植物补光灯'
+        ]
+    },
+   病虫害: {
+        keywords: ['虫', '病', '害', '斑点', '发黄', '枯萎', '蚜虫', '红蜘蛛', '白粉'],
+        answers: [
+            '🐛 **常见病虫害及防治：**\n\n**蚜虫：**\n- 症状：叶片卷曲、有粘液\n- 防治：用湿布擦拭、喷洒肥皂水或吡虫啉\n\n**红蜘蛛：**\n- 症状：叶片有细小红点、网状物\n- 防治：增加湿度、喷施阿维菌素\n\n**白粉病：**\n- 症状：叶片有白色粉末状物\n- 防治：改善通风、喷洒小苏打水',
+            '🏥 **植物生病诊断：**\n\n**叶子发黄：**\n- 下部老叶发黄→正常代谢或缺氮\n- 新叶发黄→可能缺铁或水渍\n- 整株发黄→浇水过多或根部问题\n\n**叶子枯萎：**\n- 土壤干燥→缺水\n- 土壤潮湿→烂根\n\n**叶子掉落：**\n- 突然换环境、温度变化大\n- 浇水不当导致'
+        ]
+    },
+   温度: {
+        keywords: ['温度', '冷', '热', '冻', '度'],
+        answers: [
+            '🌡️ **温度管理指南：**\n\n**适宜温度：**\n- 大多数室内植物：15-30℃\n- 热带植物：不低于18℃\n- 多肉：5-35℃都能适应\n\n**注意事项：**\n- 避免冷风吹袭（空调、暖气附近）\n- 冬季注意防冻，移至室内温暖处\n- 夏季高温时注意通风降温',
+            '❄️ **季节养护：**\n\n**春季：**\n- 换盆、施肥的最佳时期\n- 逐渐增加浇水频率\n\n**夏季：**\n- 高温时减少施肥\n- 注意遮阴、增加通风\n- 增加空气湿度\n\n**秋季：**\n- 准备过冬，控制浇水\n- 花卉植物可追施磷钾肥\n\n**冬季：**\n- 控制浇水，保持盆土偏干\n- 停止施肥\n- 注意保温防冻'
+        ]
     }
+};
 
-    init() {
-        this.update();
-        this.timer = setInterval(() => this.update(), 1000);
+// 植物详细知识
+const plantDetails = {
+    '龟背竹': {
+        info: '龟背竹原产于墨西哥热带雨林，叶片形状独特如龟背，是非常受欢迎的室内观叶植物。它的叶片随着年龄增长会逐渐开裂，形成独特的孔洞状。',
+        tips: ['喜欢散射光，避免阳光直射', '喜欢温暖湿润的环境', '可水培或土培', '定期擦拭叶片保持光泽']
+    },
+    '多肉植物': {
+        info: '多肉植物是指植物的根、茎或叶具有发达的薄壁组织用以储水，在外形上显得肥厚多汁。它们原产于干旱地区，进化出了耐旱的特性。',
+        tips: ['宁干勿湿，切忌积水', '需要充足的阳光', '使用疏松透气的土壤', '冬季控制浇水']
+    },
+    '蝴蝶兰': {
+        info: '蝴蝶兰素有"洋兰皇后"的美称，花朵形似蝴蝶，色彩丰富，花期长达3-4个月，是高档室内盆栽花卉。',
+        tips: ['使用专用兰花基质', '避免叶心积水', '花期后修剪花茎', '需要良好通风']
+    },
+    '绿萝': {
+        info: '绿萝是天南星科常绿藤本植物，生命力极强，被称为"生命之花"。它不仅能美化环境，还能有效净化空气，吸收甲醛等有害气体。',
+        tips: ['生命力强，适应性好', '可土培也可水培', '定期修剪促进分枝', '避免强光直射']
     }
+};
 
-    update() {
-        const now = new Date().getTime();
-        const distance = this.endTime - now;
+// DOM 元素
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const chatMessages = document.getElementById('chatMessages');
 
-        if (distance < 0) {
-            this.stop();
-            this.display(0, 0, 0);
-            return;
-        }
+// 查找匹配的回答
+function findAnswer(question) {
+    const q = question.toLowerCase();
 
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-        this.display(hours, minutes, seconds);
-    }
-
-    display(hours, minutes, seconds) {
-        if (this.options.hours) {
-            this.options.hours.textContent = this.padZero(hours);
-        }
-        if (this.options.minutes) {
-            this.options.minutes.textContent = this.padZero(minutes);
-        }
-        if (this.options.seconds) {
-            this.options.seconds.textContent = this.padZero(seconds);
-        }
-        if (this.container) {
-            this.container.textContent = `${this.padZero(hours)}:${this.padZero(minutes)}:${this.padZero(seconds)}`;
-        }
-    }
-
-    padZero(num) {
-        return num.toString().padStart(2, '0');
-    }
-
-    stop() {
-        clearInterval(this.timer);
-    }
-}
-
-// ===== 购物车管理 =====
-class ShoppingCart {
-    constructor() {
-        this.items = [];
-        this.count = 0;
-        this.init();
-    }
-
-    init() {
-        this.cartCountElements = document.querySelectorAll('.cart-count, .float-count');
-        this.buyButtons = document.querySelectorAll('.buy-btn');
-        this.bindEvents();
-    }
-
-    bindEvents() {
-        this.buyButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const productCard = e.target.closest('.product-card');
-                this.addProduct(productCard);
+    // 检查特定植物
+    for (const [plant, detail] of Object.entries(plantDetails)) {
+        if (q.includes(plant)) {
+            let response = `🌿 **${plant}详细介绍**\n\n${detail.info}\n\n💡 **养护要点：**\n`;
+            detail.tips.forEach(tip => {
+                response += `• ${tip}\n`;
             });
-        });
-    }
-
-    addProduct(productCard) {
-        const name = productCard.querySelector('.product-name').textContent;
-        const price = productCard.querySelector('.price-value').textContent;
-
-        this.items.push({ name, price });
-        this.count++;
-
-        this.updateCartDisplay();
-        this.showCartToast();
-        this.animateButton();
-    }
-
-    updateCartDisplay() {
-        this.cartCountElements.forEach(el => {
-            el.textContent = this.count;
-        });
-    }
-
-    showCartToast() {
-        const toast = document.getElementById('cartToast');
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
-    }
-
-    animateButton() {
-        const cartBtn = document.getElementById('cartFloat');
-        cartBtn.style.transform = 'scale(1.3)';
-        setTimeout(() => {
-            cartBtn.style.transform = 'scale(1)';
-        }, 200);
-    }
-}
-
-// ===== 优惠券管理 =====
-class CouponManager {
-    constructor() {
-        this.claimedCoupons = new Set();
-        this.init();
-    }
-
-    init() {
-        this.coupons = document.querySelectorAll('.coupon-item');
-        this.bindEvents();
-    }
-
-    bindEvents() {
-        this.coupons.forEach(coupon => {
-            coupon.addEventListener('click', () => {
-                this.claimCoupon(coupon);
-            });
-        });
-    }
-
-    claimCoupon(coupon) {
-        const couponId = coupon.dataset.id;
-
-        if (this.claimedCoupons.has(couponId)) {
-            return;
-        }
-
-        this.claimedCoupons.add(couponId);
-        coupon.classList.add('claimed');
-
-        const btn = coupon.querySelector('.coupon-btn');
-        btn.textContent = '已领取';
-        btn.style.background = '#4CAF50';
-        btn.style.color = 'white';
-
-        this.showToast();
-    }
-
-    showToast() {
-        const toast = document.getElementById('toast');
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
-    }
-}
-
-// ===== 滚动动画 =====
-class ScrollAnimation {
-    constructor() {
-        this.init();
-    }
-
-    init() {
-        this.setupScrollEffects();
-        this.setupBackToTop();
-    }
-
-    setupScrollEffects() {
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('animate-in');
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, observerOptions);
-
-        document.querySelectorAll('.product-card, .zone-item, .rule-item, .coupon-item').forEach(el => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateY(30px)';
-            observer.observe(el);
-        });
-    }
-
-    setupBackToTop() {
-        const topBtn = document.getElementById('topFloat');
-        const scrollY = window.scrollY;
-
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 500) {
-                topBtn.classList.add('visible');
-            } else {
-                topBtn.classList.remove('visible');
-            }
-        });
-
-        topBtn.addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-    }
-}
-
-// ===== 进度条动态更新 =====
-class ProgressUpdater {
-    constructor() {
-        this.init();
-    }
-
-    init() {
-        this.progressBars = document.querySelectorAll('.progress-fill');
-        this.startUpdating();
-    }
-
-    startUpdating() {
-        setInterval(() => {
-            this.progressBars.forEach(bar => {
-                let currentWidth = parseFloat(bar.style.width);
-                if (currentWidth < 98) {
-                    bar.style.width = `${currentWidth + 0.5}%`;
-                    const card = bar.closest('.product-card');
-                    const text = card.querySelector('.progress-text');
-                    text.textContent = `已抢${Math.round(currentWidth + 0.5)}%`;
-
-                    if (currentWidth > 90) {
-                        card.querySelector('.buy-btn').textContent = '即将售罄';
-                        card.querySelector('.buy-btn').style.background = '#FF9800';
-                    }
-                }
-            });
-        }, 3000);
-    }
-}
-
-// ===== 导航高亮 =====
-class NavHighlighter {
-    constructor() {
-        this.init();
-    }
-
-    init() {
-        this.sections = document.querySelectorAll('section[id]');
-        this.navLinks = document.querySelectorAll('.nav-link');
-
-        window.addEventListener('scroll', () => this.highlight());
-    }
-
-    highlight() {
-        const scrollY = window.scrollY + 100;
-
-        this.sections.forEach(section => {
-            const sectionTop = section.offsetTop;
-            const sectionHeight = section.offsetHeight;
-            const sectionId = section.getAttribute('id');
-
-            if (scrollY >= sectionTop && scrollY < sectionTop + sectionHeight) {
-                this.navLinks.forEach(link => {
-                    link.classList.remove('active');
-                    if (link.getAttribute('href') === `#${sectionId}`) {
-                        link.classList.add('active');
-                    }
-                });
-            }
-        });
-    }
-}
-
-// ===== 触摸滑动效果 =====
-class SwipeCards {
-    constructor() {
-        this.init();
-    }
-
-    init() {
-        this.setupSwipeEffect();
-    }
-
-    setupSwipeEffect() {
-        const cards = document.querySelectorAll('.product-card');
-
-        cards.forEach(card => {
-            let startX = 0;
-            let isDragging = false;
-
-            card.addEventListener('touchstart', (e) => {
-                startX = e.touches[0].clientX;
-                isDragging = true;
-            });
-
-            card.addEventListener('touchmove', (e) => {
-                if (!isDragging) return;
-                const currentX = e.touches[0].clientX;
-                const diff = startX - currentX;
-                card.style.transform = `translateX(${-diff * 0.1}px)`;
-            });
-
-            card.addEventListener('touchend', () => {
-                isDragging = false;
-                card.style.transform = '';
-            });
-        });
-    }
-}
-
-// ===== 分区活动倒计时 =====
-class FlashSaleTimer {
-    constructor() {
-        this.init();
-    }
-
-    init() {
-        // 设置2小时倒计时
-        const endTime = new Date().getTime() + 2 * 60 * 60 * 1000;
-        new Countdown(endTime, 'flashTimer');
-    }
-}
-
-// ===== 添加CSS动画类 =====
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-    .animate-in {
-        animation: fadeInUp 0.6s ease forwards;
-    }
-
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
+            return response;
         }
     }
 
-    .product-card.animate-in:nth-child(1) { animation-delay: 0.1s; }
-    .product-card.animate-in:nth-child(2) { animation-delay: 0.2s; }
-    .product-card.animate-in:nth-child(3) { animation-delay: 0.3s; }
-    .product-card.animate-in:nth-child(4) { animation-delay: 0.4s; }
-    .product-card.animate-in:nth-child(5) { animation-delay: 0.5s; }
-    .product-card.animate-in:nth-child(6) { animation-delay: 0.6s; }
-    .product-card.animate-in:nth-child(7) { animation-delay: 0.7s; }
-    .product-card.animate-in:nth-child(8) { animation-delay: 0.8s; }
-
-    .zone-item.animate-in:nth-child(1) { animation-delay: 0.1s; }
-    .zone-item.animate-in:nth-child(2) { animation-delay: 0.2s; }
-    .zone-item.animate-in:nth-child(3) { animation-delay: 0.3s; }
-    .zone-item.animate-in:nth-child(4) { animation-delay: 0.4s; }
-`;
-document.head.appendChild(styleSheet);
-
-// ===== 初始化所有功能 =====
-document.addEventListener('DOMContentLoaded', () => {
-    // 设置活动结束时间（明天24:00）
-    const endTime = new Date();
-    endTime.setDate(endTime.getDate() + 1);
-    endTime.setHours(24, 0, 0, 0);
-
-    // 初始化主倒计时
-    new Countdown(endTime, 'countdown', {
-        hours: document.getElementById('hours'),
-        minutes: document.getElementById('minutes'),
-        seconds: document.getElementById('seconds')
-    });
-
-    // 初始化其他功能
-    const cart = new ShoppingCart();
-    const coupon = new CouponManager();
-    const scrollAnim = new ScrollAnimation();
-    const progress = new ProgressUpdater();
-    const navHighlight = new NavHighlighter();
-    const swipeCards = new SwipeCards();
-    const flashTimer = new FlashSaleTimer();
-
-    // CTA按钮点击
-    document.querySelector('.cta-btn').addEventListener('click', () => {
-        document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
-    });
-
-    // 分区点击效果
-    document.querySelectorAll('.zone-item').forEach(zone => {
-        zone.addEventListener('click', () => {
-            showToast(`进入${zone.querySelector('.zone-label').textContent}`);
-        });
-    });
-
-    // Toast提示函数
-    function showToast(message) {
-        const toast = document.getElementById('toast');
-        toast.querySelector('.toast-text').textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
-    }
-
-    // 添加按钮点击动画
-    document.querySelectorAll('.buy-btn, .coupon-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            const ripple = document.createElement('span');
-            const rect = this.getBoundingClientRect();
-            ripple.style.cssText = `
-                position: absolute;
-                background: rgba(255, 255, 255, 0.5);
-                border-radius: 50%;
-                transform: scale(0);
-                animation: ripple 0.6s linear;
-                pointer-events: none;
-            `;
-            ripple.style.left = `${e.clientX - rect.left}px`;
-            ripple.style.top = `${e.clientY - rect.top}px`;
-            ripple.style.width = ripple.style.height = '100px';
-            ripple.style.marginLeft = ripple.style.marginTop = '-50px';
-            this.style.position = 'relative';
-            this.style.overflow = 'hidden';
-            this.appendChild(ripple);
-            setTimeout(() => ripple.remove(), 600);
-        });
-    });
-
-    // 添加波纹动画样式
-    const rippleStyle = document.createElement('style');
-    rippleStyle.textContent = `
-        @keyframes ripple {
-            to {
-                transform: scale(4);
-                opacity: 0;
+    // 检查关键词匹配
+    for (const [category, data] of Object.entries(plantKnowledge)) {
+        for (const keyword of data.keywords) {
+            if (q.includes(keyword)) {
+                // 随机选择一个答案
+                const answer = data.answers[Math.floor(Math.random() * data.answers.length)];
+                return answer;
             }
         }
+    }
+
+    // 默认回复
+    return `🤔 关于"${question}"的问题，我建议你：\n\n1. 提供更多细节，比如是什么植物遇到了什么问题\n2. 常见问题我可以帮你解答：\n   - 💧 浇水频率和方法\n   - 🌱 施肥技巧\n   - ☀️ 光照需求\n   - 🐛 病虫害防治\n\n请告诉我你想了解的具体内容！`;
+}
+
+// 添加消息到聊天
+function addMessage(content, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = isUser ? '👤' : '🤖';
+
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+
+    // 将换行符转换为 <br>，保留格式
+    content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    content = content.replace(/\n/g, '<br>');
+    messageContent.innerHTML = `<p>${content}</p>`;
+
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(messageContent);
+    chatMessages.appendChild(messageDiv);
+
+    // 滚动到底部
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// 添加打字指示器
+function addTypingIndicator() {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message bot-message typing-message';
+    messageDiv.id = 'typing';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = '🤖';
+
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+
+    const typingIndicator = document.createElement('div');
+    typingIndicator.className = 'typing-indicator';
+    typingIndicator.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
     `;
-    document.head.appendChild(rippleStyle);
-});
 
-// ===== 页面加载动画 =====
-window.addEventListener('load', () => {
-    document.body.style.opacity = '0';
-    document.body.style.transition = 'opacity 0.5s ease';
-    setTimeout(() => {
-        document.body.style.opacity = '1';
-    }, 100);
-});
+    messageContent.appendChild(typingIndicator);
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(messageContent);
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
-// ===== 防止页面抖动 =====
-let lastScrollY = window.scrollY;
-window.addEventListener('scroll', () => {
-    const currentScrollY = window.scrollY;
-    const direction = currentScrollY > lastScrollY ? 'down' : 'up';
-
-    const header = document.querySelector('.header');
-    if (direction === 'down' && currentScrollY > 200) {
-        header.style.transform = 'translateY(-100%)';
-    } else {
-        header.style.transform = 'translateY(0)';
+// 移除打字指示器
+function removeTypingIndicator() {
+    const typing = document.getElementById('typing');
+    if (typing) {
+        typing.remove();
     }
+}
 
-    lastScrollY = currentScrollY;
+// 处理用户输入
+function handleUserMessage() {
+    const question = chatInput.value.trim();
+    if (!question) return;
+
+    // 添加用户消息
+    addMessage(question, true);
+    chatInput.value = '';
+
+    // 显示打字指示器
+    addTypingIndicator();
+
+    // 模拟AI思考延迟
+    setTimeout(() => {
+        removeTypingIndicator();
+        const answer = findAnswer(question);
+        addMessage(answer, false);
+    }, 800 + Math.random() * 700);
+}
+
+// 快捷提问
+function askQuestion(question) {
+    chatInput.value = question;
+    handleUserMessage();
+}
+
+// 事件监听
+sendBtn.addEventListener('click', handleUserMessage);
+
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        handleUserMessage();
+    }
+});
+
+// 植物卡片点击事件
+document.querySelectorAll('.plant-card').forEach(card => {
+    card.addEventListener('click', () => {
+        const plantName = card.querySelector('h3').textContent;
+        const question = `${plantName}怎么养护？`;
+        askQuestion(question);
+    });
+});
+
+// 页面加载完成
+document.addEventListener('DOMContentLoaded', () => {
+    chatInput.focus();
 });

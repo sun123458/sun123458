@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 绿植助手 - 智能花草养护</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="logo">
+                <span class="leaf-icon">🌿</span>
+                <h1>AI 绿植助手</h1>
+            </div>
+            <p class="subtitle">智能花草养护专家</p>
+        </header>
+
+        <!-- 主要内容区 -->
+        <main class="main">
+            <!-- 左侧：植物知识卡片 -->
+            <section class="knowledge-section">
+                <h2 class="section-title">🌱 花草养护知识</h2>
+                <div class="plant-cards">
+                    <div class="plant-card" data-plant="monstera">
+                        <div class="plant-image">
+                            <span class="plant-emoji">🪴</span>
+                        </div>
+                        <h3>龟背竹</h3>
+                        <p class="plant-tag">喜阴 · 观叶植物</p>
+                        <p class="plant-desc">热带观叶植物，适合室内养护，叶片形状独特如龟背。</p>
+                        <div class="plant-tips">
+                            <span class="tip">💧 每周浇水1-2次</span>
+                            <span class="tip">🌡️ 适宜温度15-30℃</span>
+                        </div>
+                    </div>
+
+                    <div class="plant-card" data-plant="succulent">
+                        <div class="plant-image">
+                            <span class="plant-emoji">🌵</span>
+                        </div>
+                        <h3>多肉植物</h3>
+                        <p class="plant-tag">耐旱 · 易养护</p>
+                        <p class="plant-desc">肉质叶片储存水分，是新手入门的首选植物。</p>
+                        <div class="plant-tips">
+                            <span class="tip">💧 7-10天浇水一次</span>
+                            <span class="tip">☀️ 喜欢充足阳光</span>
+                        </div>
+                    </div>
+
+                    <div class="plant-card" data-plant="orchid">
+                        <div class="plant-image">
+                            <span class="plant-emoji">🌸</span>
+                        </div>
+                        <h3>蝴蝶兰</h3>
+                        <p class="plant-tag">花期长 · 雅致</p>
+                        <p class="plant-desc">高雅的室内花卉，花期可达数月，寓意美好。</p>
+                        <div class="plant-tips">
+                            <span class="tip">💧 保持介质湿润</span>
+                            <span class="tip">💨 需要良好通风</span>
+                        </div>
+                    </div>
+
+                    <div class="plant-card" data-plant="pothos">
+                        <div class="plant-image">
+                            <span class="plant-emoji">🍃</span>
+                        </div>
+                        <h3>绿萝</h3>
+                        <p class="plant-tag">净化空气 · 易活</p>
+                        <p class="plant-desc">生命力极强的爬藤植物，能有效净化室内空气。</p>
+                        <div class="plant-tips">
+                            <span class="tip">💧 保持土壤微湿</span>
+                            <span class="tip">🌫️ 可水培或土培</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右侧：智能问答 -->
+            <section class="chat-section">
+                <div class="chat-header">
+                    <span class="chat-avatar">🤖</span>
+                    <div>
+                        <h2>AI 植物顾问</h2>
+                        <p>有问题尽管问我！</p>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot-message">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <p>你好！我是你的AI绿植助手 👋</p>
+                            <p>我可以帮你解答关于花草养护的问题，比如：</p>
+                            <ul class="quick-questions">
+                                <li onclick="askQuestion('多肉植物多久浇一次水？')">多肉植物多久浇一次水？</li>
+                                <li onclick="askQuestion('龟背竹叶子发黄怎么办？')">龟背竹叶子发黄怎么办？</li>
+                                <li onclick="askQuestion('绿萝需要晒太阳吗？')">绿萝需要晒太阳吗？</li>
+                                <li onclick="askQuestion('蝴蝶兰怎么施肥？')">蝴蝶兰怎么施肥？</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <div class="input-wrapper">
+                        <input
+                            type="text"
+                            id="chatInput"
+                            placeholder="问我关于花草养护的问题..."
+                            autocomplete="off"
+                        >
+                        <button id="sendBtn" class="send-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="quick-tags">
+                        <span class="tag" onclick="askQuestion('浇水')">💧 浇水</span>
+                        <span class="tag" onclick="askQuestion('施肥')">🌱 施肥</span>
+                        <span class="tag" onclick="askQuestion('光照')">☀️ 光照</span>
+                        <span class="tag" onclick="askQuestion('病虫害')">🐛 病虫害</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
