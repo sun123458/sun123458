@@ -1,133 +1,151 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createBody } from './body.js';
-import { GARMENTS } from './garments.js';
-import './ui.js';
+/**
+ * 3D虚拟试衣间应用主程序
+ * 负责初始化、事件监听和各模块协调
+ */
 
-let scene, camera, renderer, controls;
-let bodyColliders = [];
-let garmentPieces = [];
-let currentGarment = 'tshirt';
-let windStrength = 0.3;
-let autoRotate = false;
-const clock = new THREE.Clock();
+class VirtualDressingRoom {
+    constructor() {
+        this.sceneManager = null;
+        this.isLoaded = false;
 
-export function initApp() {
-  const container = document.body;
+        // DOM元素
+        this.loadingElement = document.getElementById('loading');
+        this.dressButtons = document.querySelectorAll('.dress-btn');
+        this.colorButtons = document.querySelectorAll('.color-btn');
+        this.windSlider = document.getElementById('wind-strength');
+        this.elasticitySlider = document.getElementById('elasticity');
+        this.resetViewButton = document.getElementById('reset-view');
+        this.resetPhysicsButton = document.getElementById('reset-physics');
 
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x222222);
-  scene.fog = new THREE.Fog(0x222222, 3, 10);
-
-  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 1.4, 2.8);
-
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  container.appendChild(renderer.domElement);
-
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 1.1, 0);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.autoRotate = false;
-  controls.autoRotateSpeed = 2.0;
-  controls.maxPolarAngle = Math.PI / 2 - 0.05;
-  controls.minDistance = 1.5;
-  controls.maxDistance = 5;
-
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambient);
-
-  const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-  dir.position.set(2, 4, 3);
-  dir.castShadow = true;
-  dir.shadow.mapSize.width = 1024;
-  dir.shadow.mapSize.height = 1024;
-  dir.shadow.bias = -0.0005;
-  scene.add(dir);
-
-  const backLight = new THREE.DirectionalLight(0xffffff, 0.4);
-  backLight.position.set(-2, 3, -3);
-  scene.add(backLight);
-
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
-  bodyColliders = createBody(scene);
-  loadGarment('tshirt');
-
-  window.addEventListener('resize', onWindowResize);
-
-  const loading = document.getElementById('loading');
-  if (loading) loading.classList.add('hidden');
-
-  animate();
-}
-
-function loadGarment(key) {
-  for (const p of garmentPieces) {
-    scene.remove(p.mesh);
-    p.geometry.dispose();
-    p.material.dispose();
-  }
-  garmentPieces = [];
-
-  const builder = GARMENTS[key];
-  if (!builder) return;
-  garmentPieces = builder.build();
-  for (const p of garmentPieces) {
-    scene.add(p.mesh);
-  }
-  currentGarment = key;
-}
-
-export function switchGarment(key) {
-  if (key === currentGarment) return;
-  loadGarment(key);
-}
-
-export function toggleAutoRotate() {
-  autoRotate = !autoRotate;
-  controls.autoRotate = autoRotate;
-  return autoRotate;
-}
-
-export function resetCamera() {
-  controls.reset();
-  camera.position.set(0, 1.4, 2.8);
-  controls.target.set(0, 1.1, 0);
-}
-
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const steps = 4;
-  const subDt = dt / steps;
-
-  for (let s = 0; s < steps; s++) {
-    for (const piece of garmentPieces) {
-      piece.update(subDt, bodyColliders, windStrength);
+        this.init();
     }
-  }
 
-  controls.update();
-  renderer.render(scene, camera);
+    async init() {
+        try {
+            // 等待Three.js加载
+            await this.waitForThreeJS();
+
+            // 初始化场景管理器
+            this.sceneManager = new SceneManager();
+
+            // 隐藏加载动画
+            this.loadingElement.classList.add('hidden');
+            this.isLoaded = true;
+
+            // 设置事件监听
+            this.setupEventListeners();
+
+            console.log('3D虚拟试衣间初始化完成');
+        } catch (error) {
+            console.error('初始化失败:', error);
+            this.loadingElement.innerHTML = `
+                <div class="spinner"></div>
+                <p style="color: #e74c3c;">加载失败，请刷新页面重试</p>
+            `;
+        }
+    }
+
+    waitForThreeJS() {
+        return new Promise((resolve, reject) => {
+            const checkThree = () => {
+                if (typeof THREE !== 'undefined') {
+                    resolve();
+                } else {
+                    setTimeout(checkThree, 100);
+                }
+            };
+
+            // 5秒超时
+            const timeout = setTimeout(() => {
+                reject(new Error('Three.js加载超时'));
+            }, 5000);
+
+            checkThree().then(() => clearTimeout(timeout));
+        });
+    }
+
+    setupEventListeners() {
+        // 服装选择
+        this.dressButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const dressId = button.getAttribute('data-dress');
+                this.changeDress(dressId, button);
+            });
+        });
+
+        // 颜色选择
+        this.colorButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const color = button.getAttribute('data-color');
+                this.changeColor(color, button);
+            });
+        });
+
+        // 风力滑块
+        this.windSlider.addEventListener('input', (e) => {
+            const strength = parseInt(e.target.value);
+            if (this.sceneManager) {
+                this.sceneManager.setWindStrength(strength);
+            }
+        });
+
+        // 弹性滑块
+        this.elasticitySlider.addEventListener('input', (e) => {
+            const elasticity = parseInt(e.target.value) / 100;
+            if (this.sceneManager) {
+                this.sceneManager.setElasticity(elasticity);
+            }
+        });
+
+        // 重置视角
+        this.resetViewButton.addEventListener('click', () => {
+            if (this.sceneManager) {
+                this.sceneManager.resetCamera();
+            }
+        });
+
+        // 重置物理
+        this.resetPhysicsButton.addEventListener('click', () => {
+            if (this.sceneManager) {
+                this.sceneManager.resetPhysics();
+            }
+        });
+    }
+
+    changeDress(dressId, activeButton) {
+        if (!this.sceneManager) return;
+
+        // 更新按钮状态
+        this.dressButtons.forEach(btn => btn.classList.remove('active'));
+        activeButton.classList.add('active');
+
+        // 加载新服装
+        this.sceneManager.loadDress(dressId);
+
+        // 更新风力滑块值
+        const config = this.sceneManager.dressManager.getDressConfig(dressId);
+        if (config) {
+            this.windSlider.value = config.windStrength;
+            this.elasticitySlider.value = config.stiffness * 100;
+        }
+    }
+
+    changeColor(color, activeButton) {
+        if (!this.sceneManager) return;
+
+        // 更新按钮状态
+        this.colorButtons.forEach(btn => btn.classList.remove('active'));
+        activeButton.classList.add('active');
+
+        // 更改服装颜色
+        this.sceneManager.changeDressColor(color);
+    }
 }
 
-initApp();
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new VirtualDressingRoom();
+
+    // 添加到全局以便调试
+    window.app = app;
+});

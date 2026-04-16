@@ -1,59 +1,279 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body {
-  width: 100%; height: 100%;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background: #1a1a1a;
-  color: #fff;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-#loading {
-  position: fixed; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: #111; z-index: 100;
-  transition: opacity 0.3s;
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    overflow: hidden;
 }
-#loading.hidden { opacity: 0; pointer-events: none; }
+
+.container {
+    display: flex;
+    height: 100vh;
+    max-width: 1920px;
+    margin: 0 auto;
+}
+
+/* 3D预览区域 */
+.preview-area {
+    flex: 1;
+    position: relative;
+    background: radial-gradient(ellipse at center, #2c3e50 0%, #1a252f 100%);
+    overflow: hidden;
+}
+
+#canvas-container {
+    width: 100%;
+    height: 100%;
+}
+
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    color: white;
+    transition: opacity 0.5s ease;
+}
+
+.loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
 .spinner {
-  width: 48px; height: 48px;
-  border: 4px solid rgba(255,255,255,0.2);
-  border-top-color: #4fd1c5;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 12px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-#controls {
-  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 12px; z-index: 10;
-}
-#controls button {
-  padding: 8px 16px; border: none; border-radius: 20px;
-  background: rgba(255,255,255,0.15); backdrop-filter: blur(6px);
-  color: #fff; font-size: 14px; cursor: pointer; transition: background 0.2s;
-}
-#controls button:hover { background: rgba(255,255,255,0.3); }
-
-#garment-bar {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 10px; z-index: 10;
-  background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
-  padding: 10px; border-radius: 16px;
-}
-#garment-bar button {
-  padding: 10px 18px; border: none; border-radius: 12px;
-  background: rgba(255,255,255,0.1);
-  color: #fff; font-size: 14px; cursor: pointer; white-space: nowrap;
-  transition: background 0.2s, transform 0.1s;
-}
-#garment-bar button:hover { background: rgba(255,255,255,0.25); }
-#garment-bar button.active {
-  background: #4fd1c5; color: #111; font-weight: 600;
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
-canvas { display: block; }
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 控制面板 */
+.control-panel {
+    width: 380px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 30px;
+    overflow-y: auto;
+    box-shadow: -5px 0 30px rgba(0, 0, 0, 0.2);
+}
+
+.control-panel h2 {
+    font-size: 28px;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin-bottom: 30px;
+}
+
+.control-panel h3 {
+    font-size: 16px;
+    color: #34495e;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+/* 服装选择 */
+.dress-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 30px;
+}
+
+.dress-btn {
+    border: 2px solid #ecf0f1;
+    background: white;
+    border-radius: 12px;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.dress-btn:hover {
+    border-color: #bdc3c7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dress-btn.active {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.dress-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+}
+
+.dress-btn span {
+    font-size: 11px;
+    color: #34495e;
+    font-weight: 500;
+}
+
+/* 颜色选择 */
+.color-palette {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.color-btn {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 3px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.color-btn:hover {
+    transform: scale(1.1);
+}
+
+.color-btn.active {
+    border-color: #34495e;
+    box-shadow: 0 0 0 2px white, 0 0 0 4px #667eea;
+}
+
+/* 物理参数 */
+.physics-controls {
+    margin-bottom: 30px;
+}
+
+.control-group {
+    margin-bottom: 15px;
+}
+
+.control-group label {
+    display: block;
+    font-size: 13px;
+    color: #7f8c8d;
+    margin-bottom: 8px;
+}
+
+.control-group input[type="range"] {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #ecf0f1;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* 操作按钮 */
+.action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: #ecf0f1;
+    color: #34495e;
+}
+
+.btn-secondary:hover {
+    background: #dcdde1;
+}
+
+/* 信息提示 */
+.info {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #636e72;
+}
+
+.info p {
+    margin-bottom: 10px;
+}
+
+.info ul {
+    list-style: none;
+}
+
+.info li {
+    padding: 5px 0;
+    line-height: 1.6;
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .control-panel {
+        width: 100%;
+        height: auto;
+        max-height: 40vh;
+    }
+}
+
 @media (max-width: 640px) {
-  #garment-bar { flex-wrap: wrap; justify-content: center; max-width: 90vw; }
-  #controls button { font-size: 12px; padding: 6px 12px; }
+    .dress-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .color-palette {
+        grid-template-columns: repeat(8, 1fr);
+    }
 }
