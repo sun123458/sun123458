@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>粒子雨背景动效</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 10;
+      width: 260px;
+    }
+
+    .controls h2 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #ccc;
+      margin-bottom: 6px;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+      accent-color: #60a5fa;
+    }
+
+    .content {
+      padding: 120px 40px 40px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .content h1 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    .content p {
+      line-height: 2;
+      margin-bottom: 20px;
+      color: #ddd;
+      font-size: 16px;
+    }
+
+    .scroll-indicator {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      pointer-events: none;
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(8px); }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div class="controls">
+    <h2>粒子控制面板</h2>
+    <div class="control-group">
+      <label>下落速度: <span id="speedValue">4</span></label>
+      <input type="range" id="speedRange" min="1" max="20" value="4" step="0.5">
+    </div>
+    <div class="control-group">
+      <label>基础密度: <span id="densityValue">100</span></label>
+      <input type="range" id="densityRange" min="20" max="400" value="100" step="10">
+    </div>
+    <div class="control-group">
+      <label>颜色切换间隔: <span id="colorValue">2</span>s</label>
+      <input type="range" id="colorRange" min="0.5" max="10" value="2" step="0.5">
+    </div>
+  </div>
+
+  <div class="scroll-indicator">向下滚动查看密度变化效果</div>
+
+  <div class="content">
+    <h1>粒子雨动效演示</h1>
+    <p>这是一个高性能的 Canvas 粒子雨背景动效。页面滚动时，粒子密度会根据滚动距离动态增加，营造出沉浸式的视觉体验。所有动画均使用 requestAnimationFrame 渲染，确保在任何设备上都能流畅运行。</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    <p>继续向下滚动，你会注意到粒子变得越来越密集。这是通过监听 scroll 事件并计算滚动比例来实现的。Canvas 会根据当前的目标粒子数量平滑地增删粒子对象，避免瞬间大量创建或销毁导致的性能波动。</p>
+    <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+    <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+    <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</p>
+    <p>Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur.</p>
+    <p>Vel illum qui dolorem eum fugiat quo voluptas nulla pariatur? At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi.</p>
+    <p>Sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio.</p>
+    <p>Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.</p>
+    <p>Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae.</p>
+    <p>Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.</p>
+    <p>你已经滚动到了页面底部。可以感受到粒子密度随滚动增加的效果吗？回到顶部，密度会恢复到基础值。整个过程中动画始终保持流畅。</p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const speedRange = document.getElementById('speedRange');
+    const densityRange = document.getElementById('densityRange');
+    const colorRange = document.getElementById('colorRange');
+    const speedValue = document.getElementById('speedValue');
+    const densityValue = document.getElementById('densityValue');
+    const colorValue = document.getElementById('colorValue');
+
+    let width, height;
+    let particles = [];
+    let baseSpeed = parseFloat(speedRange.value);
+    let baseDensity = parseInt(densityRange.value);
+    let colorIntervalSec = parseFloat(colorRange.value);
+    let lastColorChange = 0;
+    let currentHue = Math.random() * 360;
+    let targetHue = Math.random() * 360;
+
+    // 滚动相关
+    let scrollRatio = 0; // 0 ~ 1
+    let targetCount = baseDensity;
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+      constructor() {
+        this.reset(true);
+      }
+
+      reset(initial = false) {
+        this.x = Math.random() * width;
+        this.y = initial ? Math.random() * height : -10;
+        this.length = Math.random() * 20 + 10;
+        this.speedRatio = Math.random() * 0.5 + 0.5;
+        this.speed = this.speedRatio * baseSpeed;
+        this.opacity = Math.random() * 0.5 + 0.2;
+        this.width = Math.random() * 2 + 1;
+        // 颜色偏移，营造层次感
+        this.hueOffset = (Math.random() - 0.5) * 40;
+      }
+
+      update() {
+        this.y += this.speed;
+        if (this.y > height) {
+          this.reset();
+        }
+      }
+
+      draw(hue) {
+        const h = (hue + this.hueOffset + 360) % 360;
+        ctx.strokeStyle = `hsla(${h}, 80%, 60%, ${this.opacity})`;
+        ctx.lineWidth = this.width;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x, this.y + this.length);
+        ctx.stroke();
+      }
+    }
+
+    function updateParticleCount() {
+      // 滚动越远，密度越高（最多增加到基础密度的3倍）
+      const densityMultiplier = 1 + scrollRatio * 2;
+      targetCount = Math.floor(baseDensity * densityMultiplier);
+
+      // 平滑增删粒子，避免瞬间波动
+      if (particles.length < targetCount) {
+        const addCount = Math.min(targetCount - particles.length, 5);
+        for (let i = 0; i < addCount; i++) {
+          particles.push(new Particle());
+        }
+      } else if (particles.length > targetCount) {
+        const removeCount = Math.min(particles.length - targetCount, 5);
+        particles.splice(0, removeCount);
+      }
+    }
+
+    function animate(time) {
+      ctx.clearRect(0, 0, width, height);
+
+      // 颜色渐变切换
+      if (time - lastColorChange > colorIntervalSec * 1000) {
+        targetHue = Math.random() * 360;
+        lastColorChange = time;
+      }
+      // 线性插值让颜色过渡平滑
+      const diff = targetHue - currentHue;
+      currentHue += diff * 0.01;
+
+      updateParticleCount();
+
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.speed = p.speedRatio * baseSpeed;
+        p.update();
+        p.draw(currentHue);
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    // 滚动监听：使用 passive 提升性能
+    window.addEventListener('scroll', () => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      scrollRatio = maxScroll > 0 ? window.scrollY / maxScroll : 0;
+    }, { passive: true });
+
+    // 控制面板事件
+    speedRange.addEventListener('input', (e) => {
+      baseSpeed = parseFloat(e.target.value);
+      speedValue.textContent = baseSpeed;
+    });
+
+    densityRange.addEventListener('input', (e) => {
+      baseDensity = parseInt(e.target.value);
+      densityValue.textContent = baseDensity;
+    });
+
+    colorRange.addEventListener('input', (e) => {
+      colorIntervalSec = parseFloat(e.target.value);
+      colorValue.textContent = colorIntervalSec;
+    });
+
+    // 初始化粒子
+    for (let i = 0; i < baseDensity; i++) {
+      particles.push(new Particle());
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
