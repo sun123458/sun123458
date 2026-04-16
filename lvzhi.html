@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>植语 - AI 绿植养护助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        leaf: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        body { font-family: 'Noto Sans SC', sans-serif; }
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .message-enter {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        .plant-card:hover {
+            transform: translateY(-4px);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #bbf7d0; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #86efac; }
+    </style>
+</head>
+<body class="bg-leaf-50 text-gray-800 h-screen overflow-hidden">
+    <div class="flex h-full">
+        <!-- 左侧边栏 -->
+        <aside class="w-72 bg-white border-r border-leaf-100 flex flex-col hidden md:flex shadow-sm">
+            <div class="p-6 border-b border-leaf-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-leaf-400 to-leaf-600 flex items-center justify-center text-white">
+                        <i class="fa-solid fa-leaf text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-xl text-gray-900">植语</h1>
+                        <p class="text-xs text-leaf-600">AI 绿植养护助手</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto p-4 space-y-2">
+                <button onclick="switchTab('chat')" id="nav-chat" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-leaf-50 text-leaf-700 font-medium transition-all">
+                    <i class="fa-regular fa-comments"></i>
+                    <span>AI 智能问答</span>
+                </button>
+                <button onclick="switchTab('plants')" id="nav-plants" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                    <i class="fa-solid fa-seedling"></i>
+                    <span>植物百科</span>
+                </button>
+                <button onclick="switchTab('care')" id="nav-care" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                    <i class="fa-solid fa-droplet"></i>
+                    <span>养护日历</span>
+                </button>
+                <button onclick="switchTab('tools')" id="nav-tools" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>养护计算器</span>
+                </button>
+
+                <div class="pt-4">
+                    <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">热门植物</p>
+                    <div class="space-y-1">
+                        <button onclick="quickAsk('龟背竹怎么养？')" class="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-leaf-50 hover:text-leaf-700 transition-all">
+                            🌿 龟背竹
+                        </button>
+                        <button onclick="quickAsk('多肉植物多久浇一次水？')" class="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-leaf-50 hover:text-leaf-700 transition-all">
+                            🌵 多肉植物
+                        </button>
+                        <button onclick="quickAsk('绿萝叶子发黄怎么办？')" class="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-leaf-50 hover:text-leaf-700 transition-all">
+                            🍃 绿萝
+                        </button>
+                        <button onclick="quickAsk('虎皮兰需要施肥吗？')" class="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-leaf-50 hover:text-leaf-700 transition-all">
+                            🌾 虎皮兰
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="p-4 border-t border-leaf-100">
+                <div class="bg-gradient-to-r from-leaf-500 to-leaf-600 rounded-xl p-4 text-white">
+                    <p class="text-sm font-medium mb-1"><i class="fa-solid fa-sparkles mr-1"></i> 每日小贴士</p>
+                    <p class="text-xs opacity-90" id="daily-tip">春夏季节浇水宜在清晨进行，避免正午高温时浇水。</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 flex flex-col relative overflow-hidden">
+            <!-- 顶部栏（移动端） -->
+            <header class="md:hidden glass border-b border-leaf-100 px-4 py-3 flex items-center justify-between sticky top-0 z-20">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-leaf-400 to-leaf-600 flex items-center justify-center text-white">
+                        <i class="fa-solid fa-leaf text-sm"></i>
+                    </div>
+                    <span class="font-bold text-gray-900">植语</span>
+                </div>
+                <button onclick="toggleMobileMenu()" class="p-2 text-gray-600">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+            </header>
+
+            <!-- 移动端菜单 -->
+            <div id="mobile-menu" class="hidden md:hidden absolute top-14 left-0 right-0 bg-white border-b border-leaf-100 z-10 shadow-lg">
+                <div class="p-4 space-y-2">
+                    <button onclick="switchTab('chat'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-600">AI 智能问答</button>
+                    <button onclick="switchTab('plants'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-600">植物百科</button>
+                    <button onclick="switchTab('care'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-600">养护日历</button>
+                    <button onclick="switchTab('tools'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-600">养护计算器</button>
+                </div>
+            </div>
+
+            <!-- ===== AI 聊天页面 ===== -->
+            <div id="tab-chat" class="flex-1 flex flex-col h-full">
+                <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6" id="chat-messages">
+                    <!-- 欢迎消息 -->
+                    <div class="flex gap-4 message-enter">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-leaf-400 to-leaf-600 flex items-center justify-center text-white flex-shrink-0">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <div class="max-w-[80%]">
+                            <div class="bg-white rounded-2xl rounded-tl-none p-5 shadow-sm border border-leaf-100">
+                                <p class="text-gray-800 leading-relaxed">你好！我是你的 AI 绿植养护助手 <span class="font-semibold text-leaf-600">植语</span> 🌱</p>
+                                <p class="text-gray-600 mt-2 leading-relaxed">我可以帮你解答关于花草养护的任何问题，比如浇水频率、施肥技巧、病虫害防治等。你想了解什么植物呢？</p>
+                                <div class="flex flex-wrap gap-2 mt-4">
+                                    <button onclick="quickAsk('新手适合养什么室内植物？')" class="px-3 py-1.5 bg-leaf-50 text-leaf-700 rounded-lg text-sm hover:bg-leaf-100 transition-colors">新手推荐</button>
+                                    <button onclick="quickAsk('怎么判断植物该浇水了？')" class="px-3 py-1.5 bg-leaf-50 text-leaf-700 rounded-lg text-sm hover:bg-leaf-100 transition-colors">浇水技巧</button>
+                                    <button onclick="quickAsk('室内植物叶子发黄的原因？')" class="px-3 py-1.5 bg-leaf-50 text-leaf-700 rounded-lg text-sm hover:bg-leaf-100 transition-colors">叶子发黄</button>
+                                </div>
+                            </div>
+                            <span class="text-xs text-gray-400 mt-1 ml-1">刚刚</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 输入框 -->
+                <div class="p-4 md:p-6 bg-white/80 backdrop-blur border-t border-leaf-100">
+                    <div class="max-w-4xl mx-auto relative">
+                        <input type="text" id="chat-input"
+                            class="w-full pl-5 pr-14 py-4 bg-white border border-leaf-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-leaf-400 focus:border-transparent transition-all"
+                            placeholder="请输入你的问题，例如：绿萝多久浇一次水？"
+                            onkeypress="if(event.key==='Enter') sendMessage()">
+                        <button onclick="sendMessage()"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-leaf-600 hover:bg-leaf-700 text-white rounded-xl flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-paper-plane text-sm"></i>
+                        </button>
+                    </div>
+                    <p class="text-center text-xs text-gray-400 mt-2">AI 生成的内容仅供参考，特殊植物建议咨询专业园艺师</p>
+                </div>
+            </div>
+
+            <!-- ===== 植物百科页面 ===== -->
+            <div id="tab-plants" class="flex-1 overflow-y-auto p-4 md:p-8 hidden">
+                <div class="max-w-5xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">植物百科</h2>
+                    <p class="text-gray-500 mb-6">了解常见室内植物的养护要点</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- 龟背竹 -->
+                        <div class="plant-card bg-white rounded-2xl p-5 shadow-sm border border-leaf-100 transition-all cursor-pointer" onclick="quickAsk('龟背竹怎么养？')">
+                            <div class="w-14 h-14 rounded-xl bg-leaf-100 flex items-center justify-center text-2xl mb-4">🌿</div>
+                            <h3 class="font-bold text-lg text-gray-900 mb-1">龟背竹</h3>
+                            <p class="text-sm text-gray-500 mb-3">Monstera deliciosa</p>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-sun text-yellow-500 w-4"></i> 散射光，忌暴晒</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-droplet text-blue-400 w-4"></i> 土干浇透，每周1次</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-temperature-half text-orange-400 w-4"></i> 20-30°C 适宜</div>
+                            </div>
+                        </div>
+
+                        <!-- 绿萝 -->
+                        <div class="plant-card bg-white rounded-2xl p-5 shadow-sm border border-leaf-100 transition-all cursor-pointer" onclick="quickAsk('绿萝怎么养？')">
+                            <div class="w-14 h-14 rounded-xl bg-leaf-100 flex items-center justify-center text-2xl mb-4">🍃</div>
+                            <h3 class="font-bold text-lg text-gray-900 mb-1">绿萝</h3>
+                            <p class="text-sm text-gray-500 mb-3">Epipremnum aureum</p>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-sun text-yellow-500 w-4"></i> 耐阴，忌强光</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-droplet text-blue-400 w-4"></i> 保持湿润，3-4天/次</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-temperature-half text-orange-400 w-4"></i> 15-25°C 适宜</div>
+                            </div>
+                        </div>
+
+                        <!-- 多肉 -->
+                        <div class="plant-card bg-white rounded-2xl p-5 shadow-sm border border-leaf-100 transition-all cursor-pointer" onclick="quickAsk('多肉植物怎么养？')">
+                            <div class="w-14 h-14 rounded-xl bg-leaf-100 flex items-center justify-center text-2xl mb-4">🌵</div>
+                            <h3 class="font-bold text-lg text-gray-900 mb-1">多肉植物</h3>
+                            <p class="text-sm text-gray-500 mb-3">Succulents</p>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-sun text-yellow-500 w-4"></i> 喜阳光，通风好</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-droplet text-blue-400 w-4"></i> 干透浇透，宁干勿湿</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-temperature-half text-orange-400 w-4"></i> 10-28°C 适宜</div>
+                            </div>
+                        </div>
+
+                        <!-- 虎皮兰 -->
+                        <div class="plant-card bg-white rounded-2xl p-5 shadow-sm border border-leaf-100 transition-all cursor-pointer" onclick="quickAsk('虎皮兰怎么养？')">
+                            <div class="w-14 h-14 rounded-xl bg-leaf-100 flex items-center justify-center text-2xl mb-4">🌾</div>
+                            <h3 class="font-bold text-lg text-gray-900 mb-1">虎皮兰</h3>
+                            <p class="text-sm text-gray-500 mb-3">Sansevieria trifasciata</p>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-sun text-yellow-500 w-4"></i> 耐阴耐旱</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-droplet text-blue-400 w-4"></i> 两周1次，冬季少浇</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-temperature-half text-orange-400 w-4"></i> 18-27°C 适宜</div>
+                            </div>
+                        </div>
+
+                        <!-- 吊兰 -->
+                        <div class="plant-card bg-white rounded-2xl p-5 shadow-sm border border-leaf-100 transition-all cursor-pointer" onclick="quickAsk('吊兰怎么养？')">
+                            <div class="w-14 h-14 rounded-xl bg-leaf-100 flex items-center justify-center text-2xl mb-4">🌱</div>
+                            <h3 class="font-bold text-lg text-gray-900 mb-1">吊兰</h3>
+                            <p class="text-sm text-gray-500 mb-3">Chlorophytum comosum</p>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-sun text-yellow-500 w-4"></i> 半阴环境最佳</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-droplet text-blue-400 w-4"></i> 盆土表面干即浇</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-temperature-half text-orange-400 w-4"></i> 15-25°C 适宜</div>
+                            </div>
+                        </div>
+
+                        <!-- 发财树 -->
+                        <div class="plant-card bg-white rounded-2xl p-5 shadow-sm border border-leaf-100 transition-all cursor-pointer" onclick="quickAsk('发财树怎么养？')">
+                            <div class="w-14 h-14 rounded-xl bg-leaf-100 flex items-center justify-center text-2xl mb-4">🌳</div>
+                            <h3 class="font-bold text-lg text-gray-900 mb-1">发财树</h3>
+                            <p class="text-sm text-gray-500 mb-3">Pachira aquatica</p>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-sun text-yellow-500 w-4"></i> 明亮散射光</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-droplet text-blue-400 w-4"></i> 少浇水，防烂根</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-temperature-half text-orange-400 w-4"></i> 20-30°C 适宜</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 养护日历页面 ===== -->
+            <div id="tab-care" class="flex-1 overflow-y-auto p-4 md:p-8 hidden">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">养护日历</h2>
+                    <p class="text-gray-500 mb-6">四季养护指南，让你的植物全年健康</p>
+
+                    <div class="space-y-6">
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-leaf-100">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600 text-xl">
+                                    <i class="fa-solid fa-sun"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg">春季养护（3-5月）</h3>
+                                    <p class="text-sm text-gray-500">万物复苏，生长旺季</p>
+                                </div>
+                            </div>
+                            <ul class="space-y-2 text-gray-600 text-sm">
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 逐渐增加浇水量，保持土壤湿润</li>
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 开始施肥，每2周施一次稀薄液肥</li>
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 适宜换盆、修剪、扦插繁殖</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-leaf-100">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 text-xl">
+                                    <i class="fa-solid fa-fire"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg">夏季养护（6-8月）</h3>
+                                    <p class="text-sm text-gray-500">高温多湿，注意防晒通风</p>
+                                </div>
+                            </div>
+                            <ul class="space-y-2 text-gray-600 text-sm">
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 早晚浇水，避免正午高温浇水</li>
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 遮阴防晒，保持通风良好</li>
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 注意防治红蜘蛛、蚜虫等害虫</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-leaf-100">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center text-yellow-600 text-xl">
+                                    <i class="fa-brands fa-canadian-maple-leaf"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg">秋季养护（9-11月）</h3>
+                                    <p class="text-sm text-gray-500">气温渐凉，减少水肥</p>
+                                </div>
+                            </div>
+                            <ul class="space-y-2 text-gray-600 text-sm">
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 逐渐减少浇水和施肥频率</li>
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 增加光照时间，移至向阳处</li>
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 及时清理落叶，预防病虫害</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-leaf-100">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
+                                    <i class="fa-solid fa-snowflake"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg">冬季养护（12-2月）</h3>
+                                    <p class="text-sm text-gray-500">休眠期，控水保温</p>
+                                </div>
+                            </div>
+                            <ul class="space-y-2 text-gray-600 text-sm">
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 大部分植物停止施肥</li>
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 控制浇水，保持盆土偏干</li>
+                                <li class="flex gap-2"><span class="text-leaf-500">●</span> 注意防寒保暖，避免冷风直吹</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 养护计算器页面 ===== -->
+            <div id="tab-tools" class="flex-1 overflow-y-auto p-4 md:p-8 hidden">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">养护计算器</h2>
+                    <p class="text-gray-500 mb-6">根据你的植物和环境，计算浇水施肥建议</p>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- 浇水计算器 -->
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-leaf-100">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                    <i class="fa-solid fa-droplet"></i>
+                                </div>
+                                <h3 class="font-bold text-lg">浇水频率计算器</h3>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">植物类型</label>
+                                    <select id="calc-plant" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-leaf-400 focus:outline-none">
+                                        <option value="succulent">多肉/仙人掌</option>
+                                        <option value=" foliage">绿萝/吊兰等观叶植物</option>
+                                        <option value="tropical">龟背竹/琴叶榕等热带植物</option>
+                                        <option value="herb">薄荷/罗勒等香草</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">当前季节</label>
+                                    <select id="calc-season" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-leaf-400 focus:outline-none">
+                                        <option value="spring">春季</option>
+                                        <option value="summer">夏季</option>
+                                        <option value="autumn">秋季</option>
+                                        <option value="winter">冬季</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">养护环境</label>
+                                    <select id="calc-env" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-leaf-400 focus:outline-none">
+                                        <option value="indoor">室内通风一般</option>
+                                        <option value="balcony">阳台通风良好</option>
+                                        <option value="outdoor">户外露天</option>
+                                    </select>
+                                </div>
+                                <button onclick="calculateWater()" class="w-full py-2.5 bg-leaf-600 hover:bg-leaf-700 text-white rounded-lg font-medium transition-colors">计算建议</button>
+                            </div>
+                            <div id="water-result" class="mt-4 p-4 bg-leaf-50 rounded-xl hidden">
+                                <p class="text-sm text-gray-600" id="water-result-text"></p>
+                            </div>
+                        </div>
+
+                        <!-- 施肥计算器 -->
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-leaf-100">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                                    <i class="fa-solid fa-flask"></i>
+                                </div>
+                                <h3 class="font-bold text-lg">施肥建议</h3>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">植物生长阶段</label>
+                                    <select id="calc-growth" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-leaf-400 focus:outline-none">
+                                        <option value="seedling">幼苗期</option>
+                                        <option value="growing">生长期</option>
+                                        <option value="blooming">开花期</option>
+                                        <option value="dormant">休眠期</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">上次施肥时间</label>
+                                    <select id="calc-last" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-leaf-400 focus:outline-none">
+                                        <option value="1">1周内</option>
+                                        <option value="2">2周前</option>
+                                        <option value="month">1个月前</option>
+                                        <option value="3month">3个月以上</option>
+                                    </select>
+                                </div>
+                                <button onclick="calculateFertilizer()" class="w-full py-2.5 bg-leaf-600 hover:bg-leaf-700 text-white rounded-lg font-medium transition-colors">获取建议</button>
+                            </div>
+                            <div id="fert-result" class="mt-4 p-4 bg-amber-50 rounded-xl hidden">
+                                <p class="text-sm text-gray-600" id="fert-result-text"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 标签切换
+        function switchTab(tab) {
+            ['chat', 'plants', 'care', 'tools'].forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+                const nav = document.getElementById('nav-' + t);
+                if (nav) {
+                    nav.classList.remove('bg-leaf-50', 'text-leaf-700', 'font-medium');
+                    nav.classList.add('text-gray-600');
+                }
+            });
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+            const activeNav = document.getElementById('nav-' + tab);
+            if (activeNav) {
+                activeNav.classList.add('bg-leaf-50', 'text-leaf-700', 'font-medium');
+                activeNav.classList.remove('text-gray-600');
+            }
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        // 知识库
+        const knowledgeBase = {
+            '浇水': '浇水原则是"见干见湿"，即土壤表面干了再浇，浇则浇透。夏季可在早晚浇水，冬季选择中午温暖时浇水。切忌积水，否则容易烂根。',
+            '施肥': '生长期（春夏季）可每2周施一次稀薄液肥；开花期增施磷钾肥；休眠期（冬季）应停止施肥。施肥原则是"薄肥勤施"，避免浓肥烧根。',
+            '龟背竹': '龟背竹喜欢明亮的散射光，忌强光直射。浇水保持土壤微湿即可，土表干了再浇。适宜温度20-30°C，注意保持空气湿度。',
+            '绿萝': '绿萝是非常好养的室内植物，耐阴怕暴晒。浇水保持土壤湿润，3-4天一次，经常向叶面喷水。发现黄叶要及时修剪。',
+            '多肉': '多肉植物养护要诀：多晒太阳、少浇水、通风好。浇水遵循"干透浇透"原则，宁干勿湿。夏季高温时会休眠，需控水遮阴。',
+            '黄叶': '叶子发黄常见原因：1.浇水过多或过少；2.光照太强或太弱；3.缺肥；4.土壤板结不透气。建议先检查土壤湿度，再调整光照和施肥。',
+            '新手': '新手推荐植物：绿萝、吊兰、虎皮兰、发财树。这些植物耐阴耐旱，对养护要求不高，非常适合初学者建立信心。',
+            '光照': '室内植物光照需求分为：喜阳（南向窗台）、耐半阴（东向/西向）、喜阴（北向/远离窗户）。大部分观叶植物喜欢明亮的散射光。'
+        };
+
+        function getAIResponse(input) {
+            const lower = input.toLowerCase();
+            for (const [key, value] of Object.entries(knowledgeBase)) {
+                if (lower.includes(key.toLowerCase())) {
+                    return value;
+                }
+            }
+
+            // 默认回答
+            const defaults = [
+                '这个问题很有意思！一般来说，室内植物养护要注意光、水、肥、温、湿五个方面。你能告诉我具体是什么植物吗？我可以给你更精准的建议。',
+                '好的，关于你的问题，我建议先观察植物的生长状态和土壤湿度。如果是常见室内植物，保持通风和适当光照通常是关键。需要更详细的解答吗？',
+                '收到你的问题！绿植养护因植物品种而异。你可以描述一下植物的品种、当前状态（叶子颜色、土壤干湿），我能给你更有针对性的建议。'
+            ];
+            return defaults[Math.floor(Math.random() * defaults.length)];
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addUserMessage(text);
+            input.value = '';
+
+            showTyping();
+            setTimeout(() => {
+                removeTyping();
+                addAIMessage(getAIResponse(text));
+            }, 800 + Math.random() * 700);
+        }
+
+        function quickAsk(text) {
+            switchTab('chat');
+            document.getElementById('chat-input').value = text;
+            sendMessage();
+        }
+
+        function addUserMessage(text) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'flex gap-4 justify-end message-enter';
+            div.innerHTML = `
+                <div class="max-w-[80%]">
+                    <div class="bg-leaf-600 text-white rounded-2xl rounded-tr-none p-4 shadow-sm">
+                        <p class="leading-relaxed">${escapeHtml(text)}</p>
+                    </div>
+                    <span class="text-xs text-gray-400 mt-1 mr-1 block text-right">刚刚</span>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 flex-shrink-0">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addAIMessage(text) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'flex gap-4 message-enter';
+            div.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-leaf-400 to-leaf-600 flex items-center justify-center text-white flex-shrink-0">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="max-w-[80%]">
+                    <div class="bg-white rounded-2xl rounded-tl-none p-5 shadow-sm border border-leaf-100">
+                        <p class="text-gray-800 leading-relaxed">${escapeHtml(text)}</p>
+                    </div>
+                    <span class="text-xs text-gray-400 mt-1 ml-1">刚刚</span>
+                </div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        let typingEl = null;
+        function showTyping() {
+            const container = document.getElementById('chat-messages');
+            typingEl = document.createElement('div');
+            typingEl.id = 'typing-indicator';
+            typingEl.className = 'flex gap-4 message-enter';
+            typingEl.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-leaf-400 to-leaf-600 flex items-center justify-center text-white flex-shrink-0">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-white rounded-2xl rounded-tl-none p-4 shadow-sm border border-leaf-100 flex items-center gap-1">
+                    <div class="w-2 h-2 bg-leaf-400 rounded-full typing-dot"></div>
+                    <div class="w-2 h-2 bg-leaf-400 rounded-full typing-dot"></div>
+                    <div class="w-2 h-2 bg-leaf-400 rounded-full typing-dot"></div>
+                </div>
+            `;
+            container.appendChild(typingEl);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function removeTyping() {
+            const el = document.getElementById('typing-indicator');
+            if (el) el.remove();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 计算器
+        function calculateWater() {
+            const plant = document.getElementById('calc-plant').value;
+            const season = document.getElementById('calc-season').value;
+            const env = document.getElementById('calc-env').value;
+
+            let baseFreq = '';
+            if (plant === 'succulent') baseFreq = '7-14天';
+            else if (plant === ' foliage') baseFreq = '3-5天';
+            else if (plant === 'tropical') baseFreq = '5-7天';
+            else baseFreq = '2-3天';
+
+            let seasonAdj = '';
+            if (season === 'summer') seasonAdj = '夏季高温蒸发快，建议缩短至原频率的三分之二，并增加叶面喷雾。';
+            else if (season === 'winter') seasonAdj = '冬季植物生长缓慢，建议延长至原频率的1.5倍，保持盆土偏干。';
+            else seasonAdj = '春秋是生长旺季，按常规频率浇水即可。';
+
+            let envAdj = '';
+            if (env === 'balcony') envAdj = '阳台通风好，水分蒸发快，可适当增加浇水频率。';
+            else if (env === 'outdoor') envAdj = '户外受天气影响大，雨天注意排水，晴天增加浇水。';
+            else envAdj = '室内通风一般，注意避免积水烂根。';
+
+            document.getElementById('water-result-text').innerHTML =
+                `<strong>建议浇水频率：${baseFreq}一次</strong><br><br>` +
+                `${seasonAdj}<br><br>${envAdj}`;
+            document.getElementById('water-result').classList.remove('hidden');
+        }
+
+        function calculateFertilizer() {
+            const growth = document.getElementById('calc-growth').value;
+            const last = document.getElementById('calc-last').value;
+
+            let advice = '';
+            if (growth === 'dormant') {
+                advice = '<strong>建议：暂停施肥</strong><br><br>休眠期植物代谢缓慢，施肥容易造成肥害。等到来年春季复苏后再开始施肥。';
+            } else if (growth === 'seedling') {
+                advice = '<strong>建议：施用稀薄氮肥</strong><br><br>幼苗期需氮肥促进枝叶生长，浓度要稀（正常浓度的1/2），每2周一次。';
+            } else if (growth === 'growing') {
+                advice = '<strong>建议：均衡复合肥</strong><br><br>生长期需要氮磷钾均衡的营养，可施用通用型液体肥或缓释肥，每2周一次。';
+            } else {
+                advice = '<strong>建议：增施磷钾肥</strong><br><br>开花期需要磷钾肥促进花芽分化和开花，可选用花多多2号或磷酸二氢钾。';
+            }
+
+            if (last === 'month' || last === '3month') {
+                advice += '<br><br>注意：你已经较长时间未施肥，如果植物处于生长期，建议尽快补充一次稀薄液肥。';
+            }
+
+            document.getElementById('fert-result-text').innerHTML = advice;
+            document.getElementById('fert-result').classList.remove('hidden');
+        }
+
+        // 每日小贴士轮换
+        const tips = [
+            '春夏季节浇水宜在清晨进行，避免正午高温时浇水。',
+            '发现叶片积灰时，可用湿布轻轻擦拭，有助于光合作用。',
+            '新买的植物建议先适应环境1-2周，再考虑换盆。',
+            '自来水最好晾晒1-2天再浇花，氯气挥发对植物更好。',
+            '定期转动花盆，让植物各面均匀受光，避免长偏。'
+        ];
+        document.getElementById('daily-tip').textContent = tips[Math.floor(Math.random() * tips.length)];
+    </script>
+</body>
+</html>
