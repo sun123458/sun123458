@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>两个小球同时下落实验</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .control-group {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group h3 {
+            font-size: 14px;
+            color: #a0a0a0;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .object-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .object-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .object-label {
+            width: 60px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .object-item select {
+            flex: 1;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .object-item select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .weight-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .weight-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .weight-label {
+            width: 60px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .weight-item input[type="range"] {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .weight-item input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .weight-value {
+            width: 50px;
+            text-align: right;
+            font-size: 14px;
+            color: #a0a0a0;
+        }
+
+        .environment-control {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, #ff6b6b 0%, #ee5a5a 100%);
+            transition: 0.3s;
+            border-radius: 30px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+
+        .vacuum-label {
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .slider-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .slider-label {
+            color: #a0a0a0;
+        }
+
+        .slider-value {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .slider-control input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .slider-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 右侧实验区域 */
+        .experiment-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .ground {
+            position: absolute;
+            bottom: 80px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+
+        /* 底部控制区 */
+        .bottom-panel {
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-start {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-start:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-reset {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-reset:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .results {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .result-item {
+            text-align: center;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            min-width: 120px;
+        }
+
+        .result-label {
+            font-size: 12px;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .result-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .result-unit {
+            font-size: 12px;
+            color: #a0a0a0;
+            margin-left: 2px;
+        }
+
+        .comparison-result {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .comparison-same {
+            color: #4ecdc4;
+        }
+
+        .comparison-diff {
+            color: #ff6b6b;
+        }
+
+        /* 背景粒子效果 */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* 标尺 */
+        .ruler {
+            position: absolute;
+            left: 20px;
+            top: 50px;
+            bottom: 80px;
+            width: 50px;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .ruler-mark {
+            position: absolute;
+            right: 0;
+            width: 10px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .ruler-mark.major {
+            width: 20px;
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .ruler-number {
+            position: absolute;
+            right: 25px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-50%);
+        }
+
+        /* 提示信息 */
+        .tip {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(102, 126, 234, 0.2);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            max-width: 300px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .tip-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧控制面板 -->
+        <div class="control-panel">
+            <div class="panel-title">🔬 实验控制面板</div>
+
+            <div class="control-group">
+                <h3>物体类型</h3>
+                <div class="object-selector">
+                    <div class="object-item">
+                        <span class="object-label">物体A</span>
+                        <select id="objectTypeA">
+                            <option value="ball">⚪ 小球</option>
+                            <option value="feather">🪶 羽毛</option>
+                        </select>
+                    </div>
+                    <div class="object-item">
+                        <span class="object-label">物体B</span>
+                        <select id="objectTypeB">
+                            <option value="ball">⚪ 小球</option>
+                            <option value="feather">🪶 羽毛</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>物体重量 (kg)</h3>
+                <div class="weight-selector">
+                    <div class="weight-item">
+                        <span class="weight-label">物体A</span>
+                        <input type="range" id="weightA" min="0.1" max="10" step="0.1" value="1">
+                        <span class="weight-value" id="weightAValue">1.0 kg</span>
+                    </div>
+                    <div class="weight-item">
+                        <span class="weight-label">物体B</span>
+                        <input type="range" id="weightB" min="0.1" max="10" step="0.1" value="1">
+                        <span class="weight-value" id="weightBValue">1.0 kg</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>环境设置</h3>
+                <div class="environment-control">
+                    <span class="vacuum-label">真空环境</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="vacuum">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-group" id="dragControl">
+                <h3>风阻系数</h3>
+                <div class="slider-control">
+                    <div class="slider-header">
+                        <span class="slider-label">阻力系数</span>
+                        <span class="slider-value" id="dragValue">0.47</span>
+                    </div>
+                    <input type="range" id="dragCoeff" min="0.1" max="2" step="0.01" value="0.47">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>重力加速度</h3>
+                <div class="slider-control">
+                    <div class="slider-header">
+                        <span class="slider-label">g 值</span>
+                        <span class="slider-value" id="gravityValue">9.8 m/s²</span>
+                    </div>
+                    <input type="range" id="gravity" min="1" max="20" step="0.1" value="9.8">
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧实验区域 -->
+        <div class="experiment-area">
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+                <div class="ground"></div>
+                <div class="ruler" id="ruler"></div>
+                <div class="tip">
+                    <div class="tip-title">💡 实验原理</div>
+                    在真空中，所有物体下落速度相同，与重量无关。在有空气的环境中，空气阻力会影响下落速度。
+                </div>
+            </div>
+
+            <!-- 底部控制区 -->
+            <div class="bottom-panel">
+                <div class="buttons">
+                    <button class="btn btn-start" id="startBtn">▶ 开始实验</button>
+                    <button class="btn btn-reset" id="resetBtn">↺ 重置</button>
+                </div>
+                <div class="results">
+                    <div class="result-item">
+                        <div class="result-label">物体A 落地时间</div>
+                        <div class="result-value" id="timeA">--<span class="result-unit">s</span></div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">物体B 落地时间</div>
+                        <div class="result-value" id="timeB">--<span class="result-unit">s</span></div>
+                    </div>
+                    <div class="comparison-result" id="comparison">
+                        等待实验...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const vacuumToggle = document.getElementById('vacuum');
+        const dragControl = document.getElementById('dragControl');
+        const ruler = document.getElementById('ruler');
+
+        // 控制元素
+        const objectTypeA = document.getElementById('objectTypeA');
+        const objectTypeB = document.getElementById('objectTypeB');
+        const weightA = document.getElementById('weightA');
+        const weightB = document.getElementById('weightB');
+        const weightAValue = document.getElementById('weightAValue');
+        const weightBValue = document.getElementById('weightBValue');
+        const dragCoeff = document.getElementById('dragCoeff');
+        const dragValue = document.getElementById('dragValue');
+        const gravitySlider = document.getElementById('gravity');
+        const gravityValue = document.getElementById('gravityValue');
+
+        // 结果显示
+        const timeADisplay = document.getElementById('timeA');
+        const timeBDisplay = document.getElementById('timeB');
+        const comparisonDisplay = document.getElementById('comparison');
+
+        // 实验状态
+        let isRunning = false;
+        let animationId = null;
+        let startTime = null;
+
+        // 物理参数
+        let g = 9.8; // 重力加速度
+        let dragCoefficient = 0.47; // 风阻系数
+        let isVacuum = false;
+        const airDensity = 1.225; // 空气密度 kg/m³
+
+        // 物体对象
+        let objectA = {
+            x: 0,
+            y: 0,
+            velocity: 0,
+            mass: 1,
+            type: 'ball',
+            radius: 20,
+            color: '#ff6b6b',
+            finished: false,
+            finishTime: null
+        };
+
+        let objectB = {
+            x: 0,
+            y: 0,
+            velocity: 0,
+            mass: 1,
+            type: 'ball',
+            radius: 20,
+            color: '#4ecdc4',
+            finished: false,
+            finishTime: null
+        };
+
+        // 初始化画布
+        function initCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            // 设置物体初始位置
+            objectA.x = canvas.width * 0.35;
+            objectA.y = 60;
+            objectB.x = canvas.width * 0.65;
+            objectB.y = 60;
+
+            // 根据重量调整大小
+            updateObjectSize();
+
+            draw();
+        }
+
+        // 根据重量更新物体大小
+        function updateObjectSize() {
+            const baseRadius = 20;
+            const sizeFactor = 0.3;
+
+            objectA.radius = baseRadius + (objectA.mass - 1) * sizeFactor * 5;
+            objectB.radius = baseRadius + (objectB.mass - 1) * sizeFactor * 5;
+        }
+
+        // 更新标尺
+        function updateRuler() {
+            ruler.innerHTML = '';
+            const containerHeight = canvas.parentElement.clientHeight - 130;
+            const marks = 10;
+            const heightPerMark = containerHeight / marks;
+
+            for (let i = 0; i <= marks; i++) {
+                const mark = document.createElement('div');
+                mark.className = i % 2 === 0 ? 'ruler-mark major' : 'ruler-mark';
+                mark.style.top = `${50 + i * heightPerMark}px`;
+
+                if (i % 2 === 0) {
+                    const number = document.createElement('div');
+                    number.className = 'ruler-number';
+                    const heightValue = (marks - i) * 0.5; // 假设总高度为5米
+                    number.textContent = heightValue.toFixed(1) + 'm';
+                    number.style.top = `${50 + i * heightPerMark}px`;
+                    ruler.appendChild(number);
+                }
+
+                ruler.appendChild(mark);
+            }
+        }
+
+        // 计算空气阻力
+        function calculateAirDrag(velocity, radius, type) {
+            if (isVacuum) return 0;
+
+            const area = Math.PI * radius * radius / 10000; // 转换为平方米
+            const shapeFactor = type === 'ball' ? 1 : 2; // 羽毛阻力更大
+            const drag = 0.5 * airDensity * dragCoefficient * area * shapeFactor * velocity * velocity;
+
+            return drag;
+        }
+
+        // 绘制物体
+        function drawObject(obj, label) {
+            ctx.save();
+
+            if (obj.type === 'ball') {
+                // 绘制小球
+                const gradient = ctx.createRadialGradient(
+                    obj.x - obj.radius * 0.3, obj.y - obj.radius * 0.3, 0,
+                    obj.x, obj.y, obj.radius
+                );
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(0.3, obj.color);
+                gradient.addColorStop(1, darkenColor(obj.color, 0.5));
+
+                ctx.beginPath();
+                ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // 添加光泽效果
+                ctx.beginPath();
+                ctx.arc(obj.x - obj.radius * 0.3, obj.y - obj.radius * 0.3, obj.radius * 0.2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fill();
+            } else {
+                // 绘制羽毛
+                drawFeather(obj.x, obj.y, obj.radius, obj.color);
+            }
+
+            // 绘制标签
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, obj.x, obj.y + obj.radius + 20);
+
+            // 显示重量
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.font = '12px Arial';
+            ctx.fillText(`${obj.mass.toFixed(1)}kg`, obj.x, obj.y + obj.radius + 35);
+
+            ctx.restore();
+        }
+
+        // 绘制羽毛
+        function drawFeather(x, y, size, color) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // 羽毛主体
+            ctx.beginPath();
+            ctx.moveTo(0, -size);
+            ctx.quadraticCurveTo(size * 0.8, -size * 0.3, 0, size);
+            ctx.quadraticCurveTo(-size * 0.8, -size * 0.3, 0, -size);
+            ctx.closePath();
+
+            const gradient = ctx.createLinearGradient(-size, 0, size, 0);
+            gradient.addColorStop(0, darkenColor(color, 0.3));
+            gradient.addColorStop(0.5, color);
+            gradient.addColorStop(1, darkenColor(color, 0.3));
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 羽毛茎
+            ctx.beginPath();
+            ctx.moveTo(0, -size);
+            ctx.lineTo(0, size);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 羽毛细节
+            for (let i = -5; i <= 5; i++) {
+                if (i === 0) continue;
+                const yPos = (i / 5) * size * 0.8;
+                const width = size * 0.6 * (1 - Math.abs(i) / 6);
+
+                ctx.beginPath();
+                ctx.moveTo(0, yPos);
+                ctx.lineTo(width, yPos + size * 0.05);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, yPos);
+                ctx.lineTo(-width, yPos + size * 0.05);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        // 颜色加深
+        function darkenColor(color, factor) {
+            const hex = color.replace('#', '');
+            const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) * (1 - factor)));
+            const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) * (1 - factor)));
+            const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) * (1 - factor)));
+            return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+        }
+
+        // 绘制场景
+        function draw() {
+            // 清除画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制背景渐变
+            const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGradient.addColorStop(0, 'rgba(26, 26, 46, 0)');
+            bgGradient.addColorStop(1, 'rgba(22, 33, 62, 0.3)');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制起点线
+            ctx.beginPath();
+            ctx.moveTo(0, 60);
+            ctx.lineTo(canvas.width, 60);
+            ctx.strokeStyle = 'rgba(102, 126, 234, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 绘制物体
+            drawObject(objectA, 'A');
+            drawObject(objectB, 'B');
+        }
+
+        // 物理更新
+        function updatePhysics(deltaTime) {
+            const containerHeight = canvas.parentElement.clientHeight;
+            const groundY = containerHeight - 80;
+
+            const scale = 0.02; // 像素到米的比例
+
+            [objectA, objectB].forEach(obj => {
+                if (obj.finished) return;
+
+                // 计算受力
+                const gravityForce = obj.mass * g * 9.8; // 放大重力效果
+                const dragForce = calculateAirDrag(obj.velocity, obj.radius, obj.type);
+                const netForce = gravityForce - dragForce;
+
+                // 计算加速度
+                const acceleration = netForce / obj.mass;
+
+                // 更新速度和位置
+                obj.velocity += acceleration * deltaTime * scale;
+                obj.y += obj.velocity * deltaTime * scale;
+
+                // 检查是否到达地面
+                if (obj.y + obj.radius >= groundY) {
+                    obj.y = groundY - obj.radius;
+                    obj.finished = true;
+                    obj.finishTime = (Date.now() - startTime) / 1000;
+                    updateResult(obj);
+                }
+            });
+
+            // 检查是否都完成
+            if (objectA.finished && objectB.finished) {
+                isRunning = false;
+                startBtn.disabled = false;
+                showComparison();
+            }
+        }
+
+        // 更新结果显示
+        function updateResult(obj) {
+            if (obj === objectA) {
+                timeADisplay.innerHTML = `${obj.finishTime.toFixed(3)}<span class="result-unit">s</span>`;
+            } else {
+                timeBDisplay.innerHTML = `${obj.finishTime.toFixed(3)}<span class="result-unit">s</span>`;
+            }
+        }
+
+        // 显示比较结果
+        function showComparison() {
+            if (objectA.finished && objectB.finished) {
+                const diff = Math.abs(objectA.finishTime - objectB.finishTime);
+                if (diff < 0.001) {
+                    comparisonDisplay.innerHTML = '🎯 同时落地！';
+                    comparisonDisplay.className = 'comparison-result comparison-same';
+                } else {
+                    const faster = objectA.finishTime < objectB.finishTime ? 'A' : 'B';
+                    const slower = objectA.finishTime < objectB.finishTime ? 'B' : 'A';
+                    comparisonDisplay.innerHTML = `${faster} 先落地，快 ${diff.toFixed(3)}s`;
+                    comparisonDisplay.className = 'comparison-result comparison-diff';
+                }
+            }
+        }
+
+        // 动画循环
+        let lastTime = 0;
+        function animate(currentTime) {
+            if (!isRunning) return;
+
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            updatePhysics(deltaTime);
+            draw();
+
+            if (isRunning) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        // 开始实验
+        function startExperiment() {
+            if (isRunning) return;
+
+            // 重置物体状态
+            objectA.velocity = 0;
+            objectA.y = 60;
+            objectA.finished = false;
+            objectA.finishTime = null;
+            objectA.mass = parseFloat(weightA.value);
+            objectA.type = objectTypeA.value;
+
+            objectB.velocity = 0;
+            objectB.y = 60;
+            objectB.finished = false;
+            objectB.finishTime = null;
+            objectB.mass = parseFloat(weightB.value);
+            objectB.type = objectTypeB.value;
+
+            // 更新物理参数
+            g = parseFloat(gravitySlider.value);
+            dragCoefficient = parseFloat(dragCoeff.value);
+            isVacuum = vacuumToggle.checked;
+
+            // 更新物体大小
+            updateObjectSize();
+
+            // 重置显示
+            timeADisplay.innerHTML = '--<span class="result-unit">s</span>';
+            timeBDisplay.innerHTML = '--<span class="result-unit">s</span>';
+            comparisonDisplay.innerHTML = '实验进行中...';
+            comparisonDisplay.className = 'comparison-result';
+
+            // 开始动画
+            isRunning = true;
+            startBtn.disabled = true;
+            startTime = Date.now();
+            lastTime = performance.now();
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // 重置实验
+        function resetExperiment() {
+            isRunning = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+
+            objectA.velocity = 0;
+            objectA.y = 60;
+            objectA.finished = false;
+            objectA.finishTime = null;
+            objectA.mass = parseFloat(weightA.value);
+            objectA.type = objectTypeA.value;
+
+            objectB.velocity = 0;
+            objectB.y = 60;
+            objectB.finished = false;
+            objectB.finishTime = null;
+            objectB.mass = parseFloat(weightB.value);
+            objectB.type = objectTypeB.value;
+
+            updateObjectSize();
+            draw();
+
+            timeADisplay.innerHTML = '--<span class="result-unit">s</span>';
+            timeBDisplay.innerHTML = '--<span class="result-unit">s</span>';
+            comparisonDisplay.innerHTML = '等待实验...';
+            comparisonDisplay.className = 'comparison-result';
+
+            startBtn.disabled = false;
+        }
+
+        // 事件监听
+        startBtn.addEventListener('click', startExperiment);
+        resetBtn.addEventListener('click', resetExperiment);
+
+        vacuumToggle.addEventListener('change', (e) => {
+            isVacuum = e.target.checked;
+            dragControl.style.opacity = isVacuum ? '0.3' : '1';
+            dragControl.style.pointerEvents = isVacuum ? 'none' : 'auto';
+        });
+
+        weightA.addEventListener('input', (e) => {
+            weightAValue.textContent = parseFloat(e.target.value).toFixed(1) + ' kg';
+            objectA.mass = parseFloat(e.target.value);
+            updateObjectSize();
+            draw();
+        });
+
+        weightB.addEventListener('input', (e) => {
+            weightBValue.textContent = parseFloat(e.target.value).toFixed(1) + ' kg';
+            objectB.mass = parseFloat(e.target.value);
+            updateObjectSize();
+            draw();
+        });
+
+        dragCoeff.addEventListener('input', (e) => {
+            dragValue.textContent = parseFloat(e.target.value).toFixed(2);
+            dragCoefficient = parseFloat(e.target.value);
+        });
+
+        gravitySlider.addEventListener('input', (e) => {
+            gravityValue.textContent = parseFloat(e.target.value).toFixed(1) + ' m/s²';
+            g = parseFloat(e.target.value);
+        });
+
+        objectTypeA.addEventListener('change', (e) => {
+            objectA.type = e.target.value;
+            draw();
+        });
+
+        objectTypeB.addEventListener('change', (e) => {
+            objectB.type = e.target.value;
+            draw();
+        });
+
+        // 窗口大小改变时重新初始化
+        window.addEventListener('resize', () => {
+            initCanvas();
+            updateRuler();
+        });
+
+        // 创建背景粒子
+        function createParticles() {
+            const particlesDiv = document.createElement('div');
+            particlesDiv.className = 'particles';
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (10 + Math.random() * 10) + 's';
+                particlesDiv.appendChild(particle);
+            }
+            document.querySelector('.canvas-container').appendChild(particlesDiv);
+        }
+
+        // 初始化
+        window.addEventListener('load', () => {
+            initCanvas();
+            updateRuler();
+            createParticles();
+        });
+    </script>
+</body>
+</html>
