@@ -1,196 +1,311 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>微信聊天</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; }
-
-  .phone { width: 390px; height: 780px; background: #ededed; display: flex; flex-direction: column; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
-
-  /* ── 顶部导航 ── */
-  .header { background: #ededed; padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: .5px solid #d9d9d9; flex-shrink: 0; }
-  .header .back { font-size: 22px; color: #111; cursor: pointer; user-select: none; }
-  .header .name { flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #111; }
-  .header .more { font-size: 20px; color: #111; cursor: pointer; width: 30px; text-align: center; user-select: none; }
-
-  /* ── 消息区 ── */
-  .messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; background: #ededed; }
-  .messages::-webkit-scrollbar { width: 0; }
-
-  /* 时间标签 */
-  .time-label { text-align: center; font-size: 12px; color: #b2b2b2; padding: 4px 0; }
-
-  /* 单条消息 */
-  .msg-row { display: flex; align-items: flex-start; gap: 8px; max-width: 85%; animation: fadeUp .25s ease; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  .msg-row.self { align-self: flex-end; flex-direction: row-reverse; }
-
-  /* 头像 */
-  .avatar { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; background: #50b674; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; font-weight: 600; }
-  .avatar.other-av { background: #4a90d9; }
-
-  /* 气泡 */
-  .bubble { position: relative; padding: 10px 14px; border-radius: 6px; font-size: 15px; line-height: 1.5; color: #111; background: #fff; word-break: break-word; white-space: pre-wrap; }
-  .bubble::before { content: ''; position: absolute; top: 12px; border: 6px solid transparent; }
-  .msg-row:not(.self) .bubble::before { left: -10px; border-right-color: #fff; }
-  .msg-row.self .bubble { background: #95ec69; }
-  .msg-row.self .bubble::before { right: -10px; border-left-color: #95ec69; }
-
-  /* "正在输入" */
-  .typing { font-size: 13px; color: #999; text-align: center; padding: 2px 0; display: none; }
-  .typing.show { display: block; }
-
-  /* ── 底部输入栏 ── */
-  .input-bar { background: #f7f7f7; border-top: .5px solid #d9d9d9; padding: 8px 12px; display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0; }
-  .input-bar .tool { font-size: 24px; color: #444; cursor: pointer; user-select: none; line-height: 40px; }
-  .input-bar .tool:active { opacity: .5; }
-  .input-wrap { flex: 1; background: #fff; border-radius: 6px; border: .5px solid #ddd; display: flex; align-items: flex-end; }
-  .input-wrap textarea { width: 100%; border: none; outline: none; resize: none; font-size: 15px; padding: 8px 12px; line-height: 1.4; max-height: 100px; font-family: inherit; background: transparent; }
-  .send-btn { background: #07c160; color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-size: 15px; cursor: pointer; flex-shrink: 0; align-self: center; opacity: .4; pointer-events: none; transition: opacity .15s; }
-  .send-btn.active { opacity: 1; pointer-events: auto; }
-  .send-btn:active { background: #06ad56; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>即时聊天</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f5;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .chat-container {
+      width: 420px;
+      height: 700px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      padding: 16px 20px;
+      background: linear-gradient(90deg, #4f46e5, #7c3aed);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .unread-badge {
+      background: #ef4444;
+      color: #fff;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      display: none;
+    }
+    .unread-badge.show { display: inline-block; }
+    .message-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: #fafafa;
+    }
+    .message {
+      display: flex;
+      margin-bottom: 14px;
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .message.self { flex-direction: row-reverse; }
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #374151;
+      flex-shrink: 0;
+    }
+    .message.self .avatar { background: #4f46e5; color: #fff; }
+    .bubble-wrap { max-width: 70%; margin: 0 10px; }
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+      position: relative;
+    }
+    .message.other .bubble {
+      background: #fff;
+      color: #111827;
+      border: 1px solid #e5e7eb;
+      border-top-left-radius: 4px;
+    }
+    .message.self .bubble {
+      background: #4f46e5;
+      color: #fff;
+      border-top-right-radius: 4px;
+    }
+    .message.unread .bubble {
+      background: #fee2e2;
+      color: #991b1b;
+      border-color: #fca5a5;
+    }
+    .message.unread.self .bubble {
+      background: #ef4444;
+      color: #fff;
+      border-color: #ef4444;
+    }
+    .time {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 4px;
+      text-align: right;
+    }
+    .input-area {
+      padding: 12px 16px;
+      border-top: 1px solid #e5e7eb;
+      background: #fff;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .input-area input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 24px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-area input:focus { border-color: #4f46e5; }
+    .btn-emoji, .btn-send {
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      background: transparent;
+      padding: 6px;
+      border-radius: 50%;
+      transition: background 0.2s;
+    }
+    .btn-emoji:hover, .btn-send:hover { background: #f3f4f6; }
+    .btn-send {
+      background: #4f46e5;
+      color: #fff;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-send:hover { background: #4338ca; }
+    .emoji-picker {
+      position: absolute;
+      bottom: 70px;
+      right: 20px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      display: none;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      width: 280px;
+    }
+    .emoji-picker.show { display: grid; }
+    .emoji-picker span {
+      cursor: pointer;
+      font-size: 20px;
+      text-align: center;
+      padding: 4px;
+      border-radius: 6px;
+    }
+    .emoji-picker span:hover { background: #f3f4f6; }
+    .chat-wrapper { position: relative; }
+    .empty-tip {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 14px;
+      margin-top: 40px;
+    }
+  </style>
 </head>
 <body>
-
-<div class="phone">
-  <!-- 顶部 -->
-  <div class="header">
-    <span class="back">&#8592;</span>
-    <span class="name">微信好友</span>
-    <span class="more">···</span>
-  </div>
-
-  <!-- 消息列表 -->
-  <div class="messages" id="msgList"></div>
-  <div class="typing" id="typing">对方正在输入…</div>
-
-  <!-- 输入栏 -->
-  <div class="input-bar">
-    <span class="tool">&#xf508;</span>
-    <div class="input-wrap">
-      <textarea id="input" rows="1" placeholder="输入消息…"></textarea>
+  <div class="chat-wrapper">
+    <div class="chat-container">
+      <div class="chat-header">
+        <span>即时聊天</span>
+        <span class="unread-badge" id="unreadBadge">0</span>
+      </div>
+      <div class="message-list" id="messageList">
+        <div class="empty-tip">暂无消息，开始聊天吧~</div>
+      </div>
+      <div class="input-area">
+        <button class="btn-emoji" id="emojiBtn" title="表情">😊</button>
+        <input type="text" id="msgInput" placeholder="输入消息..." autocomplete="off">
+        <button class="btn-send" id="sendBtn" title="发送">➤</button>
+      </div>
     </div>
-    <div class="tool">+</div>
-    <button class="send-btn" id="sendBtn">发送</button>
+    <div class="emoji-picker" id="emojiPicker"></div>
   </div>
-</div>
 
-<script>
-  const msgList  = document.getElementById('msgList');
-  const input    = document.getElementById('input');
-  const sendBtn  = document.getElementById('sendBtn');
-  const typing   = document.getElementById('typing');
+  <script>
+    const messageList = document.getElementById('messageList');
+    const msgInput = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const emojiBtn = document.getElementById('emojiBtn');
+    const emojiPicker = document.getElementById('emojiPicker');
+    const unreadBadge = document.getElementById('unreadBadge');
 
-  /* ── 自动回复语料 ── */
-  const replies = [
-    '好的，我知道了 👌',
-    '哈哈，你说的对',
-    '稍等，我看看',
-    '没问题，放心吧',
-    '收到！',
-    '你今天开心吗？',
-    '怎么说呢，让我想想…',
-    '真的吗？太好了！',
-    '好的，我马上处理',
-    '嗯嗯，继续说',
-    '我也是这么觉得的',
-    '太有意思了吧 😂',
-    '哦哦，了解了',
-    '早点休息哦 💤',
-    '改天一起吃饭吧',
-  ];
+    const emojis = ['😀','😂','🥰','😎','🤔','😭','😡','👍','👎','🙏','🔥','❤️','🎉','🤣','😍','🥳','👀','🤯','😴','😅'];
+    let unreadCount = 0;
+    let isAtBottom = true;
 
-  /* ── 预置消息 ── */
-  const initMsgs = [
-    { self: false, text: '在吗？' },
-    { self: false, text: '今天天气真不错，出去走走？' },
-    { self: true,  text: '在的，正想找你呢' },
-    { self: true,  text: '好啊，去哪里？' },
-    { self: false, text: '公园怎么样？听说最近花开得很好' },
-    { self: true,  text: '可以呀，下午三点？' },
-    { self: false, text: '没问题，到时候见！' },
-  ];
+    // 初始化表情面板
+    emojis.forEach(e => {
+      const span = document.createElement('span');
+      span.textContent = e;
+      span.onclick = () => {
+        msgInput.value += e;
+        msgInput.focus();
+        emojiPicker.classList.remove('show');
+      };
+      emojiPicker.appendChild(span);
+    });
 
-  /* ── 时间格式化 ── */
-  function fmtTime(d) {
-    const h = String(d.getHours()).padStart(2, '0');
-    const m = String(d.getMinutes()).padStart(2, '0');
-    return `${h}:${m}`;
-  }
+    emojiBtn.addEventListener('click', () => emojiPicker.classList.toggle('show'));
+    document.addEventListener('click', (e) => {
+      if (!emojiBtn.contains(e.target) && !emojiPicker.contains(e.target)) {
+        emojiPicker.classList.remove('show');
+      }
+    });
 
-  /* ── 判断是否需要插入时间标签（超过 3 分钟） ── */
-  let lastTime = null;
-  function needTimeLabel() {
-    const now = new Date();
-    if (!lastTime || now - lastTime > 3 * 60 * 1000) { lastTime = now; return true; }
-    return false;
-  }
-
-  /* ── 渲染单条消息 ── */
-  function addMsg(self, text, animate = true) {
-    if (needTimeLabel()) {
-      const t = document.createElement('div');
-      t.className = 'time-label';
-      t.textContent = fmtTime(new Date());
-      msgList.appendChild(t);
+    function nowTime() {
+      const d = new Date();
+      return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
     }
-    const row = document.createElement('div');
-    row.className = 'msg-row' + (self ? ' self' : '');
-    row.innerHTML = `
-      <div class="avatar ${self ? '' : 'other-av'}">${self ? '我' : '友'}</div>
-      <div class="bubble">${escHTML(text)}</div>`;
-    if (!animate) row.style.animation = 'none';
-    msgList.appendChild(row);
-    scrollBottom();
-  }
 
-  function escHTML(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function checkAtBottom() {
+      const threshold = 20;
+      isAtBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < threshold;
+    }
 
-  function scrollBottom() { requestAnimationFrame(() => { msgList.scrollTop = msgList.scrollHeight; }); }
+    messageList.addEventListener('scroll', checkAtBottom);
 
-  /* ── 加载历史消息 ── */
-  initMsgs.forEach((m, i) => {
-    lastTime = new Date(Date.now() - (initMsgs.length - i) * 120000);
-    addMsg(m.self, m.text, false);
-  });
+    function scrollToBottom() {
+      messageList.scrollTop = messageList.scrollHeight;
+    }
 
-  /* ── 发送消息 ── */
-  function send() {
-    const text = input.value.trim();
-    if (!text) return;
-    addMsg(true, text);
-    input.value = '';
-    input.style.height = 'auto';
-    sendBtn.classList.remove('active');
-    scrollBottom();
+    function updateUnread(count) {
+      unreadCount = count;
+      unreadBadge.textContent = count;
+      unreadBadge.classList.toggle('show', count > 0);
+    }
 
-    /* 模拟对方回复 */
-    typing.classList.add('show');
-    const delay = 800 + Math.random() * 1500;
-    setTimeout(() => {
-      typing.classList.remove('show');
-      const reply = replies[Math.floor(Math.random() * replies.length)];
-      addMsg(false, reply);
-    }, delay);
-  }
+    function addMessage(text, isSelf = true, unread = false) {
+      const empty = messageList.querySelector('.empty-tip');
+      if (empty) empty.remove();
 
-  /* ── 输入框自适应高度 + 按钮状态 ── */
-  input.addEventListener('input', () => {
-    input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 100) + 'px';
-    sendBtn.classList.toggle('active', input.value.trim().length > 0);
-  });
+      const msg = document.createElement('div');
+      msg.className = `message ${isSelf ? 'self' : 'other'} ${unread ? 'unread' : ''}`;
+      msg.innerHTML = `
+        <div class="avatar">${isSelf ? '我' : 'TA'}</div>
+        <div class="bubble-wrap">
+          <div class="bubble">${escapeHtml(text)}</div>
+          <div class="time">${nowTime()}</div>
+        </div>
+      `;
+      messageList.appendChild(msg);
 
-  /* ── 回车发送（Shift+Enter 换行） ── */
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-  });
+      if (isAtBottom) {
+        scrollToBottom();
+      }
 
-  sendBtn.addEventListener('click', send);
-</script>
+      if (unread) {
+        updateUnread(unreadCount + 1);
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      })[m]);
+    }
+
+    function send() {
+      const text = msgInput.value.trim();
+      if (!text) return;
+      addMessage(text, true, false);
+      msgInput.value = '';
+      // 模拟收到对方消息（5%概率未读）
+      setTimeout(() => {
+        const reply = Math.random() > 0.5 ? '收到 👍' : '明白了~';
+        const unread = Math.random() < 0.05;
+        addMessage(reply, false, unread);
+      }, 800 + Math.random() * 1000);
+    }
+
+    sendBtn.addEventListener('click', send);
+    msgInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') send();
+    });
+
+    // 点击未读标记消除：点击消息列表时把所有未读标记清除
+    messageList.addEventListener('click', () => {
+      document.querySelectorAll('.message.unread').forEach(el => el.classList.remove('unread'));
+      updateUnread(0);
+    });
+
+    // 初始模拟一条未读消息
+    setTimeout(() => addMessage('你好，欢迎来到即时聊天！', false, true), 500);
+  </script>
 </body>
 </html>
