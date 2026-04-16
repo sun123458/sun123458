@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>停车场查询</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部筛选栏 */
+        .header {
+            background: #fff;
+            padding: 12px 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-title svg {
+            margin-right: 8px;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-tab {
+            flex: 1;
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            background: #f8f8f8;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .filter-tab.active {
+            background: #007AFF;
+            color: #fff;
+            border-color: #007AFF;
+        }
+
+        .filter-tab:active {
+            transform: scale(0.98);
+        }
+
+        /* 地图区域 */
+        .map-container {
+            flex: 1;
+            position: relative;
+            background: #e8e8e8;
+            overflow: hidden;
+        }
+
+        .map-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #e8f4f8 0%, #d4e9ed 100%);
+            position: relative;
+        }
+
+        .map-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0,122,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,122,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .map-center {
+            width: 20px;
+            height: 20px;
+            background: #007AFF;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 0 4px rgba(0,122,255,0.3);
+            z-index: 10;
+        }
+
+        .map-center::before {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 2px solid #007AFF;
+            border-radius: 50%;
+            left: -10px;
+            top: -10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        /* 停车场标记 */
+        .parking-marker {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transform: translate(-50%, -100%);
+            z-index: 5;
+        }
+
+        .marker-icon {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            border: 2px solid #007AFF;
+            position: relative;
+        }
+
+        .marker-icon svg {
+            width: 24px;
+            height: 24px;
+            color: #007AFF;
+        }
+
+        .marker-info {
+            background: #fff;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            margin-top: 2px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
+
+        .marker-info.available {
+            color: #34C759;
+        }
+
+        .marker-info.full {
+            color: #FF3B30;
+        }
+
+        .parking-marker:hover .marker-icon,
+        .parking-marker.selected .marker-icon {
+            transform: scale(1.1);
+            background: #007AFF;
+        }
+
+        .parking-marker:hover .marker-icon svg,
+        .parking-marker.selected .marker-icon svg {
+            color: #fff;
+        }
+
+        /* 底部列表 */
+        .bottom-sheet {
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            max-height: 45vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin: 8px auto;
+        }
+
+        .list-header {
+            padding: 0 16px 12px;
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-header span {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .parking-list {
+            overflow-y: auto;
+            padding: 0 16px 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .parking-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .parking-item:active {
+            transform: scale(0.98);
+            background: #f0f0f0;
+        }
+
+        .parking-item.selected {
+            background: #e8f4ff;
+            border: 1px solid #007AFF;
+        }
+
+        .parking-icon {
+            width: 44px;
+            height: 44px;
+            background: #fff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .parking-icon svg {
+            width: 24px;
+            height: 24px;
+            color: #007AFF;
+        }
+
+        .parking-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .parking-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .parking-details {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .parking-detail {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .parking-detail svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-available {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-full {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-few {
+            background: #fff8e1;
+            color: #f57f17;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-left: 12px;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-navigate {
+            background: #007AFF;
+            color: #fff;
+        }
+
+        .btn-reserve {
+            background: #34C759;
+            color: #fff;
+        }
+
+        .btn-navigate:active,
+        .btn-reserve:active {
+            opacity: 0.8;
+        }
+
+        .btn-navigate:disabled,
+        .btn-reserve:disabled {
+            background: #e0e0e0;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        /* 排序箭头 */
+        .sort-arrow {
+            font-size: 10px;
+            margin-left: 4px;
+        }
+
+        /* 底部操作栏 */
+        .bottom-actions {
+            padding: 12px 16px;
+            background: #fff;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .bottom-actions .action-btn {
+            flex: 1;
+            padding: 12px;
+            font-size: 14px;
+            justify-content: center;
+        }
+
+        /* 预约弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 320px;
+            padding: 20px;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .modal-content {
+            margin-bottom: 20px;
+        }
+
+        .modal-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .modal-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .modal-value {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-actions .action-btn {
+            flex: 1;
+            padding: 12px;
+            font-size: 15px;
+        }
+
+        .btn-cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-confirm {
+            background: #007AFF;
+            color: #fff;
+        }
+
+        /* 提示 */
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 2000;
+            display: none;
+        }
+
+        .toast.active {
+            display: block;
+            animation: fadeInOut 2s ease;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* 响应式调整 */
+        @media (min-width: 768px) {
+            .bottom-sheet {
+                max-height: 40vh;
+            }
+
+            .header {
+                padding: 16px 24px;
+            }
+
+            .parking-list {
+                padding: 0 24px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部筛选栏 -->
+    <header class="header">
+        <div class="header-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18V5l12-2v13"></path>
+                <circle cx="6" cy="18" r="3"></circle>
+                <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+            附近停车场
+        </div>
+        <div class="filter-tabs">
+            <div class="filter-tab active" data-sort="distance" onclick="sortBy('distance')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                </svg>
+                距离优先
+                <span class="sort-arrow">↓</span>
+            </div>
+            <div class="filter-tab" data-sort="price" onclick="sortBy('price')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                价格优先
+                <span class="sort-arrow">↓</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 地图区域 -->
+    <div class="map-container" id="mapContainer">
+        <div class="map-placeholder">
+            <div class="map-grid"></div>
+            <div class="map-center"></div>
+            <!-- 停车场标记将通过JS动态生成 -->
+        </div>
+    </div>
+
+    <!-- 底部列表 -->
+    <div class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="list-header">
+            <span>附近停车场</span>
+            <span id="parkingCount">共 0 个</span>
+        </div>
+        <div class="parking-list" id="parkingList">
+            <!-- 停车场列表将通过JS动态生成 -->
+        </div>
+    </div>
+
+    <!-- 预约弹窗 -->
+    <div class="modal-overlay" id="reserveModal">
+        <div class="modal">
+            <div class="modal-title">预约车位</div>
+            <div class="modal-content">
+                <div class="modal-row">
+                    <span class="modal-label">停车场</span>
+                    <span class="modal-value" id="modalParkingName">-</span>
+                </div>
+                <div class="modal-row">
+                    <span class="modal-label">剩余车位</span>
+                    <span class="modal-value" id="modalAvailable">-</span>
+                </div>
+                <div class="modal-row">
+                    <span class="modal-label">收费标准</span>
+                    <span class="modal-value" id="modalPrice">-</span>
+                </div>
+                <div class="modal-row">
+                    <span class="modal-label">预约时间</span>
+                    <span class="modal-value" id="modalTime">-</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="action-btn btn-cancel" onclick="closeModal()">取消</button>
+                <button class="action-btn btn-confirm" onclick="confirmReserve()">确认预约</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 模拟停车场数据
+        const parkingData = [
+            { id: 1, name: '万达广场地下停车场', distance: 150, price: 5, available: 42, total: 200, lat: 35, lng: 45 },
+            { id: 2, name: '中心医院停车场', distance: 320, price: 8, available: 15, total: 150, lat: 25, lng: 65 },
+            { id: 3, name: '市政府公共停车场', distance: 480, price: 3, available: 89, total: 300, lat: 55, lng: 35 },
+            { id: 4, name: '银泰百货停车场', distance: 210, price: 6, available: 5, total: 120, lat: 40, lng: 70 },
+            { id: 5, name: '科技园停车场', distance: 560, price: 4, available: 156, total: 400, lat: 70, lng: 50 },
+            { id: 6, name: '地铁站P+R停车场', distance: 280, price: 2, available: 0, total: 250, lat: 30, lng: 30 },
+            { id: 7, name: '奥体中心停车场', distance: 680, price: 5, available: 67, total: 500, lat: 60, lng: 80 },
+            { id: 8, name: '火车站地下停车场', distance: 750, price: 7, available: 23, total: 300, lat: 75, lng: 25 }
+        ];
+
+        let currentSort = 'distance';
+        let selectedParkingId = null;
+        let currentReserveParking = null;
+
+        // 初始化
+        function init() {
+            renderMapMarkers();
+            renderParkingList();
+            updateCount();
+        }
+
+        // 渲染地图标记
+        function renderMapMarkers() {
+            const mapContainer = document.getElementById('mapContainer').querySelector('.map-placeholder');
+
+            // 移除现有标记
+            document.querySelectorAll('.parking-marker').forEach(el => el.remove());
+
+            parkingData.forEach(parking => {
+                const marker = document.createElement('div');
+                marker.className = 'parking-marker';
+                marker.style.left = `${parking.lng}%`;
+                marker.style.top = `${parking.lat}%`;
+                marker.dataset.id = parking.id;
+
+                const isAvailable = parking.available > 0;
+                const statusClass = parking.available === 0 ? 'full' : 'available';
+                const textColor = parking.available === 0 ? '#FF3B30' : '#34C759';
+
+                marker.innerHTML = `
+                    <div class="marker-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="color: ${textColor}">
+                            <path d="M9 18V5l12-2v13"></path>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <circle cx="18" cy="16" r="3"></circle>
+                        </svg>
+                    </div>
+                    <div class="marker-info ${statusClass}">
+                        剩${parking.available}位
+                    </div>
+                `;
+
+                marker.addEventListener('click', () => selectParking(parking.id));
+                mapContainer.appendChild(marker);
+            });
+        }
+
+        // 渲染停车场列表
+        function renderParkingList() {
+            const list = document.getElementById('parkingList');
+            const sortedData = [...parkingData].sort((a, b) => {
+                if (currentSort === 'distance') return a.distance - b.distance;
+                return a.price - b.price;
+            });
+
+            list.innerHTML = sortedData.map(parking => {
+                const isFull = parking.available === 0;
+                const isFew = parking.available > 0 && parking.available < 10;
+                let statusClass = 'status-available';
+                let statusText = `${parking.available}个空位`;
+
+                if (isFull) {
+                    statusClass = 'status-full';
+                    statusText = '已满';
+                } else if (isFew) {
+                    statusClass = 'status-few';
+                    statusText = `仅剩${parking.available}位`;
+                }
+
+                const isSelected = selectedParkingId === parking.id;
+
+                return `
+                    <div class="parking-item ${isSelected ? 'selected' : ''}" onclick="selectParking(${parking.id})">
+                        <div class="parking-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z"></path>
+                                <path d="M7 10h2v4H7zm4 0h2v4h-2zm4 0h2v4h-2z"></path>
+                            </svg>
+                        </div>
+                        <div class="parking-info">
+                            <div class="parking-name">${parking.name}</div>
+                            <div class="parking-details">
+                                <div class="parking-detail">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                                    </svg>
+                                    ${parking.distance}m
+                                </div>
+                                <div class="parking-detail">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <path d="M12 6v6l4 2"></path>
+                                    </svg>
+                                    ¥${parking.price}/小时
+                                </div>
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="action-btn btn-navigate" onclick="event.stopPropagation(); navigate(${parking.id})">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14M12 5l7 7-7 7"></path>
+                                </svg>
+                                导航
+                            </button>
+                            <button class="action-btn btn-reserve" ${isFull ? 'disabled' : ''}
+                                    onclick="event.stopPropagation(); openReserveModal(${parking.id})">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                                预约
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 排序
+        function sortBy(type) {
+            currentSort = type;
+
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.sort === type);
+            });
+
+            renderParkingList();
+        }
+
+        // 选择停车场
+        function selectParking(id) {
+            selectedParkingId = id;
+
+            document.querySelectorAll('.parking-marker').forEach(marker => {
+                marker.classList.toggle('selected', marker.dataset.id == id);
+            });
+
+            renderParkingList();
+
+            // 滚动到选中的项
+            setTimeout(() => {
+                const selectedItem = document.querySelector(`.parking-item.selected`);
+                if (selectedItem) {
+                    selectedItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+
+        // 导航
+        function navigate(id) {
+            const parking = parkingData.find(p => p.id === id);
+            if (parking) {
+                // 实际项目中可以调用地图导航API
+                showToast(`正在为您导航至 ${parking.name}`);
+            }
+        }
+
+        // 打开预约弹窗
+        function openReserveModal(id) {
+            const parking = parkingData.find(p => p.id === id);
+            if (!parking || parking.available === 0) return;
+
+            currentReserveParking = parking;
+
+            document.getElementById('modalParkingName').textContent = parking.name;
+            document.getElementById('modalAvailable').textContent = `${parking.available}个`;
+            document.getElementById('modalPrice').textContent = `¥${parking.price}/小时`;
+
+            const now = new Date();
+            const timeStr = `${now.getMonth() + 1}月${now.getDate()}日 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            document.getElementById('modalTime').textContent = timeStr;
+
+            document.getElementById('reserveModal').classList.add('active');
+        }
+
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('reserveModal').classList.remove('active');
+            currentReserveParking = null;
+        }
+
+        // 确认预约
+        function confirmReserve() {
+            if (currentReserveParking) {
+                // 更新车位数
+                currentReserveParking.available--;
+                renderMapMarkers();
+                renderParkingList();
+
+                showToast(`预约成功！${currentReserveParking.name}已为您保留车位`);
+                closeModal();
+            }
+        }
+
+        // 更新数量
+        function updateCount() {
+            document.getElementById('parkingCount').textContent = `共 ${parkingData.length} 个`;
+        }
+
+        // 显示提示
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('active');
+
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 2000);
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('reserveModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // 初始化
+        init();
+    </script>
+</body>
+</html>
