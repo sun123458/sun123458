@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>粒子雨背景动效</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            min-height: 200vh;
+            overflow-x: hidden;
+        }
+
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 40px 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 3rem;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+        }
+
+        .control-panel {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .value-display {
+            min-width: 60px;
+            text-align: right;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .color-preview {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .color-dot {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        .info-box {
+            background: rgba(255,255,255,0.08);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .info-box h3 {
+            margin-bottom: 10px;
+            color: #a8d8ff;
+        }
+
+        .info-box p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .scroll-indicator {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+        }
+
+        .density-bar {
+            width: 100px;
+            height: 6px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .density-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00d4ff);
+            transition: width 0.1s ease-out;
+        }
+
+        .demo-section {
+            margin-top: 40px;
+            padding: 40px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .demo-section h2 {
+            margin-bottom: 15px;
+            color: #ffd700;
+        }
+
+        .demo-section p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2rem;
+            }
+            .control-panel {
+                padding: 15px;
+            }
+            .scroll-indicator {
+                bottom: 15px;
+                padding: 8px 15px;
+                font-size: 0.8rem;
+            }
+            .density-bar {
+                width: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
+
+    <div class="content">
+        <h1>✨ 粒子雨背景动效 ✨</h1>
+
+        <div class="control-panel">
+            <div class="control-group">
+                <label>下落速度</label>
+                <div class="slider-container">
+                    <input type="range" id="speedSlider" min="1" max="50" value="15">
+                    <span class="value-display" id="speedValue">15</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>基础粒子数量</label>
+                <div class="slider-container">
+                    <input type="range" id="baseCountSlider" min="50" max="500" value="200">
+                    <span class="value-display" id="baseCountValue">200</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>粒子颜色主题</label>
+                <div class="color-preview" id="colorPreview"></div>
+            </div>
+
+            <div class="control-group">
+                <label>滚动密度增强</label>
+                <div class="slider-container">
+                    <input type="range" id="scrollEffectSlider" min="0" max="300" value="150">
+                    <span class="value-display" id="scrollEffectValue">150</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h3>🎮 使用说明</h3>
+            <p>• <strong>下落速度</strong>：调节粒子的下落快慢</p>
+            <p>• <strong>基础粒子数量</strong>：屏幕静止时的粒子密度</p>
+            <p>• <strong>颜色主题</strong>：粒子颜色每3秒自动切换</p>
+            <p>• <strong>滚动密度增强</strong>：滚动时额外增加的粒子数量</p>
+            <p>• 向下滚动页面，观察粒子密度的变化效果</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>📜 继续滚动查看效果</h2>
+            <p>这是一个演示区域，用于展示滚动时粒子密度的变化。</p>
+            <p>随着页面滚动，粒子雨会变得更加密集，营造出更强的视觉冲击力。</p>
+            <p>向上滚动时，密度会逐渐恢复到基础水平。</p>
+            <p>───────────────────────────────────</p>
+            <p>粒子雨效果使用 HTML5 Canvas 实现高性能渲染。</p>
+            <p>通过对象池技术和 requestAnimationFrame 优化，确保流畅不卡顿。</p>
+            <p>───────────────────────────────────</p>
+            <p>✨ 享受这美丽的粒子雨吧！ ✨</p>
+        </div>
+    </div>
+
+    <div class="scroll-indicator">
+        <span>粒子密度:</span>
+        <div class="density-bar">
+            <div class="density-fill" id="densityFill"></div>
+        </div>
+        <span id="particleCount">0</span>
+    </div>
+
+    <script>
+        // Canvas 设置
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 控制元素
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+        const baseCountSlider = document.getElementById('baseCountSlider');
+        const baseCountValue = document.getElementById('baseCountValue');
+        const scrollEffectSlider = document.getElementById('scrollEffectSlider');
+        const scrollEffectValue = document.getElementById('scrollEffectValue');
+        const colorPreview = document.getElementById('colorPreview');
+        const densityFill = document.getElementById('densityFill');
+        const particleCountDisplay = document.getElementById('particleCount');
+
+        // 配置参数
+        let config = {
+            speed: 15,
+            baseCount: 200,
+            scrollEffect: 150,
+            colors: ['#00ff88', '#00d4ff', '#ff6b6b', '#ffd93d', '#ff6ed4', '#6ed4ff']
+        };
+
+        // 粒子对象池
+        const particlePool = [];
+        const activeParticles = [];
+        const POOL_SIZE = 1000;
+
+        // 当前滚动位置
+        let scrollY = 0;
+        let maxScrollY = 0;
+
+        // 当前颜色索引
+        let currentColorIndex = 0;
+        let targetColorIndex = 1;
+
+        // 初始化画布尺寸
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        }
+
+        // 粒子类
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height - canvas.height;
+                this.size = Math.random() * 2 + 0.5;
+                this.speed = (Math.random() * 0.5 + 0.5) * config.speed;
+                this.opacity = Math.random() * 0.5 + 0.5;
+                this.color = config.colors[currentColorIndex];
+                this.wobble = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = Math.random() * 0.02 + 0.01;
+                this.active = true;
+            }
+
+            update() {
+                this.y += this.speed;
+                this.wobble += this.wobbleSpeed;
+                this.x += Math.sin(this.wobble) * 0.5;
+
+                if (this.y > canvas.height) {
+                    this.y = -10;
+                    this.x = Math.random() * canvas.width;
+                    this.speed = (Math.random() * 0.5 + 0.5) * config.speed;
+                    this.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.opacity;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // 初始化对象池
+        function initParticlePool() {
+            for (let i = 0; i < POOL_SIZE; i++) {
+                const particle = new Particle();
+                particle.active = false;
+                particlePool.push(particle);
+            }
+        }
+
+        // 获取粒子
+        function getParticle() {
+            for (let particle of particlePool) {
+                if (!particle.active) {
+                    particle.active = true;
+                    particle.reset();
+                    return particle;
+                }
+            }
+            // 池满了，创建新粒子
+            const particle = new Particle();
+            particlePool.push(particle);
+            return particle;
+        }
+
+        // 更新活跃粒子数量
+        function updateActiveParticleCount() {
+            const scrollProgress = Math.min(scrollY / maxScrollY, 1);
+            const targetCount = Math.floor(config.baseCount + config.scrollEffect * scrollProgress);
+            const currentCount = activeParticles.length;
+
+            if (currentCount < targetCount) {
+                // 添加粒子
+                for (let i = currentCount; i < targetCount; i++) {
+                    activeParticles.push(getParticle());
+                }
+            } else if (currentCount > targetCount) {
+                // 移除粒子
+                while (activeParticles.length > targetCount && activeParticles.length > 0) {
+                    const particle = activeParticles.pop();
+                    if (particle) particle.active = false;
+                }
+            }
+
+            // 更新显示
+            particleCountDisplay.textContent = activeParticles.length;
+            const densityPercent = (activeParticles.length / (config.baseCount + config.scrollEffect)) * 100;
+            densityFill.style.width = densityPercent + '%';
+        }
+
+        // 动画循环
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let particle of activeParticles) {
+                particle.update();
+                particle.draw();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // 颜色切换
+        function switchColors() {
+            targetColorIndex = (targetColorIndex + 1) % config.colors.length;
+        }
+
+        // 平滑颜色过渡
+        function transitionColors() {
+            const targetColor = config.colors[targetColorIndex];
+            for (let particle of activeParticles) {
+                // 渐进式更新颜色
+                if (Math.random() < 0.05) {
+                    particle.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+                }
+            }
+        }
+
+        // 初始化颜色预览
+        function initColorPreview() {
+            colorPreview.innerHTML = '';
+            for (let color of config.colors) {
+                const dot = document.createElement('div');
+                dot.className = 'color-dot';
+                dot.style.backgroundColor = color;
+                colorPreview.appendChild(dot);
+            }
+        }
+
+        // 事件监听
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('scroll', () => {
+            scrollY = window.scrollY;
+            updateActiveParticleCount();
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            config.speed = parseInt(e.target.value);
+            speedValue.textContent = config.speed;
+            for (let particle of activeParticles) {
+                particle.speed = (Math.random() * 0.5 + 0.5) * config.speed;
+            }
+        });
+
+        baseCountSlider.addEventListener('input', (e) => {
+            config.baseCount = parseInt(e.target.value);
+            baseCountValue.textContent = config.baseCount;
+            updateActiveParticleCount();
+        });
+
+        scrollEffectSlider.addEventListener('input', (e) => {
+            config.scrollEffect = parseInt(e.target.value);
+            scrollEffectValue.textContent = config.scrollEffect;
+            updateActiveParticleCount();
+        });
+
+        // 初始化
+        function init() {
+            resizeCanvas();
+            initParticlePool();
+            initColorPreview();
+            updateActiveParticleCount();
+            animate();
+
+            // 定时颜色切换
+            setInterval(switchColors, 3000);
+            setInterval(transitionColors, 100);
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>
