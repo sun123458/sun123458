@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时区地图工具 - Timezone Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 地图区域 */
+        .map-section {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+        }
+
+        .map-attribution {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #94a3b8;
+            z-index: 1000;
+        }
+
+        /* 自定义标记样式 */
+        .city-marker {
+            width: 12px;
+            height: 12px;
+            background: #3b82f6;
+            border: 2px solid #60a5fa;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+
+        .city-marker:hover {
+            transform: scale(1.5);
+            background: #60a5fa;
+            box-shadow: 0 0 15px rgba(96, 165, 250, 0.7);
+        }
+
+        .city-marker.selected {
+            background: #10b981;
+            border-color: #34d399;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Leaflet 弹窗样式 */
+        .leaflet-popup-content-wrapper {
+            background: linear-gradient(135deg, #162032 0%, #121a2b 100%);
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 16px;
+            color: #e2e8f0;
+            font-size: 13px;
+        }
+
+        .leaflet-popup-tip {
+            background: #162032;
+        }
+
+        .popup-city-name {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 6px;
+            color: #fff;
+        }
+
+        .popup-city-info {
+            color: #94a3b8;
+            margin-bottom: 2px;
+        }
+
+        .popup-city-time {
+            font-size: 14px;
+            color: #3b82f6;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        .popup-add-btn {
+            margin-top: 10px;
+            padding: 6px 16px;
+            background: #3b82f6;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .popup-add-btn:hover {
+            background: #2563eb;
+        }
+
+        /* 右侧对比面板 */
+        .compare-panel {
+            width: 380px;
+            min-width: 320px;
+            max-width: 450px;
+            background: linear-gradient(180deg, #162032 0%, #121a2b 100%);
+            border-left: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .panel-subtitle {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        /* 搜索框 */
+        .search-section {
+            padding: 16px 20px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            padding-right: 40px;
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: #3b82f6;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 16px;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #162032;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #1e293b;
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: #1e293b;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-city {
+            color: #e2e8f0;
+            font-size: 13px;
+        }
+
+        .result-country {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        /* 定位按钮 */
+        .location-section {
+            padding: 12px 20px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .location-btn {
+            width: 100%;
+            padding: 10px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            color: #3b82f6;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .location-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .location-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 已选城市列表 */
+        .cities-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        .city-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid #1e293b;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+
+        .city-card.reference {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .city-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .city-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .city-flag {
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .city-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .city-country {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .city-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .city-action-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .set-ref-btn {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .set-ref-btn:hover {
+            background: rgba(59, 130, 246, 0.3);
+        }
+
+        .set-ref-btn.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .remove-btn {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .remove-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        .city-time-display {
+            font-size: 28px;
+            font-weight: 600;
+            color: #3b82f6;
+            margin-bottom: 4px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .city-date {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        .city-tz-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .tz-offset {
+            color: #64748b;
+        }
+
+        .tz-diff {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .tz-diff.same {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .tz-diff.ahead {
+            background: rgba(234, 179, 8, 0.2);
+            color: #fbbf24;
+        }
+
+        .tz-diff.behind {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-hint {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        /* 底部操作栏 */
+        .panel-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #1e293b;
+            display: flex;
+            gap: 10px;
+        }
+
+        .footer-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .clear-btn {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .clear-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .max-cities {
+            font-size: 11px;
+            color: #fbbf24;
+            text-align: center;
+            padding: 8px;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .map-section {
+                height: 50vh;
+            }
+
+            .compare-panel {
+                width: 100%;
+                min-width: auto;
+                max-width: none;
+                height: 50vh;
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #3b82f6;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 参考标签 */
+        .ref-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="map-section">
+            <div id="map"></div>
+            <div class="map-attribution">© OpenStreetMap © CartoDB</div>
+        </div>
+        <div class="compare-panel">
+            <div class="panel-header">
+                <div class="panel-title">时区对比</div>
+                <div class="panel-subtitle">点击地图上的城市标记或搜索添加</div>
+            </div>
+            <div class="search-section">
+                <div class="search-box">
+                    <input type="text" class="search-input" placeholder="搜索城市或国家..." id="searchInput">
+                    <span class="search-icon">🔍</span>
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+            </div>
+            <div class="location-section">
+                <button class="location-btn" id="locateBtn">
+                    <span>📍</span> 定位并添加附近城市
+                </button>
+            </div>
+            <div class="cities-list" id="citiesList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🌍</div>
+                    <div class="empty-state-text">还没有添加任何城市</div>
+                    <div class="empty-state-hint">点击地图上的标记或搜索添加城市</div>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button class="footer-btn clear-btn" id="clearBtn">清空全部</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 城市数据
+        const cities = [
+            { name: '北京', country: '中国', lat: 39.9042, lng: 116.4074, tz: 'Asia/Shanghai', flag: '🇨🇳' },
+            { name: '上海', country: '中国', lat: 31.2304, lng: 121.4737, tz: 'Asia/Shanghai', flag: '🇨🇳' },
+            { name: '香港', country: '中国', lat: 22.3193, lng: 114.1694, tz: 'Asia/Hong_Kong', flag: '🇭🇰' },
+            { name: '台北', country: '台湾', lat: 25.0320, lng: 121.5654, tz: 'Asia/Taipei', flag: '🇹🇼' },
+            { name: '东京', country: '日本', lat: 35.6762, lng: 139.6503, tz: 'Asia/Tokyo', flag: '🇯🇵' },
+            { name: '大阪', country: '日本', lat: 34.6937, lng: 135.5023, tz: 'Asia/Tokyo', flag: '🇯🇵' },
+            { name: '首尔', country: '韩国', lat: 37.5665, lng: 126.9780, tz: 'Asia/Seoul', flag: '🇰🇷' },
+            { name: '新加坡', country: '新加坡', lat: 1.3521, lng: 103.8198, tz: 'Asia/Singapore', flag: '🇸🇬' },
+            { name: '曼谷', country: '泰国', lat: 13.7563, lng: 100.5018, tz: 'Asia/Bangkok', flag: '🇹🇭' },
+            { name: '吉隆坡', country: '马来西亚', lat: 3.1390, lng: 101.6869, tz: 'Asia/Kuala_Lumpur', flag: '🇲🇾' },
+            { name: '雅加达', country: '印度尼西亚', lat: -6.2088, lng: 106.8456, tz: 'Asia/Jakarta', flag: '🇮🇩' },
+            { name: '马尼拉', country: '菲律宾', lat: 14.5995, lng: 120.9842, tz: 'Asia/Manila', flag: '🇵🇭' },
+            { name: '河内', country: '越南', lat: 21.0285, lng: 105.8542, tz: 'Asia/Ho_Chi_Minh', flag: '🇻🇳' },
+            { name: '孟买', country: '印度', lat: 19.0760, lng: 72.8777, tz: 'Asia/Kolkata', flag: '🇮🇳' },
+            { name: '德里', country: '印度', lat: 28.7041, lng: 77.1025, tz: 'Asia/Kolkata', flag: '🇮🇳' },
+            { name: '迪拜', country: '阿联酋', lat: 25.2048, lng: 55.2708, tz: 'Asia/Dubai', flag: '🇦🇪' },
+            { name: '利雅得', country: '沙特阿拉伯', lat: 24.7136, lng: 46.6753, tz: 'Asia/Riyadh', flag: '🇸🇦' },
+            { name: '伊斯坦布尔', country: '土耳其', lat: 41.0082, lng: 28.9784, tz: 'Europe/Istanbul', flag: '🇹🇷' },
+            { name: '莫斯科', country: '俄罗斯', lat: 55.7558, lng: 37.6173, tz: 'Europe/Moscow', flag: '🇷🇺' },
+            { name: '伦敦', country: '英国', lat: 51.5074, lng: -0.1278, tz: 'Europe/London', flag: '🇬🇧' },
+            { name: '巴黎', country: '法国', lat: 48.8566, lng: 2.3522, tz: 'Europe/Paris', flag: '🇫🇷' },
+            { name: '柏林', country: '德国', lat: 52.5200, lng: 13.4050, tz: 'Europe/Berlin', flag: '🇩🇪' },
+            { name: '罗马', country: '意大利', lat: 41.9028, lng: 12.4964, tz: 'Europe/Rome', flag: '🇮🇹' },
+            { name: '马德里', country: '西班牙', lat: 40.4168, lng: -3.7038, tz: 'Europe/Madrid', flag: '🇪🇸' },
+            { name: '阿姆斯特丹', country: '荷兰', lat: 52.3676, lng: 4.9041, tz: 'Europe/Amsterdam', flag: '🇳🇱' },
+            { name: '苏黎世', country: '瑞士', lat: 47.3769, lng: 8.5417, tz: 'Europe/Zurich', flag: '🇨🇭' },
+            { name: '维也纳', country: '奥地利', lat: 48.2082, lng: 16.3738, tz: 'Europe/Vienna', flag: '🇦🇹' },
+            { name: '斯德哥尔摩', country: '瑞典', lat: 59.3293, lng: 18.0686, tz: 'Europe/Stockholm', flag: '🇸🇪' },
+            { name: '哥本哈根', country: '丹麦', lat: 55.6761, lng: 12.5683, tz: 'Europe/Copenhagen', flag: '🇩🇰' },
+            { name: '赫尔辛基', country: '芬兰', lat: 60.1695, lng: 24.9354, tz: 'Europe/Helsinki', flag: '🇫🇮' },
+            { name: '华沙', country: '波兰', lat: 52.2297, lng: 21.0122, tz: 'Europe/Warsaw', flag: '🇵🇱' },
+            { name: '布拉格', country: '捷克', lat: 50.0755, lng: 14.4378, tz: 'Europe/Prague', flag: '🇨🇿' },
+            { name: '布达佩斯', country: '匈牙利', lat: 47.4979, lng: 19.0402, tz: 'Europe/Budapest', flag: '🇭🇺' },
+            { name: '纽约', country: '美国', lat: 40.7128, lng: -74.0060, tz: 'America/New_York', flag: '🇺🇸' },
+            { name: '洛杉矶', country: '美国', lat: 34.0522, lng: -118.2437, tz: 'America/Los_Angeles', flag: '🇺🇸' },
+            { name: '芝加哥', country: '美国', lat: 41.8781, lng: -87.6298, tz: 'America/Chicago', flag: '🇺🇸' },
+            { name: '旧金山', country: '美国', lat: 37.7749, lng: -122.4194, tz: 'America/Los_Angeles', flag: '🇺🇸' },
+            { name: '西雅图', country: '美国', lat: 47.6062, lng: -122.3321, tz: 'America/Los_Angeles', flag: '🇺🇸' },
+            { name: '迈阿密', country: '美国', lat: 25.7617, lng: -80.1918, tz: 'America/New_York', flag: '🇺🇸' },
+            { name: '多伦多', country: '加拿大', lat: 43.6532, lng: -79.3832, tz: 'America/Toronto', flag: '🇨🇦' },
+            { name: '温哥华', country: '加拿大', lat: 49.2827, lng: -123.1207, tz: 'America/Vancouver', flag: '🇨🇦' },
+            { name: '墨西哥城', country: '墨西哥', lat: 19.4326, lng: -99.1332, tz: 'America/Mexico_City', flag: '🇲🇽' },
+            { name: '圣保罗', country: '巴西', lat: -23.5505, lng: -46.6333, tz: 'America/Sao_Paulo', flag: '🇧🇷' },
+            { name: '布宜诺斯艾利斯', country: '阿根廷', lat: -34.6037, lng: -58.3816, tz: 'America/Argentina/Buenos_Aires', flag: '🇦🇷' },
+            { name: '悉尼', country: '澳大利亚', lat: -33.8688, lng: 151.2093, tz: 'Australia/Sydney', flag: '🇦🇺' },
+            { name: '墨尔本', country: '澳大利亚', lat: -37.8136, lng: 144.9631, tz: 'Australia/Melbourne', flag: '🇦🇺' },
+            { name: '奥克兰', country: '新西兰', lat: -36.8485, lng: 174.7633, tz: 'Pacific/Auckland', flag: '🇳🇿' },
+            { name: '开罗', country: '埃及', lat: 30.0444, lng: 31.2357, tz: 'Africa/Cairo', flag: '🇪🇬' },
+            { name: '约翰内斯堡', country: '南非', lat: -26.2041, lng: 28.0473, tz: 'Africa/Johannesburg', flag: '🇿🇦' },
+            { name: '内罗毕', country: '肯尼亚', lat: -1.2921, lng: 36.8219, tz: 'Africa/Nairobi', flag: '🇰🇪' },
+            { name: '拉各斯', country: '尼日利亚', lat: 6.5244, lng: 3.3792, tz: 'Africa/Lagos', flag: '🇳🇬' },
+            { name: '温哥华', country: '加拿大', lat: 49.2827, lng: -123.1207, tz: 'America/Vancouver', flag: '🇨🇦' },
+        ];
+
+        // 状态管理
+        let selectedCities = [];
+        let referenceCity = null;
+        let map = null;
+        let markers = [];
+
+        // 初始化地图
+        function initMap() {
+            map = L.map('map', {
+                center: [20, 0],
+                zoom: 2,
+                minZoom: 1,
+                maxZoom: 6,
+                zoomControl: false
+            });
+
+            // 添加暗色地图瓦片
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap © CartoDB',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            // 添加城市标记
+            addCityMarkers();
+
+            // 添加点击地图弹窗
+            map.on('click', onMapClick);
+        }
+
+        // 添加城市标记
+        function addCityMarkers() {
+            cities.forEach(city => {
+                const marker = L.marker([city.lat, city.lng], {
+                    icon: L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div class="city-marker" data-city="${city.name}"></div>`,
+                        iconSize: [12, 12],
+                        iconAnchor: [6, 6]
+                    })
+                }).addTo(map);
+
+                marker.on('click', (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    showCityPopup(city, marker);
+                });
+
+                marker.on('mouseover', () => {
+                    marker.getElement().querySelector('.city-marker').style.transform = 'scale(1.5)';
+                });
+
+                marker.on('mouseout', () => {
+                    marker.getElement().querySelector('.city-marker').style.transform = 'scale(1)';
+                });
+
+                markers.push({ marker, city });
+            });
+        }
+
+        // 显示城市弹窗
+        function showCityPopup(city, marker) {
+            const timeStr = formatTime(city.tz);
+            const offsetStr = getUTCOffset(city.tz);
+            const isSelected = selectedCities.some(c => c.name === city.name);
+
+            const popupContent = `
+                <div class="popup-city-name">${city.flag} ${city.name}</div>
+                <div class="popup-city-info">${city.country}</div>
+                <div class="popup-city-info">${offsetStr}</div>
+                <div class="popup-city-time">${timeStr}</div>
+                ${!isSelected ? `<button class="popup-add-btn" onclick="addCity('${city.name}')">+ 添加到对比</button>` : ''}
+            `;
+
+            marker.bindPopup(popupContent).openPopup();
+        }
+
+        // 地图点击事件
+        function onMapClick(e) {
+            const latlng = e.latlng;
+            const nearest = findNearestCity(latlng.lat, latlng.lng);
+
+            if (nearest) {
+                const marker = markers.find(m => m.city.name === nearest.name);
+                if (marker) {
+                    showCityPopup(nearest, marker.marker);
+                }
+            }
+        }
+
+        // 查找最近的城市
+        function findNearestCity(lat, lng) {
+            let nearest = null;
+            let minDist = Infinity;
+
+            cities.forEach(city => {
+                const dist = Math.sqrt(
+                    Math.pow(city.lat - lat, 2) + Math.pow(city.lng - lng, 2)
+                );
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = city;
+                }
+            });
+
+            return minDist < 15 ? nearest : null;
+        }
+
+        // 格式化时间
+        function formatTime(tz) {
+            const now = new Date();
+            return now.toLocaleString('zh-CN', {
+                timeZone: tz,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        }
+
+        // 格式化日期
+        function formatDate(tz) {
+            const now = new Date();
+            return now.toLocaleString('zh-CN', {
+                timeZone: tz,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                weekday: 'short'
+            });
+        }
+
+        // 获取 UTC 偏移
+        function getUTCOffset(tz) {
+            const now = new Date();
+            const offsetStr = now.toLocaleString('en-US', {
+                timeZone: tz,
+                timeZoneName: 'longOffset'
+            });
+
+            const match = offsetStr.match(/GMT([+-]\d{2}:\d{2})/);
+            return match ? `UTC${match[1]}` : 'UTC';
+        }
+
+        // 计算时差
+        function getTimeDiff(tz, refTz) {
+            const now = new Date();
+            const tzOffset = getTimezoneOffsetMinutes(tz, now);
+            const refOffset = getTimezoneOffsetMinutes(refTz, now);
+            const diff = tzOffset - refOffset;
+            const hours = Math.abs(diff / 60);
+            const sign = diff > 0 ? '+' : diff < 0 ? '-' : '';
+            return diff === 0 ? '相同' : `${sign}${hours}小时`;
+        }
+
+        // 获取时区偏移（分钟）
+        function getTimezoneOffsetMinutes(tz, date) {
+            const tzStr = date.toLocaleString('en-US', {
+                timeZone: tz,
+                timeZoneName: 'longOffset'
+            });
+            const match = tzStr.match(/GMT([+-]?)(\d{2}):(\d{2})/);
+            if (!match) return 0;
+
+            const sign = match[1] === '-' ? -1 : 1;
+            const hours = parseInt(match[2]);
+            const minutes = parseInt(match[3]);
+            return sign * (hours * 60 + minutes);
+        }
+
+        // 添加城市
+        function addCity(cityName) {
+            if (selectedCities.length >= 6) {
+                alert('最多只能添加 6 个城市进行对比');
+                return;
+            }
+
+            const city = cities.find(c => c.name === cityName);
+            if (!city) return;
+
+            if (selectedCities.some(c => c.name === cityName)) {
+                alert('该城市已在对比列表中');
+                return;
+            }
+
+            selectedCities.push(city);
+
+            if (selectedCities.length === 1) {
+                referenceCity = city;
+            }
+
+            updateCitiesList();
+            updateMarkerStyles();
+        }
+
+        // 移除城市
+        function removeCity(cityName) {
+            selectedCities = selectedCities.filter(c => c.name !== cityName);
+
+            if (referenceCity && referenceCity.name === cityName) {
+                referenceCity = selectedCities.length > 0 ? selectedCities[0] : null;
+            }
+
+            updateCitiesList();
+            updateMarkerStyles();
+        }
+
+        // 设置参考城市
+        function setReference(cityName) {
+            const city = selectedCities.find(c => c.name === cityName);
+            if (city) {
+                referenceCity = city;
+                updateCitiesList();
+            }
+        }
+
+        // 清空所有
+        function clearAll() {
+            if (selectedCities.length === 0) return;
+            if (confirm('确定要清空所有城市吗？')) {
+                selectedCities = [];
+                referenceCity = null;
+                updateCitiesList();
+                updateMarkerStyles();
+            }
+        }
+
+        // 更新城市列表显示
+        function updateCitiesList() {
+            const container = document.getElementById('citiesList');
+
+            if (selectedCities.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🌍</div>
+                        <div class="empty-state-text">还没有添加任何城市</div>
+                        <div class="empty-state-hint">点击地图上的标记或搜索添加城市</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = selectedCities.map(city => {
+                const isReference = referenceCity && referenceCity.name === city.name;
+                const timeDiff = referenceCity && !isReference ? getTimeDiff(city.tz, referenceCity.tz) : null;
+
+                let diffClass = 'same';
+                if (timeDiff && timeDiff !== '相同') {
+                    diffClass = timeDiff.startsWith('+') ? 'ahead' : 'behind';
+                }
+
+                return `
+                    <div class="city-card ${isReference ? 'reference' : ''}" id="card-${city.name}">
+                        <div class="city-card-header">
+                            <div class="city-name-row">
+                                <span class="city-flag">${city.flag}</span>
+                                <span class="city-name">${city.name}</span>
+                                <span class="city-country">${city.country}</span>
+                                ${isReference ? '<span class="ref-badge">参考</span>' : ''}
+                            </div>
+                            <div class="city-actions">
+                                <button class="city-action-btn set-ref-btn ${isReference ? 'active' : ''}"
+                                        onclick="setReference('${city.name}')"
+                                        title="设置为参考城市">
+                                    📍
+                                </button>
+                                <button class="city-action-btn remove-btn"
+                                        onclick="removeCity('${city.name}')"
+                                        title="移除">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                        <div class="city-time-display" id="time-${city.name}">${formatTime(city.tz)}</div>
+                        <div class="city-date" id="date-${city.name}">${formatDate(city.tz)}</div>
+                        <div class="city-tz-info">
+                            <span class="tz-offset">${getUTCOffset(city.tz)}</span>
+                            ${timeDiff && timeDiff !== '相同' ? `<span class="tz-diff ${diffClass}">${timeDiff}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (selectedCities.length >= 6) {
+                container.innerHTML += '<div class="max-cities">已达到最大城市数量 (6/6)</div>';
+            }
+        }
+
+        // 更新标记样式
+        function updateMarkerStyles() {
+            markers.forEach(({ marker, city }) => {
+                const markerEl = marker.getElement();
+                if (markerEl) {
+                    const cityMarker = markerEl.querySelector('.city-marker');
+                    if (selectedCities.some(c => c.name === city.name)) {
+                        cityMarker.classList.add('selected');
+                    } else {
+                        cityMarker.classList.remove('selected');
+                    }
+                }
+            });
+        }
+
+        // 实时更新时间
+        function updateTimeDisplay() {
+            selectedCities.forEach(city => {
+                const timeEl = document.getElementById(`time-${city.name}`);
+                const dateEl = document.getElementById(`date-${city.name}`);
+
+                if (timeEl) {
+                    timeEl.textContent = formatTime(city.tz);
+                }
+                if (dateEl) {
+                    dateEl.textContent = formatDate(city.tz);
+                }
+            });
+
+            // 更新打开的弹窗时间
+            if (map) {
+                map.eachLayer(layer => {
+                    if (layer instanceof L.Popup) {
+                        const popupContent = layer.getElement();
+                        if (popupContent) {
+                            const timeEl = popupContent.querySelector('.popup-city-time');
+                            if (timeEl) {
+                                const cityName = timeEl.closest('.leaflet-popup-content')
+                                    .querySelector('.popup-city-name')
+                                    .textContent.replace(/^[^\s]+\s/, '');
+                                const city = cities.find(c => c.name === cityName);
+                                if (city) {
+                                    timeEl.textContent = formatTime(city.tz);
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // 搜索功能
+        function initSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+
+                if (!query) {
+                    searchResults.classList.remove('active');
+                    return;
+                }
+
+                const results = cities.filter(city =>
+                    city.name.toLowerCase().includes(query) ||
+                    city.country.toLowerCase().includes(query)
+                ).slice(0, 10);
+
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div style="padding: 12px 16px; color: #64748b; font-size: 13px;">未找到匹配的城市</div>';
+                } else {
+                    searchResults.innerHTML = results.map(city => `
+                        <div class="search-result-item" onclick="addCity('${city.name}'); closeSearch();">
+                            <div class="result-city">${city.flag} ${city.name}</div>
+                            <div class="result-country">${city.country}</div>
+                        </div>
+                    `).join('');
+                }
+
+                searchResults.classList.add('active');
+            });
+
+            searchInput.addEventListener('blur', () => {
+                setTimeout(() => searchResults.classList.remove('active'), 200);
+            });
+        }
+
+        function closeSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').classList.remove('active');
+        }
+
+        // 定位功能
+        function initLocation() {
+            const locateBtn = document.getElementById('locateBtn');
+
+            locateBtn.addEventListener('click', () => {
+                if (!navigator.geolocation) {
+                    alert('您的浏览器不支持地理定位');
+                    return;
+                }
+
+                locateBtn.disabled = true;
+                locateBtn.innerHTML = '<span class="loading"></span> 定位中...';
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+
+                        // 移动地图到当前位置
+                        map.setView([latitude, longitude], 4);
+
+                        // 添加位置标记
+                        const userMarker = L.circleMarker([latitude, longitude], {
+                            radius: 8,
+                            fillColor: '#ef4444',
+                            color: '#fca5a5',
+                            weight: 2,
+                            fillOpacity: 0.8
+                        }).addTo(map);
+
+                        userMarker.bindPopup('<div style="color: #e2e8f0;">📍 您的位置</div>').openPopup();
+
+                        // 查找并添加最近的城市
+                        const nearest = findNearestCity(latitude, longitude);
+                        if (nearest) {
+                            setTimeout(() => {
+                                addCity(nearest.name);
+                                userMarker.closePopup();
+                            }, 1000);
+                        }
+
+                        locateBtn.disabled = false;
+                        locateBtn.innerHTML = '<span>📍</span> 定位并添加附近城市';
+                    },
+                    (error) => {
+                        let errorMsg = '无法获取位置';
+                        if (error.code === 1) {
+                            errorMsg = '请允许位置访问权限';
+                        } else if (error.code === 2) {
+                            errorMsg = '位置信息不可用';
+                        } else if (error.code === 3) {
+                            errorMsg = '定位超时';
+                        }
+                        alert(errorMsg);
+                        locateBtn.disabled = false;
+                        locateBtn.innerHTML = '<span>📍</span> 定位并添加附近城市';
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            });
+        }
+
+        // 初始化
+        function init() {
+            initMap();
+            initSearch();
+            initLocation();
+
+            // 清空按钮
+            document.getElementById('clearBtn').addEventListener('click', clearAll);
+
+            // 每秒更新时间
+            setInterval(updateTimeDisplay, 1000);
+        }
+
+        // 启动
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
