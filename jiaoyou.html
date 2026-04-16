@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Spark - 遇见心动</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #FF6B6B;
+      --primary-light: #FF8E8E;
+      --secondary: #4ECDC4;
+      --accent: #FFE66D;
+      --dark: #2D3436;
+      --gray: #636E72;
+      --light-gray: #B2BEC3;
+      --bg: #F8F9FA;
+      --card-bg: #FFFFFF;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--dark);
+      overflow: hidden;
+      touch-action: none;
+      height: 100vh;
+    }
+
+    .app {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* Header */
+    .header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      border-bottom: 1px solid rgba(0,0,0,0.03);
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-icons {
+      display: flex;
+      gap: 16px;
+    }
+
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .header-icon:active {
+      transform: scale(0.9);
+    }
+
+    /* Card Stack */
+    .card-stack {
+      flex: 1;
+      position: relative;
+      margin: 20px;
+      perspective: 1000px;
+    }
+
+    .card {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: var(--card-bg);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      transform-origin: 50% 100%;
+      will-change: transform;
+      cursor: grab;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card:active {
+      cursor: grabbing;
+    }
+
+    .card-image {
+      flex: 1;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+
+    .card-image::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 20px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 24px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border: 4px solid;
+      transform: rotate(-15deg);
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 10;
+    }
+
+    .badge-like {
+      left: 20px;
+      color: #4ECDC4;
+      border-color: #4ECDC4;
+    }
+
+    .badge-nope {
+      right: 20px;
+      color: #FF6B6B;
+      border-color: #FF6B6B;
+    }
+
+    .card-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 24px;
+      color: white;
+      z-index: 5;
+    }
+
+    .card-name-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .card-name {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .card-age {
+      font-size: 22px;
+      font-weight: 500;
+      opacity: 0.9;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      opacity: 0.85;
+      margin-bottom: 12px;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .card-tag {
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 20px;
+      font-size: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .card-expand {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 6;
+    }
+
+    .card-expand:active {
+      transform: scale(0.9);
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* Next card preview */
+    .card:nth-child(2) {
+      transform: scale(0.95) translateY(10px);
+      opacity: 0.7;
+      z-index: -1;
+    }
+
+    .card:nth-child(3) {
+      transform: scale(0.9) translateY(20px);
+      opacity: 0.4;
+      z-index: -2;
+    }
+
+    /* Actions */
+    .actions {
+      padding: 20px 30px 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      background: var(--card-bg);
+    }
+
+    .action-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+
+    .action-btn:active {
+      transform: scale(0.85);
+    }
+
+    .action-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .btn-undo {
+      background: white;
+      color: var(--accent);
+      border: 1px solid var(--light-gray);
+      font-size: 20px;
+    }
+
+    .btn-nope {
+      background: white;
+      color: #FF6B6B;
+      width: 64px;
+      height: 64px;
+      font-size: 28px;
+    }
+
+    .btn-super {
+      background: white;
+      color: #5f27cd;
+      font-size: 20px;
+    }
+
+    .btn-like {
+      background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+      color: white;
+      width: 72px;
+      height: 72px;
+      font-size: 32px;
+    }
+
+    .btn-like:hover {
+      box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+    }
+
+    /* Profile Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: white;
+      width: 100%;
+      max-width: 480px;
+      max-height: 85vh;
+      border-radius: 24px 24px 0 0;
+      overflow: hidden;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      position: relative;
+      height: 320px;
+      background-size: cover;
+      background-position: center;
+      flex-shrink: 0;
+    }
+
+    .modal-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 150px;
+      background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      color: white;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-name {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .modal-subtitle {
+      color: var(--gray);
+      font-size: 15px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--dark);
+      margin: 20px 0 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .modal-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .modal-tag {
+      padding: 8px 16px;
+      background: var(--bg);
+      border-radius: 20px;
+      font-size: 14px;
+      color: var(--dark);
+    }
+
+    .modal-tag.highlight {
+      background: linear-gradient(135deg, rgba(255,107,107,0.1) 0%, rgba(255,142,142,0.1) 100%);
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .info-item {
+      padding: 16px;
+      background: var(--bg);
+      border-radius: 16px;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: var(--gray);
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--dark);
+    }
+
+    .bio-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--gray);
+    }
+
+    .modal-actions {
+      padding: 16px 24px 24px;
+      display: flex;
+      gap: 12px;
+      border-top: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 16px;
+      border-radius: 16px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .modal-btn-nope {
+      background: var(--bg);
+      color: var(--dark);
+    }
+
+    .modal-btn-like {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+    }
+
+    .modal-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Match Modal */
+    .match-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.85);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.4s;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .match-modal.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .match-content {
+      text-align: center;
+      color: white;
+      transform: scale(0.8);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-width: 360px;
+      width: 100%;
+    }
+
+    .match-modal.active .match-content {
+      transform: scale(1);
+    }
+
+    .match-title {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 50%, #4ECDC4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .match-subtitle {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 32px;
+    }
+
+    .match-avatars {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: -20px;
+      margin-bottom: 32px;
+    }
+
+    .match-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 4px solid white;
+      background-size: cover;
+      background-position: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .match-avatar:first-child {
+      margin-right: -20px;
+      z-index: 1;
+    }
+
+    .match-heart {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      z-index: 2;
+      border: 3px solid white;
+      animation: heartbeat 1.5s ease-in-out infinite;
+    }
+
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    .match-btn {
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 12px;
+      font-family: inherit;
+      transition: transform 0.2s;
+    }
+
+    .match-btn-primary {
+      background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+      color: white;
+    }
+
+    .match-btn-secondary {
+      background: transparent;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .match-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Empty State */
+    .empty-state {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      padding: 20px;
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-text {
+      font-size: 18px;
+      color: var(--gray);
+      margin-bottom: 8px;
+    }
+
+    .empty-subtext {
+      font-size: 14px;
+      color: var(--light-gray);
+    }
+
+    /* Animations */
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .card.new-card {
+      animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Confetti */
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      pointer-events: none;
+      z-index: 201;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">Spark</div>
+      <div class="header-icons">
+        <div class="header-icon">🔔</div>
+        <div class="header-icon">👤</div>
+      </div>
+    </header>
+
+    <div class="card-stack" id="cardStack">
+      <!-- Cards will be rendered here -->
+    </div>
+
+    <div class="actions">
+      <button class="action-btn btn-undo" onclick="handleUndo()">↩️</button>
+      <button class="action-btn btn-nope" onclick="handleNope()">✖</button>
+      <button class="action-btn btn-super">⚡</button>
+      <button class="action-btn btn-like" onclick="handleLike()">♥</button>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div class="modal-overlay" id="profileModal" onclick="closeProfile(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header" id="modalHeader" style="background-image: url('')">
+        <button class="modal-close" onclick="closeProfile()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-name" id="modalName"></div>
+        <div class="modal-subtitle" id="modalSubtitle"></div>
+
+        <div class="section-title">关于我</div>
+        <div class="bio-text" id="modalBio"></div>
+
+        <div class="section-title">基本信息</div>
+        <div class="info-grid" id="modalInfo"></div>
+
+        <div class="section-title">兴趣标签</div>
+        <div class="modal-tags" id="modalTags"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-nope" onclick="closeProfile(); handleNope();">跳过</button>
+        <button class="modal-btn modal-btn-like" onclick="closeProfile(); handleLike();">喜欢</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Match Modal -->
+  <div class="match-modal" id="matchModal">
+    <div class="match-content">
+      <div class="match-title">Match!</div>
+      <div class="match-subtitle">你们互相喜欢了对方</div>
+      <div class="match-avatars">
+        <div class="match-avatar" style="background-image: url('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&h=300&fit=crop')"></div>
+        <div class="match-heart">♥</div>
+        <div class="match-avatar" id="matchAvatar"></div>
+      </div>
+      <button class="match-btn match-btn-primary" onclick="closeMatchModal()">发送消息</button>
+      <button class="match-btn match-btn-secondary" onclick="closeMatchModal()">继续滑动</button>
+    </div>
+  </div>
+
+  <script>
+    const users = [
+      {
+        id: 1,
+        name: '林小雨',
+        age: 24,
+        gender: '女',
+        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop',
+        location: '上海 · 2km',
+        job: 'UI设计师',
+        tags: ['摄影', '猫奴', '咖啡', '旅行'],
+        bio: '热爱生活的设计师，喜欢用镜头记录美好瞬间。周末通常会在咖啡馆画画，或者和朋友去探索城市里的角落。希望能遇到一个同样热爱生活的人。',
+        info: {星座: '天秤座',身高: '165cm',学历: '本科',饮酒: '偶尔'}
+      },
+      {
+        id: 2,
+        name: '陈梓轩',
+        age: 27,
+        gender: '男',
+        image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=800&fit=crop',
+        location: '上海 · 5km',
+        job: '产品经理',
+        tags: ['健身', '电影', '美食', '露营'],
+        bio: '互联网产品经理，工作之余喜欢健身和户外。相信生活需要仪式感，也在寻找那个能一起分享日出日落的人。',
+        info: {星座: '狮子座',身高: '180cm',学历: '硕士',饮酒: '社交'}
+      },
+      {
+        id: 3,
+        name: '苏婉清',
+        age: 25,
+        gender: '女',
+        image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&h=800&fit=crop',
+        location: '上海 · 3km',
+        job: '插画师',
+        tags: ['画画', '动漫', '音乐', '烘焙'],
+        bio: '自由插画师，宅家工作但也爱出门走走。喜欢日系文化和独立音乐，正在学习烘焙，梦想是开一家小小的咖啡店。',
+        info: {星座: '双鱼座',身高: '162cm',学历: '本科',饮酒: '从不'}
+      },
+      {
+        id: 4,
+        name: '张浩然',
+        age: 26,
+        gender: '男',
+        image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&h=800&fit=crop',
+        location: '上海 · 8km',
+        job: '程序员',
+        tags: ['编程', '游戏', '吉他', '篮球'],
+        bio: '后端开发工程师，性格比较内敛但熟了之后话很多。会弹吉他，周末喜欢打篮球。希望找到能理解程序员幽默的人。',
+        info: {星座: '天蝎座',身高: '178cm',学历: '本科',饮酒: '偶尔'}
+      },
+      {
+        id: 5,
+        name: '王诗琪',
+        age: 23,
+        gender: '女',
+        image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&h=800&fit=crop',
+        location: '上海 · 1km',
+        job: '舞蹈老师',
+        tags: ['舞蹈', '瑜伽', '时尚', '探店'],
+        bio: '舞蹈老师，性格活泼开朗。喜欢尝试新鲜事物，是朋友圈里的美食雷达。希望能遇到一个有趣、有责任心的男生。',
+        info: {星座: '射手座',身高: '168cm',学历: '本科',饮酒: '社交'}
+      }
+    ];
+
+    let currentIndex = 0;
+    let history = [];
+    let isDragging = false;
+    let startX = 0;
+    let currentX = 0;
+    let currentCard = null;
+
+    function renderCards() {
+      const stack = document.getElementById('cardStack');
+      stack.innerHTML = '';
+
+      if (currentIndex >= users.length) {
+        stack.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-text">暂时没有更多推荐</div>
+            <div class="empty-subtext">稍后再来看看吧~</div>
+          </div>
+        `;
+        return;
+      }
+
+      for (let i = 0; i < 3 && currentIndex + i < users.length; i++) {
+        const user = users[currentIndex + i];
+        const card = createCard(user, i === 0);
+        stack.appendChild(card);
+      }
+    }
+
+    function createCard(user, isTop) {
+      const card = document.createElement('div');
+      card.className = 'card' + (isTop ? ' new-card' : '');
+      card.dataset.userId = user.id;
+      card.innerHTML = `
+        <div class="card-badge badge-like">LIKE</div>
+        <div class="card-badge badge-nope">NOPE</div>
+        <div class="card-image" style="background-image: url('${user.image}')"></div>
+        <div class="card-info">
+          <div class="card-name-row">
+            <span class="card-name">${user.name}</span>
+            <span class="card-age">${user.age}</span>
+          </div>
+          <div class="card-meta">
+            <span>📍 ${user.location}</span>
+            <span>💼 ${user.job}</span>
+          </div>
+          <div class="card-tags">
+            ${user.tags.slice(0, 3).map(tag => `<span class="card-tag">${tag}</span>`).join('')}
+          </div>
+        </div>
+        <div class="card-expand" onclick="openProfile(${user.id})">⬆</div>
+      `;
+
+      if (isTop) {
+        card.addEventListener('pointerdown', onPointerDown);
+      }
+
+      return card;
+    }
+
+    function onPointerDown(e) {
+      if (e.target.closest('.card-expand')) return;
+
+      isDragging = true;
+      startX = e.clientX || e.touches?.[0]?.clientX;
+      currentCard = document.querySelector('.card');
+      currentCard.style.transition = 'none';
+
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('pointercancel', onPointerUp);
+    }
+
+    function onPointerMove(e) {
+      if (!isDragging) return;
+
+      const clientX = e.clientX || e.touches?.[0]?.clientX;
+      currentX = clientX - startX;
+      const rotate = currentX * 0.05;
+
+      currentCard.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+
+      const opacity = Math.min(Math.abs(currentX) / 150, 1);
+      const likeBadge = currentCard.querySelector('.badge-like');
+      const nopeBadge = currentCard.querySelector('.badge-nope');
+
+      if (currentX > 0) {
+        likeBadge.style.opacity = opacity;
+        nopeBadge.style.opacity = 0;
+      } else {
+        likeBadge.style.opacity = 0;
+        nopeBadge.style.opacity = opacity;
+      }
+    }
+
+    function onPointerUp(e) {
+      if (!isDragging) return;
+      isDragging = false;
+
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', onPointerUp);
+
+      const threshold = 100;
+
+      if (currentX > threshold) {
+        swipeCard('right');
+      } else if (currentX < -threshold) {
+        swipeCard('left');
+      } else {
+        resetCard();
+      }
+    }
+
+    function resetCard() {
+      if (!currentCard) return;
+      currentCard.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      currentCard.style.transform = 'translateX(0) rotate(0)';
+      currentCard.querySelector('.badge-like').style.opacity = 0;
+      currentCard.querySelector('.badge-nope').style.opacity = 0;
+      currentX = 0;
+    }
+
+    function swipeCard(direction) {
+      if (!currentCard) return;
+
+      const userId = parseInt(currentCard.dataset.userId);
+      const user = users.find(u => u.id === userId);
+
+      currentCard.style.transition = 'transform 0.4s ease-out, opacity 0.4s';
+      const x = direction === 'right' ? window.innerWidth + 200 : -window.innerWidth - 200;
+      const rotate = direction === 'right' ? 30 : -30;
+      currentCard.style.transform = `translateX(${x}px) rotate(${rotate}deg)`;
+      currentCard.style.opacity = '0';
+
+      history.push({ user, direction });
+
+      setTimeout(() => {
+        currentIndex++;
+        renderCards();
+
+        if (direction === 'right' && Math.random() > 0.5) {
+          showMatch(user);
+        }
+      }, 300);
+    }
+
+    function handleLike() {
+      const card = document.querySelector('.card');
+      if (!card) return;
+      currentCard = card;
+      currentCard.querySelector('.badge-like').style.opacity = 1;
+      swipeCard('right');
+    }
+
+    function handleNope() {
+      const card = document.querySelector('.card');
+      if (!card) return;
+      currentCard = card;
+      currentCard.querySelector('.badge-nope').style.opacity = 1;
+      swipeCard('left');
+    }
+
+    function handleUndo() {
+      if (history.length === 0 || currentIndex === 0) return;
+      currentIndex--;
+      history.pop();
+      renderCards();
+    }
+
+    function openProfile(userId) {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+
+      document.getElementById('modalHeader').style.backgroundImage = `url('${user.image}')`;
+      document.getElementById('modalName').textContent = `${user.name}, ${user.age}`;
+      document.getElementById('modalSubtitle').textContent = `${user.job} · ${user.location}`;
+      document.getElementById('modalBio').textContent = user.bio;
+
+      const infoGrid = document.getElementById('modalInfo');
+      infoGrid.innerHTML = Object.entries(user.info).map(([key, val]) => `
+        <div class="info-item">
+          <div class="info-label">${key}</div>
+          <div class="info-value">${val}</div>
+        </div>
+      `).join('');
+
+      const tagsContainer = document.getElementById('modalTags');
+      tagsContainer.innerHTML = user.tags.map((tag, i) => `
+        <span class="modal-tag ${i < 2 ? 'highlight' : ''}">${tag}</span>
+      `).join('');
+
+      document.getElementById('profileModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeProfile(e) {
+      document.getElementById('profileModal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function showMatch(user) {
+      document.getElementById('matchAvatar').style.backgroundImage = `url('${user.image}')`;
+      document.getElementById('matchModal').classList.add('active');
+      createConfetti();
+    }
+
+    function closeMatchModal() {
+      document.getElementById('matchModal').classList.remove('active');
+      document.querySelectorAll('.confetti').forEach(c => c.remove());
+    }
+
+    function createConfetti() {
+      const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF8E8E', '#5f27cd'];
+      for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.top = '-10px';
+        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+        confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+        confetti.style.transition = `top ${1 + Math.random()}s ease-in, opacity ${1 + Math.random()}s ease`;
+        document.body.appendChild(confetti);
+
+        setTimeout(() => {
+          confetti.style.top = '110vh';
+          confetti.style.opacity = '0';
+          confetti.style.transform += ` rotate(${Math.random() * 720}deg)`;
+        }, 50);
+
+        setTimeout(() => confetti.remove(), 2000);
+      }
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') handleLike();
+      if (e.key === 'ArrowLeft') handleNope();
+      if (e.key === 'Escape') {
+        closeProfile();
+        closeMatchModal();
+      }
+    });
+
+    // Init
+    renderCards();
+  </script>
+</body>
+</html>
