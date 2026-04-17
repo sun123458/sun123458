@@ -1,772 +1,361 @@
-// 应用主逻辑 - 交互式旅行地图
-(function() {
-    'use strict';
+// 主要城市数据（包含经纬度和时区）
+const majorCities = [
+    { name: "北京", nameEn: "Beijing", lat: 39.9042, lng: 116.4074, timezone: "Asia/Shanghai" },
+    { name: "上海", nameEn: "Shanghai", lat: 31.2304, lng: 121.4737, timezone: "Asia/Shanghai" },
+    { name: "东京", nameEn: "Tokyo", lat: 35.6762, lng: 139.6503, timezone: "Asia/Tokyo" },
+    { name: "首尔", nameEn: "Seoul", lat: 37.5665, lng: 126.9780, timezone: "Asia/Seoul" },
+    { name: "新加坡", nameEn: "Singapore", lat: 1.3521, lng: 103.8198, timezone: "Asia/Singapore" },
+    { name: "香港", nameEn: "Hong Kong", lat: 22.3193, lng: 114.1694, timezone: "Asia/Hong_Kong" },
+    { name: "台北", nameEn: "Taipei", lat: 25.0330, lng: 121.5654, timezone: "Asia/Taipei" },
+    { name: "曼谷", nameEn: "Bangkok", lat: 13.7563, lng: 100.5018, timezone: "Asia/Bangkok" },
+    { name: "悉尼", nameEn: "Sydney", lat: -33.8688, lng: 151.2093, timezone: "Australia/Sydney" },
+    { name: "墨尔本", nameEn: "Melbourne", lat: -37.8136, lng: 144.9631, timezone: "Australia/Melbourne" },
+    { name: "伦敦", nameEn: "London", lat: 51.5074, lng: -0.1278, timezone: "Europe/London" },
+    { name: "巴黎", nameEn: "Paris", lat: 48.8566, lng: 2.3522, timezone: "Europe/Paris" },
+    { name: "柏林", nameEn: "Berlin", lat: 52.5200, lng: 13.4050, timezone: "Europe/Berlin" },
+    { name: "罗马", nameEn: "Rome", lat: 41.9028, lng: 12.4964, timezone: "Europe/Rome" },
+    { name: "马德里", nameEn: "Madrid", lat: 40.4168, lng: -3.7038, timezone: "Europe/Madrid" },
+    { name: "阿姆斯特丹", nameEn: "Amsterdam", lat: 52.3676, lng: 4.9041, timezone: "Europe/Amsterdam" },
+    { name: "莫斯科", nameEn: "Moscow", lat: 55.7558, lng: 37.6173, timezone: "Europe/Moscow" },
+    { name: "纽约", nameEn: "New York", lat: 40.7128, lng: -74.0060, timezone: "America/New_York" },
+    { name: "洛杉矶", nameEn: "Los Angeles", lat: 34.0522, lng: -118.2437, timezone: "America/Los_Angeles" },
+    { name: "芝加哥", nameEn: "Chicago", lat: 41.8781, lng: -87.6298, timezone: "America/Chicago" },
+    { name: "旧金山", nameEn: "San Francisco", lat: 37.7749, lng: -122.4194, timezone: "America/Los_Angeles" },
+    { name: "多伦多", nameEn: "Toronto", lat: 43.6532, lng: -79.3832, timezone: "America/Toronto" },
+    { name: "温哥华", nameEn: "Vancouver", lat: 49.2827, lng: -123.1207, timezone: "America/Vancouver" },
+    { name: "墨西哥城", nameEn: "Mexico City", lat: 19.4326, lng: -99.1332, timezone: "America/Mexico_City" },
+    { name: "圣保罗", nameEn: "São Paulo", lat: -23.5505, lng: -46.6333, timezone: "America/Sao_Paulo" },
+    { name: "布宜诺斯艾利斯", nameEn: "Buenos Aires", lat: -34.6037, lng: -58.3816, timezone: "America/Argentina/Buenos_Aires" },
+    { name: "迪拜", nameEn: "Dubai", lat: 25.2048, lng: 55.2708, timezone: "Asia/Dubai" },
+    { name: "孟买", nameEn: "Mumbai", lat: 19.0760, lng: 72.8777, timezone: "Asia/Kolkata" },
+    { name: "德里", nameEn: "Delhi", lat: 28.7041, lng: 77.1025, timezone: "Asia/Kolkata" },
+    { name: "伊斯兰堡", nameEn: "Islamabad", lat: 33.6844, lng: 73.0479, timezone: "Asia/Karachi" },
+    { name: "开罗", nameEn: "Cairo", lat: 30.0444, lng: 31.2357, timezone: "Africa/Cairo" },
+    { name: "约翰内斯堡", nameEn: "Johannesburg", lat: -26.2041, lng: 28.0473, timezone: "Africa/Johannesburg" },
+    { name: "拉各斯", nameEn: "Lagos", lat: 6.5244, lng: 3.3792, timezone: "Africa/Lagos" },
+    { name: "温哥华", nameEn: "Vancouver", lat: 49.2827, lng: -123.1207, timezone: "America/Vancouver" },
+    { name: "苏黎世", nameEn: "Zurich", lat: 47.3769, lng: 8.5417, timezone: "Europe/Zurich" },
+    { name: "斯德哥尔摩", nameEn: "Stockholm", lat: 59.3293, lng: 18.0686, timezone: "Europe/Stockholm" },
+    { name: "维也纳", nameEn: "Vienna", lat: 48.2082, lng: 16.3738, timezone: "Europe/Vienna" },
+    { name: "布拉格", nameEn: "Prague", lat: 50.0755, lng: 14.4378, timezone: "Europe/Prague" },
+    { name: "华沙", nameEn: "Warsaw", lat: 52.2297, lng: 21.0122, timezone: "Europe/Warsaw" },
+    { name: "雅典", nameEn: "Athens", lat: 37.9838, lng: 23.7275, timezone: "Europe/Athens" },
+    { name: "伊斯坦布尔", nameEn: "Istanbul", lat: 41.0082, lng: 28.9784, timezone: "Europe/Istanbul" },
+    { name: "里斯本", nameEn: "Lisbon", lat: 38.7223, lng: -9.1393, timezone: "Europe/Lisbon" },
+    { name: "雷克雅未克", nameEn: "Reykjavik", lat: 64.1466, lng: -21.9426, timezone: "Atlantic/Reykjavik" },
+    { name: "奥克兰", nameEn: "Auckland", lat: -36.8509, lng: 174.7645, timezone: "Pacific/Auckland" },
+    { name: "惠灵顿", nameEn: "Wellington", lat: -41.2924, lng: 174.7787, timezone: "Pacific/Auckland" },
+    { name: "火奴鲁鲁", nameEn: "Honolulu", lat: 21.3069, lng: -157.8583, timezone: "Pacific/Honolulu" },
+    { name: "安克雷奇", nameEn: "Anchorage", lat: 61.2181, lng: -149.9003, timezone: "America/Anchorage" },
+    { name: "莫斯科", nameEn: "Moscow", lat: 55.7558, lng: 37.6173, timezone: "Europe/Moscow" },
+    { name: "雅加达", nameEn: "Jakarta", lat: -6.2088, lng: 106.8456, timezone: "Asia/Jakarta" },
+    { name: "马尼拉", nameEn: "Manila", lat: 14.5995, lng: 120.9842, timezone: "Asia/Manila" },
+    { name: "吉隆坡", nameEn: "Kuala Lumpur", lat: 3.1390, lng: 101.6869, timezone: "Asia/Kuala_Lumpur" }
+];
 
-    // 全局变量
-    let map = null;
-    let attractions = [];
-    let markers = [];
-    let routeLine = null;
-    let showRoute = true;
-    let pendingLocation = null;
-    let tempMarker = null;
+// 状态管理
+let selectedCities = [];
+let currentMarker = null;
+let markers = [];
 
-    // 初始化
-    function init() {
-        console.log('正在初始化旅行地图...');
+// 初始化地图
+const map = L.map('map', {
+    center: [20, 0],
+    zoom: 2,
+    minZoom: 2,
+    maxZoom: 6,
+    zoomControl: false
+});
 
-        try {
-            initMap();
-            initEventListeners();
-            loadFromStorage();
+// 使用深色地图瓦片
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+}).addTo(map);
 
-            console.log('旅行地图初始化完成');
-            showToast('地图加载完成', 'success');
-        } catch (error) {
-            console.error('初始化失败:', error);
-            showToast('地图初始化失败，请刷新页面重试', 'error');
+// 移动缩放控件到右下角
+L.control.zoom({
+    position: 'bottomright'
+}).addTo(map);
+
+// 添加主要城市标记
+const cityIcon = L.divIcon({
+    className: 'city-marker',
+    html: '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px #667eea;"></div>',
+    iconSize: [10, 10],
+    iconAnchor: [5, 5]
+});
+
+majorCities.forEach(city => {
+    const marker = L.marker([city.lat, city.lng], { icon: cityIcon }).addTo(map);
+    marker.on('click', () => handleCityClick(city));
+    markers.push(marker);
+});
+
+// 地图点击事件
+map.on('click', async (e) => {
+    const { lat, lng } = e.latlng;
+
+    try {
+        // 使用免费的时区API
+        const response = await axios.get(`https://api.geonames.org/timezoneJSON?lat=${lat}&lng=${lng}&username=demo`);
+
+        if (response.data.timezoneId) {
+            const cityData = {
+                name: "当前位置",
+                lat: lat,
+                lng: lng,
+                timezone: response.data.timezoneId,
+                countryName: response.data.countryName || ""
+            };
+
+            showCurrentInfo(cityData);
+            addMarker(lat, lng, cityData.name);
+        } else {
+            alert("无法获取该位置的时区信息");
         }
+    } catch (error) {
+        console.error("获取时区失败:", error);
+        alert("获取时区信息失败，请重试");
+    }
+});
+
+// 城市点击处理
+function handleCityClick(city) {
+    showCurrentInfo(city);
+    addMarker(city.lat, city.lng, city.name);
+}
+
+// 显示当前位置信息
+function showCurrentInfo(city) {
+    const container = document.getElementById('current-info');
+    const now = DateTime.now().setZone(city.timezone);
+    const localNow = DateTime.now();
+
+    const diffHours = now.offset - localNow.offset;
+    const diffSign = diffHours >= 0 ? '+' : '';
+    const diffText = diffHours === 0 ? '与本地时间相同' : `${diffSign}${diffHours} 小时`;
+
+    container.innerHTML = `
+        <div class="info-row">
+            <span class="info-label">位置</span>
+            <span class="info-value">${city.name}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">时区</span>
+            <span class="timezone-badge">${city.timezone}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">时差</span>
+            <span class="diff-badge ${diffHours >= 0 ? 'positive' : 'negative'}">${diffText}</span>
+        </div>
+        <div class="time-display">${now.toFormat('HH:mm:ss')}</div>
+        <div class="info-row">
+            <span class="info-label">日期</span>
+            <span class="info-value">${now.toFormat('yyyy年MM月dd日 EEEE')}</span>
+        </div>
+        <button class="add-btn" onclick="addCity('${encodeURIComponent(JSON.stringify(city))}')">
+            + 添加到对比列表
+        </button>
+    `;
+}
+
+// 添加标记
+function addMarker(lat, lng, name) {
+    if (currentMarker) {
+        map.removeLayer(currentMarker);
     }
 
-    // 初始化地图
-    function initMap() {
-        console.log('创建地图实例...');
+    currentMarker = L.marker([lat, lng], {
+        icon: L.divIcon({
+            className: 'current-marker',
+            html: '<div style="background: #ff6b6b; width: 15px; height: 15px; border-radius: 50%; box-shadow: 0 0 15px #ff6b6b; animation: pulse 1s infinite;"></div>',
+            iconSize: [15, 15],
+            iconAnchor: [7.5, 7.5]
+        })
+    }).addTo(map);
 
-        // 创建地图实例，默认定位到中国
-        map = L.map('map', {
-            zoomControl: false,
-            preferCanvas: true
-        }).setView([35.8617, 104.1954], 4);
+    currentMarker.bindPopup(`<strong>${name}</strong>`).openPopup();
+}
 
-        console.log('地图实例创建成功，中心点: [35.8617, 104.1954]');
+// 添加城市到对比列表
+function addCity(cityEncoded) {
+    const city = JSON.parse(decodeURIComponent(cityEncoded));
 
-        // 添加 OpenStreetMap 图层
-        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxZoom: 19,
-            errorTileUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect fill="%23ccc" width="256" height="256"/><text x="128" y="128" font-size="20" text-anchor="middle" fill="%23666">加载失败</text></svg>'
-        }).addTo(this.map);
+    // 检查是否已存在
+    const exists = selectedCities.some(c =>
+        c.lat === city.lat && c.lng === city.lng
+    );
 
-        console.log('地图瓦片图层添加成功');
-
-        // 添加地图点击事件
-        map.on('click', onMapClick);
-
-        // 检查地图是否正确加载
-        setTimeout(() => {
-            const mapContainer = document.getElementById('map');
-            if (mapContainer && mapContainer.offsetHeight === 0) {
-                console.error('地图容器高度为0');
-                showToast('地图显示异常，请调整窗口大小', 'error');
-            }
-        }, 1000);
+    if (exists) {
+        alert("该城市已在列表中");
+        return;
     }
 
-    // 初始化事件监听器
-    function initEventListeners() {
-        // 添加景点按钮
-        const addBtn = document.getElementById('addAttractionBtn');
-        if (addBtn) {
-            addBtn.addEventListener('click', addAttractionFromForm);
-        }
+    selectedCities.push(city);
+    updateCityList();
+}
 
-        // 搜索功能
-        const searchBtn = document.getElementById('searchBtn');
-        const searchInput = document.getElementById('searchInput');
-        if (searchBtn) {
-            searchBtn.addEventListener('click', searchLocation);
-        }
-        if (searchInput) {
-            searchInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') searchLocation();
-            });
-        }
+// 从对比列表中移除城市
+function removeCity(index) {
+    selectedCities.splice(index, 1);
+    updateCityList();
+}
 
-        // 计算路线
-        const calcRouteBtn = document.getElementById('calculateRouteBtn');
-        if (calcRouteBtn) {
-            calcRouteBtn.addEventListener('click', calculateRoute);
-        }
+// 更新城市列表
+function updateCityList() {
+    const container = document.getElementById('selected-cities');
 
-        // 清除所有
-        const clearAllBtn = document.getElementById('clearAllBtn');
-        if (clearAllBtn) {
-            clearAllBtn.addEventListener('click', clearAll);
-        }
-
-        // 导出/导入
-        const exportBtn = document.getElementById('exportBtn');
-        const importBtn = document.getElementById('importBtn');
-        const importFile = document.getElementById('importFile');
-
-        if (exportBtn) exportBtn.addEventListener('click', exportData);
-        if (importBtn) importBtn.addEventListener('click', function() {
-            if (importFile) importFile.click();
-        });
-        if (importFile) {
-            importFile.addEventListener('change', importData);
-        }
-
-        // 地图控制按钮
-        const locateBtn = document.getElementById('locateBtn');
-        const zoomInBtn = document.getElementById('zoomInBtn');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
-        const toggleRouteBtn = document.getElementById('toggleRouteBtn');
-
-        if (locateBtn) locateBtn.addEventListener('click', locateUser);
-        if (zoomInBtn) zoomInBtn.addEventListener('click', function() { map.zoomIn(); });
-        if (zoomOutBtn) zoomOutBtn.addEventListener('click', function() { map.zoomOut(); });
-        if (toggleRouteBtn) toggleRouteBtn.addEventListener('click', toggleRouteDisplay);
+    if (selectedCities.length === 0) {
+        container.innerHTML = '<p class="placeholder">添加城市进行对比</p>';
+        return;
     }
 
-    // 地图点击处理
-    function onMapClick(e) {
-        const { lat, lng } = e.latlng;
-        console.log('地图点击位置:', lat, lng);
+    container.innerHTML = selectedCities.map((city, index) => {
+        const now = DateTime.now().setZone(city.timezone);
+        const localNow = DateTime.now();
+        const diffHours = now.offset - localNow.offset;
 
-        pendingLocation = { lat, lng };
-
-        // 移除旧的临时标记
-        if (tempMarker) {
-            map.removeLayer(tempMarker);
-        }
-
-        // 添加临时标记
-        tempMarker = L.marker([lat, lng], {
-            icon: L.divIcon({
-                className: 'temp-marker',
-                html: '<div style="background: #FF5722; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
-                iconSize: [16, 16],
-                iconAnchor: [8, 8]
-            })
-        }).addTo(map);
-
-        tempMarker.bindPopup('已选择位置，请填写景点信息').openPopup();
-
-        // 自动聚焦到输入框
-        const nameInput = document.getElementById('attractionName');
-        if (nameInput) {
-            nameInput.focus();
-        }
-
-        showToast('已选择位置，请填写景点信息', 'info');
-    }
-
-    // 从表单添加景点
-    function addAttractionFromForm() {
-        if (!pendingLocation) {
-            showToast('请先点击地图选择位置', 'error');
-            return;
-        }
-
-        const nameInput = document.getElementById('attractionName');
-        const descInput = document.getElementById('attractionDesc');
-        const iconSelect = document.getElementById('attractionIcon');
-
-        const name = nameInput ? nameInput.value.trim() : '';
-        if (!name) {
-            showToast('请输入景点名称', 'error');
-            return;
-        }
-
-        const attraction = {
-            id: Date.now(),
-            name: name,
-            description: descInput ? descInput.value.trim() : '',
-            icon: iconSelect ? iconSelect.value : '🏛️',
-            lat: pendingLocation.lat,
-            lng: pendingLocation.lng
-        };
-
-        attractions.push(attraction);
-        addMarker(attraction);
-        updateAttractionsList();
-        updateRouteButton();
-        saveToStorage();
-
-        // 清除临时标记
-        if (tempMarker) {
-            map.removeLayer(tempMarker);
-            tempMarker = null;
-        }
-
-        // 清空表单
-        if (nameInput) nameInput.value = '';
-        if (descInput) descInput.value = '';
-        pendingLocation = null;
-
-        showToast('景点添加成功: ' + attraction.name, 'success');
-    }
-
-    // 添加标记
-    function addMarker(attraction) {
-        const icon = L.divIcon({
-            className: 'custom-marker',
-            html: `<span class="icon">${attraction.icon}</span>`,
-            iconSize: [48, 48],
-            iconAnchor: [24, 24]
-        });
-
-        const marker = L.marker([attraction.lat, attraction.lng], { icon }).addTo(map);
-
-        // 添加弹出窗口
-        const popupContent = `
-            <div class="popup-header">
-                <span class="icon">${attraction.icon}</span>
-                <h4>${escapeHtml(attraction.name)}</h4>
-            </div>
-            ${attraction.description ? `<p class="popup-description">${escapeHtml(attraction.description)}</p>` : ''}
-            <div class="popup-coordinates">
-                ${attraction.lat.toFixed(6)}, ${attraction.lng.toFixed(6)}
+        return `
+            <div class="city-item" data-timezone="${city.timezone}">
+                <button class="remove-btn" onclick="removeCity(${index})">×</button>
+                <div class="city-header">
+                    <span class="city-name">${city.name}</span>
+                    <span class="city-timezone">${city.timezone}</span>
+                </div>
+                <div class="city-time">${now.toFormat('HH:mm')}</div>
+                <div class="city-date">${now.toFormat('MM月dd日 EEEE')}</div>
+                ${diffHours !== 0 ? `<div class="diff-badge ${diffHours >= 0 ? 'positive' : 'negative'}">${diffHours >= 0 ? '+' : ''}${diffHours}h</div>` : ''}
             </div>
         `;
+    }).join('');
+}
 
-        marker.bindPopup(popupContent);
+// 清空所有城市
+document.getElementById('clear-all').addEventListener('click', () => {
+    if (selectedCities.length > 0 && confirm('确定要清空所有已选城市吗？')) {
+        selectedCities = [];
+        updateCityList();
+    }
+});
 
-        // 双击删除
-        marker.on('dblclick', function() {
-            if (confirm('确定要删除这个景点吗？')) {
-                deleteAttraction(attraction.id);
-            }
-        });
+// 搜索功能
+const searchInput = document.getElementById('city-search');
+const searchResults = document.getElementById('search-results');
 
-        markers.push({ marker, attraction });
+searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+
+    if (query.length < 1) {
+        searchResults.innerHTML = '';
+        return;
     }
 
-    // 删除景点
-    function deleteAttraction(id) {
-        const index = attractions.findIndex(a => a.id === id);
-        if (index !== -1) {
-            // 移除标记
-            const markerObj = markers.find(m => m.attraction.id === id);
-            if (markerObj) {
-                map.removeLayer(markerObj.marker);
-                markers = markers.filter(m => m.attraction.id !== id);
-            }
+    const results = majorCities.filter(city =>
+        city.name.toLowerCase().includes(query) ||
+        city.nameEn.toLowerCase().includes(query)
+    ).slice(0, 10);
 
-            // 移除景点
-            attractions.splice(index, 1);
-            updateAttractionsList();
-            updateRouteButton();
-            clearRoute();
-            saveToStorage();
-
-            showToast('景点已删除', 'info');
-        }
+    if (results.length === 0) {
+        searchResults.innerHTML = '<p class="placeholder" style="text-align:center;padding:15px;">未找到匹配的城市</p>';
+        return;
     }
 
-    // 定位到景点
-    function locateAttraction(id) {
-        const attraction = attractions.find(a => a.id === id);
-        if (attraction) {
-            map.setView([attraction.lat, attraction.lng], 14);
-            const markerObj = markers.find(m => m.attraction.id === id);
-            if (markerObj) {
-                markerObj.marker.openPopup();
-            }
-        }
-    }
-
-    // 更新景点列表
-    function updateAttractionsList() {
-        const list = document.getElementById('attractionsList');
-
-        if (!list) return;
-
-        if (attractions.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">📍</div>
-                    <p>还没有添加任何景点</p>
-                    <p style="font-size: 12px; margin-top: 5px;">点击地图或搜索来添加</p>
-                </div>
-            `;
-            return;
-        }
-
-        list.innerHTML = attractions.map(function(attraction) {
-            return `
-                <li class="attraction-item">
-                    <div class="icon-name">
-                        <span class="icon">${attraction.icon}</span>
-                        <span class="name">${escapeHtml(attraction.name)}</span>
-                    </div>
-                    <div class="actions">
-                        <button class="action-btn locate-btn" data-id="${attraction.id}" title="定位">
-                            📍
-                        </button>
-                        <button class="action-btn delete-btn" data-id="${attraction.id}" title="删除">
-                            ✕
-                        </button>
-                    </div>
-                </li>
-            `;
-        }).join('');
-
-        // 绑定按钮事件
-        list.querySelectorAll('.locate-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                locateAttraction(parseInt(this.dataset.id));
-            });
-        });
-
-        list.querySelectorAll('.delete-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                deleteAttraction(parseInt(this.dataset.id));
-            });
-        });
-    }
-
-    // 更新路线按钮状态
-    function updateRouteButton() {
-        const btn = document.getElementById('calculateRouteBtn');
-        if (btn) {
-            btn.disabled = attractions.length < 2;
-        }
-    }
-
-    // 计算路线距离
-    function calculateRoute() {
-        if (attractions.length < 2) {
-            showToast('至少需要2个景点才能计算路线', 'error');
-            return;
-        }
-
-        // 使用 OSRM 路由服务
-        const coordinates = attractions.map(a => `${a.lng},${a.lat}`).join(';');
-        const url = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
-
-        const btn = document.getElementById('calculateRouteBtn');
-        if (btn) {
-            btn.innerHTML = '<span class="loading"></span> 计算中...';
-            btn.disabled = true;
-        }
-
-        fetch(url)
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (btn) {
-                    btn.innerHTML = '📏 计算路线距离';
-                    btn.disabled = false;
-                }
-
-                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-                    const route = data.routes[0];
-                    displayRoute(route.geometry, route.distance, route.duration);
-                    showToast('路线计算完成', 'success');
-                } else {
-                    throw new Error('无法获取路线数据');
-                }
-            })
-            .catch(function(err) {
-                console.error('路线计算错误:', err);
-                if (btn) {
-                    btn.innerHTML = '📏 计算路线距离';
-                    btn.disabled = false;
-                }
-                showToast('路线计算失败，使用直线距离', 'error');
-                calculateStraightLineDistance();
-            });
-    }
-
-    // 计算直线距离
-    function calculateStraightLineDistance() {
-        let totalDistance = 0;
-
-        for (let i = 0; i < attractions.length - 1; i++) {
-            const from = attractions[i];
-            const to = attractions[i + 1];
-            totalDistance += getHaversineDistance(from.lat, from.lng, to.lat, to.lng);
-        }
-
-        // 创建简单的直线连接
-        const latlngs = attractions.map(a => [a.lat, a.lng]);
-        const geometry = { type: 'LineString', coordinates: latlngs.map(ll => [ll[1], ll[0]]) };
-
-        displayRoute(geometry, totalDistance * 1000, null);
-    }
-
-    // Haversine 公式计算距离
-    function getHaversineDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                  Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    function toRad(deg) {
-        return deg * (Math.PI / 180);
-    }
-
-    // 显示路线
-    function displayRoute(geometry, distance, duration) {
-        clearRoute();
-
-        const coordinates = geometry.coordinates.map(function(coord) {
-            return [coord[1], coord[0]];
-        });
-
-        routeLine = L.polyline(coordinates, {
-            color: '#2196F3',
-            weight: 4,
-            opacity: 0.8
-        }).addTo(map);
-
-        map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
-
-        const routeInfo = document.getElementById('routeInfo');
-        if (routeInfo) {
-            routeInfo.classList.add('show');
-            routeInfo.innerHTML = `
-                <div class="distance">${formatDistance(distance)}</div>
-                <div class="detail">
-                    包含 ${attractions.length} 个景点<br>
-                    ${duration ? `预计时间: ${formatDuration(duration)}` : '(直线距离)'}
-                </div>
-            `;
-        }
-    }
-
-    // 清除路线
-    function clearRoute() {
-        if (routeLine) {
-            map.removeLayer(routeLine);
-            routeLine = null;
-        }
-        const routeInfo = document.getElementById('routeInfo');
-        if (routeInfo) {
-            routeInfo.classList.remove('show');
-        }
-    }
-
-    // 切换路线显示
-    function toggleRouteDisplay() {
-        showRoute = !showRoute;
-        const btn = document.getElementById('toggleRouteBtn');
-        if (btn) {
-            btn.classList.toggle('active', showRoute);
-        }
-
-        if (routeLine) {
-            if (showRoute) {
-                routeLine.addTo(map);
-            } else {
-                map.removeLayer(routeLine);
-            }
-        }
-    }
-
-    // 格式化距离
-    function formatDistance(meters) {
-        if (meters < 1000) {
-            return Math.round(meters) + ' 米';
-        } else if (meters < 100000) {
-            return (meters / 1000).toFixed(1) + ' 公里';
-        } else {
-            return Math.round(meters / 1000) + ' 公里';
-        }
-    }
-
-    // 格式化时长
-    function formatDuration(seconds) {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-
-        if (hours > 0) {
-            return hours + '小时' + (minutes > 0 ? minutes + '分钟' : '');
-        }
-        return minutes + '分钟';
-    }
-
-    // 搜索地点
-    function searchLocation() {
-        const searchInput = document.getElementById('searchInput');
-        const query = searchInput ? searchInput.value.trim() : '';
-        if (!query) return;
-
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
-
-        const searchBtn = document.getElementById('searchBtn');
-        if (searchBtn) {
-            searchBtn.innerHTML = '<span class="loading" style="border-color: #333; border-top-color: transparent; width: 16px; height: 16px;"></span>';
-        }
-
-        fetch(url)
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (searchBtn) {
-                    searchBtn.innerHTML = '🔍';
-                }
-                displaySearchResults(data);
-            })
-            .catch(function(err) {
-                console.error('搜索失败:', err);
-                if (searchBtn) {
-                    searchBtn.innerHTML = '🔍';
-                }
-                showToast('搜索失败，请检查网络连接', 'error');
-            });
-    }
-
-    // 显示搜索结果
-    function displaySearchResults(results) {
-        const container = document.getElementById('searchResults');
-
-        if (!container) return;
-
-        if (results.length === 0) {
-            container.innerHTML = '<p style="color: #666; font-size: 14px; text-align: center; padding: 20px;">未找到相关地点</p>';
-            return;
-        }
-
-        container.innerHTML = results.map(function(result) {
-            return `
-                <div class="search-result-item" data-lat="${result.lat}" data-lon="${result.lon}" data-name="${result.display_name.split(',')[0]}">
-                    <div class="name">${result.display_name.split(',')[0]}</div>
-                    <div class="address">${truncateText(result.display_name, 60)}</div>
-                </div>
-            `;
-        }).join('');
-
-        container.querySelectorAll('.search-result-item').forEach(function(item) {
-            item.addEventListener('click', function() {
-                const lat = parseFloat(this.dataset.lat);
-                const lon = parseFloat(this.dataset.lon);
-                const name = this.dataset.name;
-
-                map.setView([lat, lon], 14);
-
-                pendingLocation = { lat, lng: lon };
-
-                // 更新表单
-                const nameInput = document.getElementById('attractionName');
-                if (nameInput) {
-                    nameInput.value = name;
-                    nameInput.focus();
-                }
-
-                showToast('已定位到: ' + name, 'info');
-            });
-        });
-    }
-
-    // 定位用户位置
-    function locateUser() {
-        if (!navigator.geolocation) {
-            showToast('您的浏览器不支持地理定位', 'error');
-            return;
-        }
-
-        const btn = document.getElementById('locateBtn');
-        if (btn) {
-            btn.innerHTML = '<span class="loading" style="border-color: #333; border-top-color: transparent; width: 16px; height: 16px;"></span>';
-        }
-
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-
-                map.setView([lat, lon], 14);
-
-                L.marker([lat, lon])
-                    .addTo(map)
-                    .bindPopup('📍 您的位置')
-                    .openPopup();
-
-                if (btn) btn.innerHTML = '📍';
-                showToast('已定位到您的位置', 'success');
-            },
-            function(error) {
-                if (btn) btn.innerHTML = '📍';
-                let message = '定位失败';
-                if (error.code === 1) message = '请允许位置访问权限';
-                else if (error.code === 2) message = '无法获取位置信息';
-                else if (error.code === 3) message = '定位请求超时';
-                showToast(message, 'error');
-            }
-        );
-    }
-
-    // 清除所有景点
-    function clearAll() {
-        if (attractions.length === 0) {
-            showToast('没有景点需要清除', 'error');
-            return;
-        }
-
-        if (confirm('确定要清除所有景点吗？')) {
-            markers.forEach(function(m) {
-                map.removeLayer(m.marker);
-            });
-            markers = [];
-            attractions = [];
-
-            clearRoute();
-            updateAttractionsList();
-            updateRouteButton();
-            localStorage.removeItem('travelMapAttractions');
-
-            showToast('已清除所有景点', 'info');
-        }
-    }
-
-    // 导出数据
-    function exportData() {
-        if (attractions.length === 0) {
-            showToast('没有数据可导出', 'error');
-            return;
-        }
-
-        const data = {
-            version: '1.0',
-            exportDate: new Date().toISOString(),
-            attractions: attractions
-        };
-
-        try {
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'travel-map-' + new Date().toISOString().split('T')[0] + '.json';
-            a.click();
-            URL.revokeObjectURL(url);
-
-            showToast('数据已导出', 'success');
-        } catch (e) {
-            console.error('导出失败:', e);
-            showToast('导出失败', 'error');
-        }
-    }
-
-    // 导入数据
-    function importData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-
-                if (!data.attractions || !Array.isArray(data.attractions)) {
-                    throw new Error('无效的数据格式');
-                }
-
-                // 清除现有数据
-                markers.forEach(function(m) {
-                    map.removeLayer(m.marker);
-                });
-                markers = [];
-                attractions = [];
-                clearRoute();
-
-                // 添加导入的数据
-                data.attractions.forEach(function(attraction) {
-                    attractions.push(attraction);
-                    addMarker(attraction);
-                });
-
-                updateAttractionsList();
-                updateRouteButton();
-                saveToStorage();
-
-                showToast('成功导入 ' + data.attractions.length + ' 个景点', 'success');
-
-                // 调整地图视图
-                if (attractions.length > 0) {
-                    const group = L.featureGroup(markers.map(function(m) { return m.marker; }));
-                    map.fitBounds(group.getBounds().pad(0.1));
-                }
-            } catch (err) {
-                console.error('导入错误:', err);
-                showToast('导入失败，文件格式不正确', 'error');
-            }
-        };
-        reader.readAsText(file);
-
-        event.target.value = '';
-    }
-
-    // 保存到本地存储
-    function saveToStorage() {
-        try {
-            localStorage.setItem('travelMapAttractions', JSON.stringify(attractions));
-        } catch (e) {
-            console.error('保存失败:', e);
-        }
-    }
-
-    // 从本地存储加载
-    function loadFromStorage() {
-        try {
-            const saved = localStorage.getItem('travelMapAttractions');
-            if (saved) {
-                const loadedAttractions = JSON.parse(saved);
-                loadedAttractions.forEach(function(attraction) {
-                    attractions.push(attraction);
-                    addMarker(attraction);
-                });
-                updateAttractionsList();
-                updateRouteButton();
-
-                if (attractions.length > 0) {
-                    const group = L.featureGroup(markers.map(function(m) { return m.marker; }));
-                    map.fitBounds(group.getBounds().pad(0.1));
-                }
-            }
-        } catch (e) {
-            console.error('加载数据失败:', e);
-        }
-    }
-
-    // 显示提示消息
-    function showToast(message, type) {
-        var oldToast = document.querySelector('.toast');
-        if (oldToast) oldToast.remove();
-
-        var toast = document.createElement('div');
-        toast.className = 'toast ' + (type || 'info');
-        toast.textContent = message;
-        document.body.appendChild(toast);
-
-        setTimeout(function() { toast.classList.add('show'); }, 10);
-
-        setTimeout(function() {
-            toast.classList.remove('show');
-            setTimeout(function() { toast.remove(); }, 300);
-        }, 3000);
-    }
-
-    // HTML 转义
-    function escapeHtml(text) {
-        var div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // 截断文本
-    function truncateText(text, maxLength) {
-        if (text.length <= maxLength) return text;
-        return text.substring(0, maxLength) + '...';
-    }
-
-    // 暴露全局函数
-    window.app = {
-        locateAttraction: locateAttraction,
-        deleteAttraction: deleteAttraction
+    searchResults.innerHTML = results.map(city => {
+        const now = DateTime.now().setZone(city.timezone);
+        return `
+            <div class="search-result-item" onclick="selectSearchResult(${city.lat}, ${city.lng}, '${city.timezone}', '${city.name}')">
+                <div class="result-city">${city.name} (${city.nameEn})</div>
+                <div class="result-details">${now.toFormat('HH:mm')} · ${city.timezone}</div>
+            </div>
+        `;
+    }).join('');
+});
+
+// 选择搜索结果
+function selectSearchResult(lat, lng, timezone, name) {
+    const city = {
+        name: name,
+        lat: lat,
+        lng: lng,
+        timezone: timezone
     };
 
-    // DOM 加载完成后初始化
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+    // 显示当前位置信息
+    showCurrentInfo(city);
+
+    // 移动地图到该位置
+    map.setView([lat, lng], 4);
+    addMarker(lat, lng, name);
+
+    // 添加到列表
+    selectedCities.push(city);
+    updateCityList();
+
+    // 清空搜索
+    searchInput.value = '';
+    searchResults.innerHTML = '';
+}
+
+// 每秒更新时间显示
+setInterval(() => {
+    // 更新当前位置时间
+    const currentInfo = document.getElementById('current-info');
+    const timeDisplay = currentInfo.querySelector('.time-display');
+    if (timeDisplay) {
+        // 从DOM获取时区信息（简单方式）
+        const timezoneBadge = currentInfo.querySelector('.timezone-badge');
+        if (timezoneBadge) {
+            const timezone = timezoneBadge.textContent;
+            const now = DateTime.now().setZone(timezone);
+            timeDisplay.textContent = now.toFormat('HH:mm:ss');
+
+            // 更新日期
+            const dateRow = currentInfo.querySelectorAll('.info-row')[2];
+            if (dateRow) {
+                dateRow.querySelector('.info-value').textContent = now.toFormat('yyyy年MM月dd日 EEEE');
+            }
+        }
     }
 
-})();
+    // 更新已选城市时间
+    document.querySelectorAll('.city-item').forEach((item, index) => {
+        if (selectedCities[index]) {
+            const now = DateTime.now().setZone(selectedCities[index].timezone);
+            const timeEl = item.querySelector('.city-time');
+            const dateEl = item.querySelector('.city-date');
+            if (timeEl) timeEl.textContent = now.toFormat('HH:mm');
+            if (dateEl) dateEl.textContent = now.toFormat('MM月dd日 EEEE');
+        }
+    });
+
+    // 更新搜索结果时间
+    document.querySelectorAll('.search-result-item').forEach((item, index) => {
+        const query = searchInput.value.toLowerCase().trim();
+        if (query.length >= 1) {
+            const results = majorCities.filter(city =>
+                city.name.toLowerCase().includes(query) ||
+                city.nameEn.toLowerCase().includes(query)
+            ).slice(0, 10);
+            if (results[index]) {
+                const now = DateTime.now().setZone(results[index].timezone);
+                const detailsEl = item.querySelector('.result-details');
+                if (detailsEl) {
+                    detailsEl.textContent = `${now.toFormat('HH:mm')} · ${results[index].timezone}`;
+                }
+            }
+        }
+    });
+}, 1000);
+
+// 添加动画样式
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.2); opacity: 0.7; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+`;
+document.head.appendChild(style);
