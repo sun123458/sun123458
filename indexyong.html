@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交互式旅行地图</title>
+    <meta name="description" content="使用 Leaflet 和 OpenStreetMap 的交互式旅行地图应用">
+    <meta name="theme-color" content="#2196F3">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部控制栏 -->
+        <header class="header">
+            <h1>🗺️ 交互式旅行地图</h1>
+            <div class="controls">
+                <button id="addMarkerBtn" class="btn btn-primary">
+                    <span class="btn-icon">📍</span> 添加景点
+                </button>
+                <button id="routeBtn" class="btn btn-secondary">
+                    <span class="btn-icon">🛣️</span> 计算路线
+                </button>
+                <button id="clearBtn" class="btn btn-danger">
+                    <span class="btn-icon">🗑️</span> 清除
+                </button>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 地图容器 -->
+            <div id="map"></div>
+
+            <!-- 侧边栏 - 景点列表 -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h2>景点列表</h2>
+                    <button id="closeSidebar" class="close-btn">×</button>
+                </div>
+                <div class="sidebar-content">
+                    <div id="markerList" class="marker-list">
+                        <p class="empty-message">暂无景点，点击地图添加</p>
+                    </div>
+                </div>
+                <!-- 路线信息 -->
+                <div class="route-info" id="routeInfo" style="display: none;">
+                    <h3>📊 路线统计</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">总距离:</span>
+                        <span class="stat-value" id="totalDistance">0 km</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">景点数量:</span>
+                        <span class="stat-value" id="markerCount">0</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- 添加景点模态框 -->
+    <div id="markerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加新景点</h3>
+                <button class="close-btn" id="closeModal">×</button>
+            </div>
+            <form id="markerForm">
+                <div class="form-group">
+                    <label for="markerName">景点名称</label>
+                    <input type="text" id="markerName" required placeholder="例如：天安门广场">
+                </div>
+                <div class="form-group">
+                    <label for="markerDesc">景点描述</label>
+                    <textarea id="markerDesc" rows="3" placeholder="描述这个景点..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>景点类型</label>
+                    <div class="type-selector">
+                        <label class="type-option">
+                            <input type="radio" name="markerType" value="sight" checked>
+                            <span class="type-icon">🏛️</span>
+                            <span>景点</span>
+                        </label>
+                        <label class="type-option">
+                            <input type="radio" name="markerType" value="food">
+                            <span class="type-icon">🍜</span>
+                            <span>美食</span>
+                        </label>
+                        <label class="type-option">
+                            <input type="radio" name="markerType" value="hotel">
+                            <span class="type-icon">🏨</span>
+                            <span>住宿</span>
+                        </label>
+                        <label class="type-option">
+                            <input type="radio" name="markerType" value="shopping">
+                            <span class="type-icon">🛍️</span>
+                            <span>购物</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelMarker">取消</button>
+                    <button type="submit" class="btn btn-primary">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <!-- 应用脚本 -->
+    <script src="app.js"></script>
+</body>
+</html>

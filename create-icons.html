@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>生成图标</title>
+    <style>
+        body { font-family: Arial; padding: 20px; text-align: center; }
+        canvas { margin: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>生成应用图标</h1>
+    <p>点击下方按钮下载图标文件</p>
+    <div id="icons"></div>
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        const container = document.getElementById('icons');
+
+        sizes.forEach(size => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // 背景渐变
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#2196F3');
+            gradient.addColorStop(1, '#1976D2');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+
+            // 地图图标
+            ctx.fillStyle = 'white';
+            ctx.font = `${size * 0.4}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🗺️', size / 2, size / 2);
+
+            // 下载链接
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = `icon-${size}.png`;
+            link.textContent = `下载 ${size}x${size}`;
+            link.style.display = 'block';
+            link.style.margin = '10px auto';
+            link.style.padding = '10px 20px';
+            link.style.background = '#2196F3';
+            link.style.color = 'white';
+            link.style.textDecoration = 'none';
+            link.style.borderRadius = '5px';
+            link.style.width = '200px';
+
+            container.appendChild(canvas);
+            container.appendChild(link);
+            container.appendChild(document.createElement('br'));
+        });
+    </script>
+</body>
+</html>
