@@ -1,124 +1,38 @@
-# 🗺️ 交互式旅行地图
+# 多路线规划对比组件
 
-基于 Leaflet 和 OpenStreetMap 的交互式旅行地图应用，支持 PWA 离线使用。
+输入起点 / 终点，自动生成 **步行 / 骑行 / 驾车** 三种路线并在地图上对比。
 
-## ✨ 功能特性
+## 功能
+- 一次查询并发请求三种出行方式的路线
+- 不同颜色区分：步行（绿 `#22c55e`）/ 骑行（橙 `#f59e0b`）/ 驾车（蓝 `#3b82f6`）
+- 每条路线展示 **耗时 / 距离 / 红绿灯数量**
+- 点击地图上的路线或侧栏步骤条目，高亮对应路段并滚动到详情
+- 切换路线时带平滑粗细 / 透明度过渡动画，步骤条目入场错峰动画
 
-- **📍 添加景点**：在地图上点击添加旅行景点
-- **📝 信息管理**：为每个景点添加名称、描述和类型
-- **🏷️ 景点分类**：支持景点、美食、住宿、购物四种类型
-- **🛣️ 路线计算**：自动计算景点间路线和总距离
-- **💾 本地存储**：景点数据自动保存在浏览器本地
-- **📱 PWA 支持**：支持离线缓存和安装到桌面
-- **🌐 离线模式**：网络断开时仍可使用已缓存的功能
+## 使用
 
-## 🚀 快速开始
+1. 在 `MultiRoutePlanner.html` 中把 `YOUR_AMAP_KEY` 和 `YOUR_SECURITY_CODE` 替换为你在 [高德开放平台](https://console.amap.com/) 申请的 Web 端 JS API Key 与安全密钥。
+2. 由于浏览器安全策略，需通过 HTTP 服务打开（不能直接 `file://`）：
+   ```bash
+   cd "30_封装多路线规划对比组件："
+   python3 -m http.server 8080
+   # 浏览器访问 http://localhost:8080/MultiRoutePlanner.html
+   ```
+3. 输入起点 / 终点（默认 `北京南站 → 天安门`），点击「开始规划」。
 
-### 1. 启动本地服务器
+## API
 
-由于 Service Worker 和 PWA 需要 HTTPS 或 localhost 环境，请使用本地服务器运行：
+```js
+const planner = new MultiRoutePlanner({
+  mapId: 'map',
+  onRouteChange: (mode, route) => { /* 切换回调 */ },
+});
 
-```bash
-# 使用 Python
-python -m http.server 8000
-
-# 或使用 Node.js
-npx serve
-
-# 或使用 PHP
-php -S localhost:8000
+planner.plan();                 // 读取输入框并发起规划
+planner.switchMode('driving');  // 手动切换到驾车路线
+planner.selectStep(3);          // 高亮第 4 个路段
 ```
 
-### 2. 打开应用
-
-在浏览器中访问：`http://localhost:8000`
-
-## 📖 使用说明
-
-### 添加景点
-
-1. 点击顶部「添加景点」按钮进入添加模式
-2. 在地图上点击选择位置
-3. 填写景点信息（名称、描述、类型）
-4. 点击「添加」完成
-
-### 计算路线
-
-1. 添加至少两个景点
-2. 点击「计算路线」按钮
-3. 系统会按添加顺序连接所有景点
-4. 右侧面板显示总距离和景点数量
-
-### 删除景点
-
-1. 在右侧景点列表中点击「✕」按钮
-2. 确认删除
-
-### 清除所有
-
-点击「清除」按钮可以删除所有景点和路线。
-
-### 离线使用
-
-1. 首次访问时，Service Worker 会缓存资源
-2. 断网后，已缓存的地图区域仍然可用
-3. 可以在浏览器中选择「安装」将其添加到桌面
-
-## 🎨 景点类型
-
-| 类型 | 图标 | 颜色 |
-|------|------|------|
-| 景点 | 🏛️ | 蓝色 |
-| 美食 | 🍜 | 橙色 |
-| 住宿 | 🏨 | 紫色 |
-| 购物 | 🛍️ | 粉色 |
-
-## 📁 项目结构
-
-```
-使用 Leaflet3/
-├── index.html          # 主页面
-├── styles.css          # 样式文件
-├── app.js              # 应用逻辑
-├── service-worker.js   # Service Worker（离线缓存）
-├── manifest.json       # PWA 清单文件
-├── icon-*.png          # 应用图标（需自行添加）
-└── README.md           # 说明文档
-```
-
-## 🔧 技术栈
-
-- **Leaflet** - 开源地图库
-- **OpenStreetMap** - 地图数据源
-- **Service Worker** - 离线缓存
-- **LocalStorage** - 本地数据存储
-- **PWA** - 渐进式 Web 应用
-
-## 🌐 浏览器兼容性
-
-- Chrome/Edge (推荐)
-- Firefox
-- Safari
-- 支持所有现代浏览器
-
-## 📝 开发说明
-
-### 添加自定义图标
-
-将图标文件命名为 `icon-192.png`、`icon-512.png` 等放在项目根目录。
-
-### 修改默认位置
-
-在 `app.js` 中修改 `defaultCenter`：
-
-```javascript
-const defaultCenter = [39.9042, 116.4074]; // [纬度, 经度]
-```
-
-### 自定义缓存策略
-
-在 `service-worker.js` 中修改缓存配置和策略。
-
-## 📄 License
-
-MIT
+## 说明
+- `_countTrafficLights` 对高德返回的 `tolls_count` 作了兜底估算（按每 800m 一个红绿灯），实际业务中可替换为接入交通信号数据的真实值。
+- 如需集成到 Vue / React 工程，把 `MultiRoutePlanner` 类的 DOM 操作替换为对应框架的模板与状态即可，核心逻辑（路线检索、Polyline 绘制、步骤高亮）保持不变。
