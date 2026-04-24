@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>即时聊天</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #e8ecf1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .chat-container {
+      width: 420px;
+      max-width: 100%;
+      height: 650px;
+      max-height: 90vh;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ---- 顶栏 ---- */
+    .chat-header {
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #4f7cff, #6c5ce7);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .chat-header .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .chat-header .info h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .chat-header .info span {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    /* ---- 消息区域 ---- */
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: #f7f8fa;
+      scroll-behavior: smooth;
+    }
+
+    .messages-area::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .messages-area::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .messages-area::-webkit-scrollbar-thumb {
+      background: #c0c4cc;
+      border-radius: 10px;
+    }
+
+    /* === 系统提示条（未读标记） === */
+    .unread-divider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      flex-shrink: 0;
+    }
+
+    .unread-divider .line {
+      flex: 1;
+      height: 1px;
+      background: #ff4757;
+    }
+
+    .unread-divider .label {
+      font-size: 12px;
+      color: #ff4757;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* === 单条消息 === */
+    .message {
+      display: flex;
+      gap: 10px;
+      max-width: 85%;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.mine {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message .msg-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #dfe6e9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .message.mine .msg-avatar {
+      background: #4f7cff;
+      color: #fff;
+    }
+
+    .message .bubble {
+      background: #fff;
+      padding: 10px 14px;
+      border-radius: 18px;
+      border-top-left-radius: 4px;
+      font-size: 14px;
+      line-height: 1.55;
+      color: #2d3436;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      word-break: break-word;
+      position: relative;
+    }
+
+    .message.mine .bubble {
+      background: #4f7cff;
+      color: #fff;
+      border-top-left-radius: 18px;
+      border-top-right-radius: 4px;
+    }
+
+    .message .time {
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+      padding: 0 4px;
+    }
+
+    .message.mine .time {
+      text-align: right;
+      color: #888;
+    }
+
+    /* === 未读消息（标红） === */
+    .message.unread .bubble {
+      border-left: 3px solid #ff4757;
+      animation: unreadPulse 1.2s ease-in-out;
+    }
+
+    .message.unread .time {
+      color: #ff4757;
+      font-weight: 600;
+    }
+
+    @keyframes unreadPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4); }
+      70%  { box-shadow: 0 0 0 8px rgba(255, 71, 87, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
+    }
+
+    /* === 底部输入区 === */
+    .input-area {
+      padding: 12px 16px;
+      background: #fff;
+      border-top: 1px solid #eee;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .input-area textarea {
+      flex: 1;
+      border: 1px solid #e0e0e0;
+      border-radius: 24px;
+      padding: 10px 16px;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      line-height: 1.4;
+      max-height: 100px;
+      transition: border-color 0.2s;
+    }
+
+    .input-area textarea:focus {
+      border-color: #4f7cff;
+    }
+
+    .btn-emoji {
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 50%;
+      background: #f1f2f6;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .btn-emoji:hover {
+      background: #dfe6e9;
+    }
+
+    .btn-send {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4f7cff, #6c5ce7);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+      flex-shrink: 0;
+    }
+
+    .btn-send:hover {
+      transform: scale(1.06);
+      box-shadow: 0 4px 14px rgba(79, 124, 255, 0.4);
+    }
+
+    .btn-send:active {
+      transform: scale(0.95);
+    }
+
+    .btn-send:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* === Emoji 面板 === */
+    .emoji-panel {
+      position: absolute;
+      bottom: 70px;
+      left: 16px;
+      right: 16px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      z-index: 10;
+      animation: slideUp 0.2s ease;
+    }
+
+    .emoji-panel.hidden {
+      display: none;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .emoji-panel button {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      font-size: 22px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .emoji-panel button:hover {
+      background: #f0f0f5;
+    }
+
+    /* === 回到底部按钮 === */
+    .scroll-to-bottom {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4f7cff;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 2px 12px rgba(79, 124, 255, 0.35);
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .scroll-to-bottom .badge {
+      background: #ff4757;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 20px;
+      height: 20px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+    }
+
+    .scroll-to-bottom.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chat-container">
+    <!-- 顶栏 -->
+    <div class="chat-header">
+      <div class="avatar">💬</div>
+      <div class="info">
+        <h3>即时聊天</h3>
+        <span>在线</span>
+      </div>
+    </div>
+
+    <!-- 消息列表 -->
+    <div class="messages-area" id="messagesArea">
+      <!-- 初始欢迎消息 -->
+      <div class="message">
+        <div class="msg-avatar">🤖</div>
+        <div>
+          <div class="bubble">你好！欢迎使用即时聊天。发送消息试试吧 👋</div>
+          <div class="time">刚刚</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 回到底部按钮 -->
+    <button class="scroll-to-bottom hidden" id="scrollToBottomBtn">
+      ↓ 新消息 <span class="badge" id="unreadBadge">0</span>
+    </button>
+
+    <!-- Emoji 面板 -->
+    <div class="emoji-panel hidden" id="emojiPanel"></div>
+
+    <!-- 输入区 -->
+    <div class="input-area">
+      <button class="btn-emoji" id="btnEmoji" title="表情">😊</button>
+      <textarea
+        id="messageInput"
+        rows="1"
+        placeholder="输入消息..."
+        maxlength="500"
+      ></textarea>
+      <button class="btn-send" id="btnSend" title="发送" disabled>➤</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const messagesArea = document.getElementById('messagesArea');
+      const messageInput = document.getElementById('messageInput');
+      const btnSend = document.getElementById('btnSend');
+      const btnEmoji = document.getElementById('btnEmoji');
+      const emojiPanel = document.getElementById('emojiPanel');
+      const scrollToBottomBtn = document.getElementById('scrollToBottomBtn');
+      const unreadBadge = document.getElementById('unreadBadge');
+
+      // ---- 常用 Emoji 集合 ----
+      const EMOJIS = [
+        '😀','😂','🤣','😍','🥰','😘','😜','😎',
+        '🤩','😇','🙂','😏','😌','😔','😢','😡',
+        '👍','👎','👏','🙌','💪','🤝','✌️','🤞',
+        '❤️','🧡','💛','💚','💙','💜','🖤','🤍',
+        '🎉','🎊','🎈','🔥','⭐','✨','💡','📌',
+        '😊','😋','🤔','🙄','😬','😴','🤗','🫡',
+      ];
+
+      let unreadCount = 0;
+      let isNearBottom = true;       // 用户是否在底部
+      let lastReadMessageIndex = -1; // 最后一条"已读"消息的索引
+
+      // ---- 初始化 Emoji 面板 ----
+      function buildEmojiPanel() {
+        EMOJIS.forEach(emoji => {
+          const btn = document.createElement('button');
+          btn.textContent = emoji;
+          btn.addEventListener('click', () => {
+            insertEmoji(emoji);
+            emojiPanel.classList.add('hidden');
+            messageInput.focus();
+          });
+          emojiPanel.appendChild(btn);
+        });
+      }
+
+      function insertEmoji(emoji) {
+        const el = messageInput;
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const before = el.value.slice(0, start);
+        const after = el.value.slice(end);
+        el.value = before + emoji + after;
+        // 将光标放到 emoji 之后
+        el.selectionStart = el.selectionEnd = start + emoji.length;
+        updateSendButton();
+      }
+
+      // ---- 判断用户是否接近底部 ----
+      function checkNearBottom() {
+        const threshold = 60; // 距离底部 px 以内视为"在底部"
+        const { scrollTop, scrollHeight, clientHeight } = messagesArea;
+        return scrollHeight - scrollTop - clientHeight < threshold;
+      }
+
+      // ---- 自动滚到底部 ----
+      function scrollToBottom(smooth = true) {
+        requestAnimationFrame(() => {
+          messagesArea.scrollTo({
+            top: messagesArea.scrollHeight,
+            behavior: smooth ? 'smooth' : 'instant',
+          });
+        });
+      }
+
+      // ---- 清除所有未读标记 ----
+      function clearUnread() {
+        const unreadMessages = messagesArea.querySelectorAll('.message.unread');
+        unreadMessages.forEach(msg => msg.classList.remove('unread'));
+
+        // 移除未读分割线
+        const divider = messagesArea.querySelector('.unread-divider');
+        if (divider) divider.remove();
+
+        unreadCount = 0;
+        updateUnreadUI();
+      }
+
+      function updateUnreadUI() {
+        unreadBadge.textContent = unreadCount;
+        if (unreadCount > 0) {
+          scrollToBottomBtn.classList.remove('hidden');
+        } else {
+          scrollToBottomBtn.classList.add('hidden');
+        }
+      }
+
+      // ---- 生成时间字符串 ----
+      function formatTime() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+      }
+
+      // ---- 创建消息 DOM ----
+      function createMessageElement(text, isMine, isUnread) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message' + (isMine ? ' mine' : '') + (isUnread ? ' unread' : '');
+
+        wrapper.innerHTML = `
+          <div class="msg-avatar">${isMine ? '👤' : '🤖'}</div>
+          <div>
+            <div class="bubble">${escapeHtml(text)}</div>
+            <div class="time">${formatTime()}</div>
+          </div>
+        `;
+        return wrapper;
+      }
+
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      // ---- 发送消息 ----
+      function sendMessage() {
+        const text = messageInput.value.trim();
+        if (!text) return;
+
+        // 如果在历史位置（不在底部），先插入未读分割线
+        if (!isNearBottom && unreadCount === 0) {
+          const divider = document.createElement('div');
+          divider.className = 'unread-divider';
+          divider.innerHTML = '<span class="line"></span><span class="label">以下为新消息</span><span class="line"></span>';
+          messagesArea.appendChild(divider);
+        }
+
+        // 判定该消息是否未读
+        const shouldMarkUnread = !isNearBottom;
+
+        // 自己的消息总是"已读"
+        const msgEl = createMessageElement(text, true, false);
+        messagesArea.appendChild(msgEl);
+
+        if (shouldMarkUnread) {
+          unreadCount++;
+        }
+
+        // 清空输入
+        messageInput.value = '';
+        updateSendButton();
+        messageInput.style.height = 'auto';
+
+        // 自己的消息 — 滚到底部
+        scrollToBottom(true);
+        isNearBottom = true;
+        clearUnread();
+
+        // 模拟对方回复（2 秒后）
+        simulateReply();
+      }
+
+      // ---- 模拟回复（演示未读功能） ----
+      function simulateReply() {
+        const replies = [
+          '收到啦 👍',
+          '哈哈哈 😂',
+          '这个不错诶～',
+          '好的好的！',
+          '👌 明白',
+          '太棒了 🔥',
+          '有意思 🤔',
+          '哈哈确实',
+        ];
+        const delay = 1500 + Math.random() * 2500;
+
+        setTimeout(() => {
+          const reply = replies[Math.floor(Math.random() * replies.length)];
+          const wasNearBottom = checkNearBottom();
+          const shouldMarkUnread = !wasNearBottom;
+
+          if (!wasNearBottom && unreadCount === 0) {
+            const divider = document.createElement('div');
+            divider.className = 'unread-divider';
+            divider.innerHTML = '<span class="line"></span><span class="label">以下为新消息</span><span class="line"></span>';
+            messagesArea.appendChild(divider);
+          }
+
+          const msgEl = createMessageElement(reply, false, shouldMarkUnread);
+          messagesArea.appendChild(msgEl);
+
+          if (shouldMarkUnread) {
+            unreadCount++;
+          }
+
+          updateUnreadUI();
+
+          // 如果在底部，自动滚动
+          if (wasNearBottom) {
+            scrollToBottom(true);
+            isNearBottom = true;
+          }
+
+          // 更新 isNearBottom
+          isNearBottom = checkNearBottom();
+        }, delay);
+      }
+
+      // ---- 更新发送按钮状态 ----
+      function updateSendButton() {
+        btnSend.disabled = messageInput.value.trim() === '';
+      }
+
+      // ---- 自动调整输入框高度 ----
+      messageInput.addEventListener('input', () => {
+        updateSendButton();
+        messageInput.style.height = 'auto';
+        messageInput.style.height = Math.min(messageInput.scrollHeight, 100) + 'px';
+      });
+
+      // ---- 发送按钮点击 ----
+      btnSend.addEventListener('click', sendMessage);
+
+      // ---- 回车发送 ----
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      // ---- Emoji 按钮 ----
+      btnEmoji.addEventListener('click', () => {
+        emojiPanel.classList.toggle('hidden');
+      });
+
+      // 点击面板外关闭
+      document.addEventListener('click', (e) => {
+        if (!emojiPanel.contains(e.target) && e.target !== btnEmoji) {
+          emojiPanel.classList.add('hidden');
+        }
+      });
+
+      // ---- 滚动监听：跟踪用户是否在底部 & 自动标记已读 ----
+      messagesArea.addEventListener('scroll', () => {
+        isNearBottom = checkNearBottom();
+
+        // 用户手动滚到底部 → 清除所有未读
+        if (isNearBottom && unreadCount > 0) {
+          clearUnread();
+        }
+      });
+
+      // ---- 回到底部按钮 ----
+      scrollToBottomBtn.addEventListener('click', () => {
+        scrollToBottom(true);
+        isNearBottom = true;
+        clearUnread();
+      });
+
+      // ---- 初始化 ----
+      buildEmojiPanel();
+      updateSendButton();
+      // 初始滚动到底部
+      scrollToBottom(false);
+    })();
+  </script>
+</body>
+</html>
