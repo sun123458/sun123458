@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>沉浸式 VR 自然冥想空间</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+            cursor: crosshair;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+
+        /* ========== 启动画面 ========== */
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0d1f3c 100%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 1.5s ease, visibility 1.5s ease;
+        }
+        #loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #loading-screen h1 {
+            font-size: 2.8rem;
+            color: #e0f0ff;
+            font-weight: 300;
+            letter-spacing: 0.3em;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(100,180,255,0.4);
+        }
+        #loading-screen p {
+            color: rgba(180,210,240,0.6);
+            font-size: 1rem;
+            letter-spacing: 0.2em;
+            margin-bottom: 3rem;
+        }
+        #start-btn {
+            padding: 16px 48px;
+            font-size: 1.1rem;
+            letter-spacing: 0.15em;
+            color: #c0dff8;
+            background: rgba(60,120,200,0.15);
+            border: 1px solid rgba(100,180,255,0.3);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(10px);
+        }
+        #start-btn:hover {
+            background: rgba(60,120,200,0.3);
+            border-color: rgba(100,180,255,0.6);
+            box-shadow: 0 0 40px rgba(100,180,255,0.2);
+            transform: scale(1.05);
+        }
+        .loading-bar-container {
+            width: 200px;
+            height: 2px;
+            background: rgba(100,180,255,0.1);
+            border-radius: 2px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+        .loading-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, transparent, rgba(100,180,255,0.8), transparent);
+            border-radius: 2px;
+            animation: loadPulse 2s ease-in-out infinite;
+        }
+        @keyframes loadPulse {
+            0%, 100% { width: 0%; opacity: 0.3; }
+            50% { width: 100%; opacity: 1; }
+        }
+
+        /* ========== HUD 界面 ========== */
+        #hud {
+            position: fixed;
+            z-index: 100;
+            pointer-events: none;
+            width: 100%; height: 100%;
+            top: 0; left: 0;
+        }
+
+        /* 环境信息 */
+        #env-info {
+            position: absolute;
+            top: 24px; left: 24px;
+            color: rgba(220,240,255,0.8);
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+        }
+        #env-info .env-name {
+            font-size: 1.3rem;
+            font-weight: 300;
+            margin-bottom: 4px;
+            text-shadow: 0 0 20px rgba(100,180,255,0.3);
+        }
+        #env-info .env-detail {
+            font-size: 0.75rem;
+            color: rgba(180,210,240,0.5);
+        }
+
+        /* 时间与天气 */
+        #clock-display {
+            position: absolute;
+            top: 24px; right: 24px;
+            text-align: right;
+            color: rgba(220,240,255,0.8);
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+        }
+        #clock-display .time {
+            font-size: 1.8rem;
+            font-weight: 200;
+            text-shadow: 0 0 20px rgba(100,180,255,0.3);
+        }
+        #clock-display .weather-label {
+            font-size: 0.75rem;
+            color: rgba(180,210,240,0.5);
+            margin-top: 2px;
+        }
+
+        /* 冥想计时器 */
+        #meditation-timer {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: rgba(220,240,255,0.7);
+            pointer-events: none;
+        }
+        #meditation-timer .breath-circle {
+            width: 120px; height: 120px;
+            border: 1px solid rgba(100,180,255,0.2);
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 4s ease-in-out;
+        }
+        #meditation-timer .breath-circle.inhale {
+            transform: scale(1.4);
+            border-color: rgba(100,180,255,0.5);
+            box-shadow: 0 0 60px rgba(100,180,255,0.15);
+        }
+        #meditation-timer .breath-circle.exhale {
+            transform: scale(0.8);
+            border-color: rgba(100,180,255,0.1);
+            box-shadow: 0 0 20px rgba(100,180,255,0.05);
+        }
+        #meditation-timer .breath-text {
+            font-size: 0.85rem;
+            letter-spacing: 0.2em;
+            color: rgba(180,210,240,0.6);
+        }
+        #meditation-timer .timer-display {
+            font-size: 2.5rem;
+            font-weight: 200;
+            letter-spacing: 0.1em;
+            text-shadow: 0 0 30px rgba(100,180,255,0.3);
+        }
+        #meditation-timer .timer-label {
+            font-size: 0.7rem;
+            color: rgba(180,210,240,0.4);
+            letter-spacing: 0.3em;
+            margin-top: 4px;
+        }
+
+        /* 控制面板 */
+        #controls-panel {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            pointer-events: all;
+        }
+        .ctrl-btn {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            border: 1px solid rgba(100,180,255,0.25);
+            background: rgba(10,20,40,0.6);
+            color: rgba(200,225,255,0.7);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .ctrl-btn:hover {
+            background: rgba(30,60,100,0.6);
+            border-color: rgba(100,180,255,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(100,180,255,0.15);
+        }
+        .ctrl-btn.active {
+            border-color: rgba(100,200,255,0.6);
+            background: rgba(40,80,140,0.5);
+            box-shadow: 0 0 25px rgba(100,180,255,0.2);
+        }
+        .ctrl-btn .tooltip {
+            position: absolute;
+            bottom: 56px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            font-size: 0.7rem;
+            color: rgba(200,225,255,0.8);
+            background: rgba(10,20,40,0.85);
+            padding: 4px 10px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            letter-spacing: 0.05em;
+        }
+        .ctrl-btn:hover .tooltip { opacity: 1; }
+
+        /* 侧边面板 */
+        #side-panel {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: all;
+        }
+        #side-panel .ctrl-btn {
+            width: 40px; height: 40px;
+            font-size: 0.8rem;
+        }
+
+        /* 小地图 */
+        #minimap {
+            position: absolute;
+            bottom: 30px; right: 24px;
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            border: 1px solid rgba(100,180,255,0.2);
+            background: rgba(10,20,40,0.7);
+            overflow: hidden;
+            pointer-events: none;
+        }
+        #minimap canvas {
+            width: 100%; height: 100%;
+        }
+        #minimap .player-dot {
+            position: absolute;
+            width: 6px; height: 6px;
+            background: rgba(100,200,255,0.9);
+            border-radius: 50%;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px rgba(100,200,255,0.5);
+        }
+
+        /* 提示信息 */
+        #hint {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(180,210,240,0.4);
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            white-space: nowrap;
+            transition: opacity 1s ease;
+        }
+
+        /* 音量滑条 */
+        .volume-slider {
+            display: none;
+            position: absolute;
+            bottom: 56px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10,20,40,0.9);
+            border: 1px solid rgba(100,180,255,0.2);
+            border-radius: 8px;
+            padding: 12px 16px;
+            backdrop-filter: blur(12px);
+            z-index: 110;
+        }
+        .volume-slider.show { display: flex; flex-direction: column; gap: 8px; }
+        .volume-slider label {
+            color: rgba(180,210,240,0.6);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+        }
+        .volume-slider input[type="range"] {
+            width: 140px;
+            accent-color: rgba(100,180,255,0.6);
+        }
+
+        /* 环境选择面板 */
+        .env-selector {
+            display: none;
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10,20,40,0.9);
+            border: 1px solid rgba(100,180,255,0.2);
+            border-radius: 12px;
+            padding: 16px;
+            backdrop-filter: blur(12px);
+            z-index: 110;
+            gap: 8px;
+        }
+        .env-selector.show { display: flex; flex-direction: column; gap: 8px; }
+        .env-option {
+            padding: 8px 16px;
+            border: 1px solid rgba(100,180,255,0.15);
+            border-radius: 8px;
+            background: transparent;
+            color: rgba(200,225,255,0.7);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 0.05em;
+        }
+        .env-option:hover, .env-option.selected {
+            background: rgba(40,80,140,0.4);
+            border-color: rgba(100,180,255,0.4);
+        }
+
+        /* 十字准心 */
+        #crosshair {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            width: 20px; height: 20px;
+            z-index: 50;
+            pointer-events: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(200,230,255,0.25);
+            border-radius: 1px;
+        }
+        #crosshair::before {
+            width: 2px; height: 100%;
+            left: 50%; transform: translateX(-50%);
+        }
+        #crosshair::after {
+            height: 2px; width: 100%;
+            top: 50%; transform: translateY(-50%);
+        }
+
+        /* 暂停覆盖层 */
+        #pause-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        #pause-overlay.show { display: flex; }
+        #pause-overlay h2 {
+            color: rgba(220,240,255,0.9);
+            font-weight: 200;
+            font-size: 2rem;
+            letter-spacing: 0.3em;
+            margin-bottom: 1rem;
+        }
+        #pause-overlay p {
+            color: rgba(180,210,240,0.5);
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 启动画面 -->
+<div id="loading-screen">
+    <h1>静 · 境</h1>
+    <p>IMMERSIVE NATURE MEDITATION</p>
+    <div class="loading-bar-container">
+        <div class="loading-bar"></div>
+    </div>
+    <button id="start-btn" onclick="initApp()">进入冥想空间</button>
+</div>
+
+<!-- 3D 画布容器 -->
+<div id="canvas-container"></div>
+
+<!-- 十字准心 -->
+<div id="crosshair"></div>
+
+<!-- HUD -->
+<div id="hud">
+    <div id="env-info">
+        <div class="env-name" id="env-name-display">静谧森林</div>
+        <div class="env-detail" id="env-detail-display">Serene Forest</div>
+    </div>
+
+    <div id="clock-display">
+        <div class="time" id="time-display">06:00</div>
+        <div class="weather-label" id="weather-display">☀ 晴朗</div>
+    </div>
+
+    <div id="meditation-timer">
+        <div class="breath-circle" id="breath-circle">
+            <span class="breath-text" id="breath-text">吸</span>
+        </div>
+        <div class="timer-display" id="med-timer">00:00</div>
+        <div class="timer-label">冥想时间</div>
+    </div>
+
+    <div id="controls-panel">
+        <button class="ctrl-btn" id="btn-env" onclick="toggleEnvPanel()">
+            <span>🏔</span>
+            <span class="tooltip">切换场景</span>
+        </button>
+        <div class="env-selector" id="env-selector">
+            <button class="env-option selected" data-env="forest" onclick="switchEnvironment('forest')">🌲 静谧森林</button>
+            <button class="env-option" data-env="ocean" onclick="switchEnvironment('ocean')">🌊 宁静海岸</button>
+            <button class="env-option" data-env="mountain" onclick="switchEnvironment('mountain')">⛰ 高山湖泊</button>
+            <button class="env-option" data-env="meadow" onclick="switchEnvironment('meadow')">🌿 星空草原</button>
+        </div>
+        <button class="ctrl-btn" id="btn-weather" onclick="cycleWeather()">
+            <span id="weather-icon">☀</span>
+            <span class="tooltip">切换天气</span>
+        </button>
+        <button class="ctrl-btn" id="btn-time" onclick="toggleTimeAdvance()">
+            <span>⏰</span>
+            <span class="tooltip">昼夜循环</span>
+        </button>
+        <button class="ctrl-btn" id="btn-sound" onclick="toggleSoundPanel()">
+            <span>🔊</span>
+            <span class="tooltip">音效控制</span>
+        </button>
+        <div class="volume-slider" id="volume-slider">
+            <label>场景音效</label>
+            <input type="range" min="0" max="100" value="60" id="vol-ambient" oninput="setVolume('ambient', this.value)">
+            <label>环境音乐</label>
+            <input type="range" min="0" max="100" value="40" id="vol-music" oninput="setVolume('music', this.value)">
+            <label>天气音效</label>
+            <input type="range" min="0" max="100" value="50" id="vol-weather" oninput="setVolume('weather', this.value)">
+        </div>
+        <button class="ctrl-btn" id="btn-meditate" onclick="toggleMeditation()">
+            <span>🧘</span>
+            <span class="tooltip">冥想模式</span>
+        </button>
+    </div>
+
+    <div id="side-panel">
+        <button class="ctrl-btn" onclick="adjustSpeed(-1)">
+            <span>-</span>
+            <span class="tooltip">减速</span>
+        </button>
+        <button class="ctrl-btn" onclick="adjustSpeed(1)">
+            <span>+</span>
+            <span class="tooltip">加速</span>
+        </button>
+        <button class="ctrl-btn" onclick="toggleFly()">
+            <span>🕊</span>
+            <span class="tooltip">飞行模式</span>
+        </button>
+    </div>
+
+    <div id="minimap">
+        <canvas id="minimap-canvas" width="100" height="100"></canvas>
+        <div class="player-dot"></div>
+    </div>
+
+    <div id="hint">WASD 移动 · 鼠标视角 · 空格跳跃 · Shift 加速</div>
+</div>
+
+<!-- 暂停覆盖 -->
+<div id="pause-overlay">
+    <h2>暂停</h2>
+    <p>按 ESC 或点击继续</p>
+    <p style="margin-top: 1rem; cursor:pointer;" onclick="resumeFromPause()">点击继续</p>
+</div>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// ============================================================
+//  全局状态
+// ============================================================
+const STATE = {
+    scene: null, camera: null, renderer: null, clock: null,
+    currentEnv: 'forest',
+    weather: 'clear',     // clear, rain, snow, fog, night_clear
+    weatherIndex: 0,
+    weatherTypes: ['clear', 'rain', 'snow', 'fog'],
+    weatherNames: { clear: '☀ 晴朗', rain: '🌧 细雨', snow: '❄ 飘雪', fog: '🌫 薄雾' },
+    timeOfDay: 0.25,      // 0-1, 0.25 = 6:00 AM
+    timeAdvance: true,
+    meditating: false,
+    meditationStart: 0,
+    breathPhase: 'inhale',
+    breathTimer: 0,
+    moving: { forward: false, backward: false, left: false, right: false, up: false, sprint: false },
+    flyMode: false,
+    velocity: new THREE.Vector3(),
+    yaw: 0, pitch: 0,
+    locked: false,
+    speed: 1,
+    audioCtx: null,
+    masterGain: null,
+    ambientGain: null,
+    musicGain: null,
+    weatherGain: null,
+    ambientNodes: [],
+    musicNodes: [],
+    weatherSfx: null,
+    objects: { terrain: null, water: null, trees: [], clouds: [], particles: null, skybox: null, stars: null },
+    envTransition: 0,
+    envTransitioning: false,
+    accompanyingLights: [],
+};
+
+// ============================================================
+//  三维地形噪声 (Simplex-like)
+// ============================================================
+function noise2D(x, y) {
+    const X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+    const xf = x - Math.floor(x), yf = y - Math.floor(y);
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const aa = pseudoRandom(X, Y), ab = pseudoRandom(X, Y + 1);
+    const ba = pseudoRandom(X + 1, Y), bb = pseudoRandom(X + 1, Y + 1);
+    return lerp(lerp(aa, ba, u), lerp(ab, bb, u), v);
+}
+function pseudoRandom(x, y) {
+    const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+    return n - Math.floor(n);
+}
+function lerp(a, b, t) { return a + (b - a) * t; }
+function fbm(x, y, octaves = 6) {
+    let val = 0, amp = 0.5, freq = 1;
+    for (let i = 0; i < octaves; i++) {
+        val += amp * noise2D(x * freq, y * freq);
+        amp *= 0.5;
+        freq *= 2.1;
+    }
+    return val;
+}
+
+// ============================================================
+//  几何体生成器
+// ============================================================
+function createTerrain(envType) {
+    const size = 400, segs = 128;
+    const geo = new THREE.PlaneGeometry(size, size, segs, segs);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), z = pos.getZ(i);
+        let h = 0;
+
+        if (envType === 'forest') {
+            h = fbm(x * 0.008, z * 0.008, 6) * 25 - 5;
+            // 中央湖泊
+            const distFromCenter = Math.sqrt(x * x + z * z);
+            if (distFromCenter < 35) h = Math.min(h, -3 - (35 - distFromCenter) * 0.15);
+            // 小河
+            const riverDist = Math.abs(z - Math.sin(x * 0.02) * 15 - 20);
+            if (riverDist < 4) h = Math.min(h, -2);
+        } else if (envType === 'ocean') {
+            h = fbm(x * 0.005, z * 0.005, 4) * 8 - 3;
+            const distFromShore = Math.abs(x - 30);
+            if (x > 30) h -= (distFromShore) * 0.3;
+        } else if (envType === 'mountain') {
+            h = fbm(x * 0.006, z * 0.006, 7) * 50 - 10;
+            // 中央湖泊
+            const distFromCenter = Math.sqrt(x * x + z * z);
+            if (distFromCenter < 25) h = Math.min(h, -5 - (25 - distFromCenter) * 0.2);
+        } else if (envType === 'meadow') {
+            h = fbm(x * 0.004, z * 0.004, 4) * 6 - 2;
+        }
+
+        pos.setY(i, h);
+
+        // 地形着色
+        const heightRatio = (h + 10) / 40;
+        let r, g, b;
+        if (h < -2) {
+            r = 0.15; g = 0.35; b = 0.25; // 水边深色
+        } else if (h < 3) {
+            r = 0.2 + heightRatio * 0.1; g = 0.45 + heightRatio * 0.15; b = 0.15;
+        } else if (h < 12) {
+            r = 0.25; g = 0.4; b = 0.12;
+        } else {
+            r = 0.4 + heightRatio * 0.15; g = 0.38 + heightRatio * 0.1; b = 0.3;
+        }
+        colors[i * 3] = r + (Math.random() - 0.5) * 0.04;
+        colors[i * 3 + 1] = g + (Math.random() - 0.5) * 0.04;
+        colors[i * 3 + 2] = b + (Math.random() - 0.5) * 0.04;
+    }
+
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.computeVertexNormals();
+
+    const mat = new THREE.MeshLambertMaterial({
+        vertexColors: true,
+    });
+
+    return new THREE.Mesh(geo, mat);
+}
+
+function createWater(envType) {
+    const geo = new THREE.PlaneGeometry(500, 500, 64, 64);
+    geo.rotateX(-Math.PI / 2);
+    const waterY = envType === 'ocean' ? -1.5 : -1;
+
+    const mat = new THREE.MeshPhongMaterial({
+        color: envType === 'ocean' ? 0x1a6b8a : 0x2a8a9a,
+        transparent: true,
+        opacity: 0.7,
+        shininess: 100,
+        specular: 0x88ccff,
+    });
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = waterY;
+    return mesh;
+}
+
+function createTree(x, z, terrainFn, type = 'forest') {
+    const y = terrainFn(x, z);
+    if (y < -1) return null;
+
+    const tree = new THREE.Group();
+
+    if (type === 'forest') {
+        // 松树
+        const trunkH = 2 + Math.random() * 3;
+        const trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.25, trunkH, 6),
+            new THREE.MeshLambertMaterial({ color: 0x5a3a1a })
+        );
+        trunk.position.y = trunkH / 2;
+        tree.add(trunk);
+
+        for (let i = 0; i < 3; i++) {
+            const coneH = 2.5 - i * 0.6;
+            const cone = new THREE.Mesh(
+                new THREE.ConeGeometry(1.8 - i * 0.4, coneH, 7),
+                new THREE.MeshLambertMaterial({ color: new THREE.Color(0.08 + Math.random() * 0.08, 0.25 + Math.random() * 0.15, 0.06) })
+            );
+            cone.position.y = trunkH + i * 1.2;
+            tree.add(cone);
+        }
+    } else if (type === 'mountain') {
+        // 矮松
+        const trunkH = 1 + Math.random() * 2;
+        const trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.18, trunkH, 5),
+            new THREE.MeshLambertMaterial({ color: 0x6a4a2a })
+        );
+        trunk.position.y = trunkH / 2;
+        tree.add(trunk);
+
+        const canopy = new THREE.Mesh(
+            new THREE.ConeGeometry(0.8 + Math.random() * 0.6, 2 + Math.random(), 6),
+            new THREE.MeshLambertMaterial({ color: new THREE.Color(0.1, 0.3 + Math.random() * 0.1, 0.08) })
+        );
+        canopy.position.y = trunkH + 1;
+        tree.add(canopy);
+    } else if (type === 'meadow') {
+        // 橡树
+        const trunkH = 2 + Math.random() * 2;
+        const trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.2, 0.35, trunkH, 6),
+            new THREE.MeshLambertMaterial({ color: 0x6a5030 })
+        );
+        trunk.position.y = trunkH / 2;
+        tree.add(trunk);
+
+        if (Math.random() > 0.3) {
+            const canopy = new THREE.Mesh(
+                new THREE.SphereGeometry(1.5 + Math.random(), 8, 6),
+                new THREE.MeshLambertMaterial({ color: new THREE.Color(0.15 + Math.random() * 0.1, 0.35 + Math.random() * 0.15, 0.08) })
+            );
+            canopy.position.y = trunkH + 1;
+            canopy.scale.y = 0.75;
+            tree.add(canopy);
+        }
+    }
+
+    const s = 0.7 + Math.random() * 0.6;
+    tree.scale.set(s, s, s);
+    tree.position.set(x, y, z);
+    tree.rotation.y = Math.random() * Math.PI * 2;
+    return tree;
+}
+
+function createClouds() {
+    const clouds = new THREE.Group();
+    for (let i = 0; i < 25; i++) {
+        const cloud = new THREE.Group();
+        const numPuffs = 3 + Math.floor(Math.random() * 4);
+        for (let j = 0; j < numPuffs; j++) {
+            const puff = new THREE.Mesh(
+                new THREE.SphereGeometry(3 + Math.random() * 4, 8, 6),
+                new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 })
+            );
+            puff.position.set(j * 4 - numPuffs * 2, Math.random() * 1.5, Math.random() * 2 - 1);
+            puff.scale.y = 0.5 + Math.random() * 0.3;
+            cloud.add(puff);
+        }
+        cloud.position.set(
+            (Math.random() - 0.5) * 400,
+            35 + Math.random() * 25,
+            (Math.random() - 0.5) * 400
+        );
+        cloud.userData = { speed: 0.2 + Math.random() * 0.5 };
+        clouds.add(cloud);
+    }
+    return clouds;
+}
+
+function createRocks(envType) {
+    const rocks = new THREE.Group();
+    const count = envType === 'mountain' ? 60 : 20;
+
+    for (let i = 0; i < count; i++) {
+        const rock = new THREE.Mesh(
+            new THREE.DodecahedronGeometry(0.3 + Math.random() * 1, 0),
+            new THREE.MeshLambertMaterial({ color: new THREE.Color(0.35 + Math.random() * 0.15, 0.33 + Math.random() * 0.1, 0.3 + Math.random() * 0.1) })
+        );
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 10 + Math.random() * 150;
+        rock.position.set(
+            Math.cos(angle) * radius,
+            -0.5 + Math.random() * 0.3,
+            Math.sin(angle) * radius
+        );
+        rock.rotation.set(Math.random(), Math.random(), Math.random());
+        rock.scale.set(
+            0.5 + Math.random() * 1.5,
+            0.3 + Math.random() * 0.8,
+            0.5 + Math.random() * 1.5
+        );
+        rocks.add(rock);
+    }
+    return rocks;
+}
+
+function createFireflies() {
+    const count = 80;
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 100;
+        positions[i * 3 + 1] = 1 + Math.random() * 5;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
+        colors[i * 3] = 0.7 + Math.random() * 0.3;
+        colors[i * 3 + 1] = 0.9;
+        colors[i * 3 + 2] = 0.3;
+    }
+
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const mat = new THREE.PointsMaterial({
+        size: 0.4,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+
+    return new THREE.Points(geo, mat);
+}
+
+function createStars() {
+    const count = 2000;
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 200;
+        positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = Math.abs(r * Math.cos(phi)) * 0.5 + 20;
+        positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+        sizes[i] = 0.3 + Math.random() * 1.2;
+    }
+
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+        color: 0xeeeeff,
+        size: 0.8,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+
+    return new THREE.Points(geo, mat);
+}
+
+function createFlowers(envType) {
+    if (envType !== 'meadow') return new THREE.Group();
+    const flowers = new THREE.Group();
+    const flowerColors = [0xff6b8a, 0xffd93d, 0xa8e6cf, 0xff8b94, 0xdcedc1, 0xffc75f, 0xf9f871];
+
+    for (let i = 0; i < 200; i++) {
+        const flower = new THREE.Group();
+        // 茎
+        const stem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.02, 0.02, 0.3 + Math.random() * 0.2, 4),
+            new THREE.MeshLambertMaterial({ color: 0x3a7a2a })
+        );
+        stem.position.y = 0.15;
+        flower.add(stem);
+        // 花朵
+        const petals = new THREE.Mesh(
+            new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 6, 4),
+            new THREE.MeshLambertMaterial({ color: flowerColors[Math.floor(Math.random() * flowerColors.length)] })
+        );
+        petals.position.y = 0.3 + Math.random() * 0.1;
+        petals.scale.y = 0.6;
+        flower.add(petals);
+
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 5 + Math.random() * 120;
+        flower.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+        flowers.add(flower);
+    }
+    return flowers;
+}
+
+// ============================================================
+//  天气粒子
+// ============================================================
+function createWeatherParticles(type) {
+    let count = 0;
+    if (type === 'rain') count = 8000;
+    else if (type === 'snow') count = 4000;
+
+    if (count === 0) return null;
+
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 120;
+        positions[i * 3 + 1] = Math.random() * 60;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 120;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const mat = new THREE.PointsMaterial({
+        size: type === 'rain' ? 0.15 : 0.3,
+        color: type === 'rain' ? 0x8899bb : 0xffffff,
+        transparent: true,
+        opacity: type === 'rain' ? 0.5 : 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+
+    return new THREE.Points(geo, mat);
+}
+
+// ============================================================
+//  场景构建
+// ============================================================
+function getTerrainHeight(x, z, envType) {
+    if (envType === 'forest') {
+        let h = fbm(x * 0.008, z * 0.008, 6) * 25 - 5;
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        if (distFromCenter < 35) h = Math.min(h, -3 - (35 - distFromCenter) * 0.15);
+        const riverDist = Math.abs(z - Math.sin(x * 0.02) * 15 - 20);
+        if (riverDist < 4) h = Math.min(h, -2);
+        return h;
+    } else if (envType === 'ocean') {
+        let h = fbm(x * 0.005, z * 0.005, 4) * 8 - 3;
+        if (x > 30) h -= (x - 30) * 0.3;
+        return h;
+    } else if (envType === 'mountain') {
+        let h = fbm(x * 0.006, z * 0.006, 7) * 50 - 10;
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        if (distFromCenter < 25) h = Math.min(h, -5 - (25 - distFromCenter) * 0.2);
+        return h;
+    } else {
+        return fbm(x * 0.004, z * 0.004, 4) * 6 - 2;
+    }
+}
+
+function buildEnvironment(envType) {
+    // 清除旧场景对象
+    const keepList = [STATE.camera];
+    while (STATE.scene.children.length > 0) {
+        const child = STATE.scene.children[0];
+        if (!keepList.includes(child)) {
+            STATE.scene.remove(child);
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                else child.material.dispose();
+            }
+        } else {
+            break;
+        }
+    }
+
+    STATE.objects = { terrain: null, water: null, trees: [], clouds: null, particles: null, skybox: null, stars: null, rocks: null, fireflies: null, flowers: null, weatherParticles: null };
+
+    // 天空渐变
+    const skyGeo = new THREE.SphereGeometry(250, 32, 16);
+    const skyMat = new THREE.ShaderMaterial({
+        uniforms: {
+            topColor: { value: new THREE.Color(0x0077ff) },
+            bottomColor: { value: new THREE.Color(0x88ccee) },
+            offset: { value: 20 },
+            exponent: { value: 0.4 },
+        },
+        vertexShader: `
+            varying vec3 vWorldPosition;
+            void main() {
+                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                vWorldPosition = worldPosition.xyz;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform vec3 topColor;
+            uniform vec3 bottomColor;
+            uniform float offset;
+            uniform float exponent;
+            varying vec3 vWorldPosition;
+            void main() {
+                float h = normalize(vWorldPosition + offset).y;
+                gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+            }
+        `,
+        side: THREE.BackSide,
+    });
+    STATE.objects.skybox = new THREE.Mesh(skyGeo, skyMat);
+    STATE.scene.add(STATE.objects.skybox);
+
+    // 光照
+    const ambientLight = new THREE.AmbientLight(0x556677, 0.5);
+    STATE.scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xffeedd, 1.0);
+    sunLight.position.set(50, 80, 30);
+    sunLight.castShadow = false;
+    STATE.scene.add(sunLight);
+    STATE.objects.sunLight = sunLight;
+
+    const hemiLight = new THREE.HemisphereLight(0x88aacc, 0x445522, 0.4);
+    STATE.scene.add(hemiLight);
+
+    // 地形
+    STATE.objects.terrain = createTerrain(envType);
+    STATE.scene.add(STATE.objects.terrain);
+
+    // 水面
+    STATE.objects.water = createWater(envType);
+    STATE.scene.add(STATE.objects.water);
+
+    // 树木
+    const treeCount = envType === 'forest' ? 180 : envType === 'mountain' ? 100 : envType === 'meadow' ? 40 : 5;
+    const treeType = envType === 'ocean' ? 'forest' : envType;
+    for (let i = 0; i < treeCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 8 + Math.random() * 140;
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        const tree = createTree(x, z, (tx, tz) => getTerrainHeight(tx, tz, envType), treeType);
+        if (tree) {
+            STATE.scene.add(tree);
+            STATE.objects.trees.push(tree);
+        }
+    }
+
+    // 岩石
+    STATE.objects.rocks = createRocks(envType);
+    STATE.scene.add(STATE.objects.rocks);
+
+    // 云
+    STATE.objects.clouds = createClouds();
+    STATE.scene.add(STATE.objects.clouds);
+
+    // 萤火虫
+    STATE.objects.fireflies = createFireflies();
+    STATE.scene.add(STATE.objects.fireflies);
+
+    // 星空
+    STATE.objects.stars = createStars();
+    STATE.scene.add(STATE.objects.stars);
+
+    // 花朵
+    STATE.objects.flowers = createFlowers(envType);
+    STATE.scene.add(STATE.objects.flowers);
+
+    // 天气粒子
+    updateWeatherParticles();
+
+    // 薄雾球体
+    if (STATE.weather === 'fog') {
+        addFog();
+    }
+
+    // 环境名
+    const envNames = {
+        forest: '静谧森林',
+        ocean: '宁静海岸',
+        mountain: '高山湖泊',
+        meadow: '星空草原',
+    };
+    const envNamesEn = {
+        forest: 'Serene Forest',
+        ocean: 'Tranquil Shore',
+        mountain: 'Alpine Lake',
+        meadow: 'Starry Meadow',
+    };
+    document.getElementById('env-name-display').textContent = envNames[envType];
+    document.getElementById('env-detail-display').textContent = envNamesEn[envType];
+
+    // 放置相机
+    STATE.camera.position.set(0, 5, 15);
+    STATE.camera.lookAt(0, 3, 0);
+}
+
+function addFog() {
+    STATE.scene.fog = new THREE.FogExp2(0x8899aa, 0.012);
+}
+
+function removeFog() {
+    STATE.scene.fog = null;
+}
+
+function updateWeatherParticles() {
+    if (STATE.objects.weatherParticles) {
+        STATE.scene.remove(STATE.objects.weatherParticles);
+        STATE.objects.weatherParticles.geometry.dispose();
+        STATE.objects.weatherParticles.material.dispose();
+    }
+    STATE.objects.weatherParticles = createWeatherParticles(STATE.weather);
+    if (STATE.objects.weatherParticles) {
+        STATE.scene.add(STATE.objects.weatherParticles);
+    }
+}
+
+// ============================================================
+//  音效系统 (Web Audio API 合成)
+// ============================================================
+function initAudio() {
+    STATE.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    STATE.masterGain = STATE.audioCtx.createGain();
+    STATE.masterGain.gain.value = 0.5;
+    STATE.masterGain.connect(STATE.audioCtx.destination);
+
+    STATE.ambientGain = STATE.audioCtx.createGain();
+    STATE.ambientGain.gain.value = 0.6;
+    STATE.ambientGain.connect(STATE.masterGain);
+
+    STATE.musicGain = STATE.audioCtx.createGain();
+    STATE.musicGain.gain.value = 0.15;
+    STATE.musicGain.connect(STATE.masterGain);
+
+    STATE.weatherGain = STATE.audioCtx.createGain();
+    STATE.weatherGain.gain.value = 0.4;
+    STATE.weatherGain.connect(STATE.masterGain);
+
+    startAmbientSounds();
+    startMeditationMusic();
+}
+
+function startAmbientSounds() {
+    stopAmbientSounds();
+
+    const ctx = STATE.audioCtx;
+    const gain = STATE.ambientGain;
+
+    // --- 白噪声模拟风/浪 ---
+    const bufferSize = ctx.sampleRate * 2;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
+
+    const whiteNoise = ctx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+    whiteNoise.loop = true;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    if (STATE.currentEnv === 'ocean') {
+        filter.frequency.value = 400;
+        filter.Q.value = 0.5;
+    } else if (STATE.currentEnv === 'forest') {
+        filter.frequency.value = 200;
+        filter.Q.value = 1;
+    } else if (STATE.currentEnv === 'mountain') {
+        filter.frequency.value = 800;
+        filter.Q.value = 0.3;
+    } else {
+        filter.frequency.value = 300;
+        filter.Q.value = 0.8;
+    }
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = STATE.currentEnv === 'ocean' ? 0.35 : 0.12;
+
+    // LFO 来做海洋的感觉
+    if (STATE.currentEnv === 'ocean') {
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 0.08;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.2;
+        lfo.connect(lfoGain);
+        lfoGain.connect(noiseGain.gain);
+        lfo.start();
+        STATE.ambientNodes.push(lfo);
+    }
+
+    whiteNoise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(gain);
+    whiteNoise.start();
+    STATE.ambientNodes.push(whiteNoise);
+
+    // --- 鸟叫 (森林/草原) ---
+    if (STATE.currentEnv === 'forest' || STATE.currentEnv === 'meadow') {
+        scheduleBirdSounds();
+    }
+}
+
+function scheduleBirdSounds() {
+    if (!STATE.audioCtx) return;
+    const ctx = STATE.audioCtx;
+
+    function chirp() {
+        if (STATE.currentEnv !== 'forest' && STATE.currentEnv !== 'meadow') return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+
+        const baseFreq = 1800 + Math.random() * 2500;
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * (0.7 + Math.random() * 0.8), now + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * (1.1 + Math.random() * 0.5), now + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, now + 0.3);
+
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(0.04, now + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+        osc.connect(g);
+        g.connect(STATE.ambientGain);
+        osc.start(now);
+        osc.stop(now + 0.4);
+
+        // 下一只鸟
+        setTimeout(chirp, 800 + Math.random() * 5000);
+    }
+    setTimeout(chirp, 1000);
+    STATE.birdChirpTimeout = setTimeout(chirp, 1000);
+}
+
+function startMeditationMusic() {
+    stopMeditationMusic();
+    if (!STATE.audioCtx) return;
+    const ctx = STATE.audioCtx;
+
+    // 简单的频率生成冥想音调
+    function droneTone(freq, vol) {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        g.gain.value = vol;
+        osc.connect(g);
+        g.connect(STATE.musicGain);
+
+        // 轻微颤音
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 0.2 + Math.random() * 0.3;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = freq * 0.003;
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        lfo.start();
+
+        osc.start();
+        STATE.musicNodes.push(osc, lfo);
+    }
+
+    // D 小调持续低音
+    droneTone(73.42, 0.15);  // D2
+    droneTone(110, 0.08);    // A2
+    droneTone(146.83, 0.06); // D3
+
+    // 泛音层
+    droneTone(293.66, 0.03); // D4
+    droneTone(440, 0.015);   // A4
+}
+
+function stopAmbientSounds() {
+    if (STATE.birdChirpTimeout) clearTimeout(STATE.birdChirpTimeout);
+    STATE.ambientNodes.forEach(node => { try { node.stop(); } catch(e) {} });
+    STATE.ambientNodes = [];
+}
+
+function stopMeditationMusic() {
+    STATE.musicNodes.forEach(node => { try { node.stop(); } catch(e) {} });
+    STATE.musicNodes = [];
+}
+
+function startWeatherSound(weatherType) {
+    if (STATE.weatherSfx) {
+        STATE.weatherSfx.forEach(node => { try { node.stop(); } catch(e) {} });
+        STATE.weatherSfx = [];
+    }
+    if (!STATE.audioCtx) return;
+    const ctx = STATE.audioCtx;
+
+    if (weatherType === 'rain') {
+        const bufferSize = ctx.sampleRate * 2;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const src = ctx.createBufferSource();
+        src.buffer = buffer; src.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 1500;
+        filter.Q.value = 0.3;
+
+        const g = ctx.createGain();
+        g.gain.value = 0.25;
+
+        src.connect(filter);
+        filter.connect(g);
+        g.connect(STATE.weatherGain);
+        src.start();
+        STATE.weatherSfx.push(src);
+    } else if (weatherType === 'snow') {
+        // 寂静 - 也许是微弱的风
+        const bufferSize = ctx.sampleRate * 2;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const src = ctx.createBufferSource();
+        src.buffer = buffer; src.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 200;
+        filter.Q.value = 0.5;
+
+        const g = ctx.createGain();
+        g.gain.value = 0.08;
+
+        src.connect(filter);
+        filter.connect(g);
+        g.connect(STATE.weatherGain);
+        src.start();
+        STATE.weatherSfx.push(src);
+    }
+}
+
+// ============================================================
+//  天空 & 光照更新
+// ============================================================
+function updateSkyAndLight(timeOfDay) {
+    const t = timeOfDay;
+    let skyTop, skyBottom, sunIntensity, sunColor, ambientIntensity;
+
+    if (t < 0.2) {
+        // 深夜
+        skyTop = new THREE.Color(0x001122);
+        skyBottom = new THREE.Color(0x0a1525);
+        sunIntensity = 0.05;
+        sunColor = new THREE.Color(0x334466);
+        ambientIntensity = 0.15;
+    } else if (t < 0.3) {
+        // 日出
+        const f = (t - 0.2) / 0.1;
+        skyTop = new THREE.Color(0x001122).lerp(new THREE.Color(0xff7744), f);
+        skyBottom = new THREE.Color(0x0a1525).lerp(new THREE.Color(0xffaa66), f);
+        sunIntensity = 0.05 + f * 0.6;
+        sunColor = new THREE.Color(0xffaa55);
+        ambientIntensity = 0.15 + f * 0.2;
+    } else if (t < 0.7) {
+        // 昼间
+        skyTop = new THREE.Color(0x2277cc);
+        skyBottom = new THREE.Color(0x88ccee);
+        sunIntensity = 1.0;
+        sunColor = new THREE.Color(0xffeedd);
+        ambientIntensity = 0.5;
+    } else if (t < 0.8) {
+        // 日落
+        const f = (t - 0.7) / 0.1;
+        skyTop = new THREE.Color(0x2277cc).lerp(new THREE.Color(0xff5522), f);
+        skyBottom = new THREE.Color(0x88ccee).lerp(new THREE.Color(0xff8844), f);
+        sunIntensity = 1.0 - f * 0.5;
+        sunColor = new THREE.Color(0xff8844);
+        ambientIntensity = 0.5 - f * 0.15;
+    } else {
+        // 黄昏 → 夜
+        const f = (t - 0.8) / 0.2;
+        skyTop = new THREE.Color(0xff5522).lerp(new THREE.Color(0x001122), f);
+        skyBottom = new THREE.Color(0xff8844).lerp(new THREE.Color(0x0a1525), f);
+        sunIntensity = 0.5 - f * 0.45;
+        sunColor = new THREE.Color(0x886644);
+        ambientIntensity = 0.35 - f * 0.2;
+    }
+
+    // 应用天气效果
+    if (STATE.weather === 'rain' || STATE.weather === 'fog') {
+        const fogFactor = STATE.weather === 'fog' ? 0.6 : 0.4;
+        skyTop.lerp(new THREE.Color(0x667788), fogFactor);
+        skyBottom.lerp(new THREE.Color(0x99aabb), fogFactor);
+        sunIntensity *= 0.4;
+    }
+
+    if (STATE.objects.skybox) {
+        STATE.objects.skybox.material.uniforms.topColor.value.copy(skyTop);
+        STATE.objects.skybox.material.uniforms.bottomColor.value.copy(skyBottom);
+    }
+    if (STATE.objects.sunLight) {
+        STATE.objects.sunLight.intensity = sunIntensity;
+        STATE.objects.sunLight.color.copy(sunColor);
+        const angle = (t - 0.25) * Math.PI * 2;
+        STATE.objects.sunLight.position.set(Math.cos(angle) * 80, Math.sin(angle) * 100 + 20, 30);
+    }
+
+    // 星星visible in nighttime
+    if (STATE.objects.stars) {
+        const nightFactor = t < 0.22 || t > 0.78 ? 1 : 0;
+        let targetOpacity = 0;
+        if (t < 0.22) targetOpacity = 0.8 * (1 - t / 0.22);
+        else if (t > 0.78) targetOpacity = 0.8 * ((t - 0.78) / 0.22);
+
+        STATE.objects.stars.material.opacity = Math.max(targetOpacity, STATE.weather === 'clear' ? 0 : 0);
+        if (STATE.weather !== 'clear' && STATE.weather !== 'night_clear') {
+            STATE.objects.stars.material.opacity = 0;
+        }
+    }
+
+    // 萤火虫在夜间
+    if (STATE.objects.fireflies) {
+        let fireflyVis = 0;
+        if (t < 0.25 || t > 0.75) {
+            fireflyVis = t < 0.25 ? (0.25 - t) * 4 : (t - 0.75) * 4;
+        }
+        STATE.objects.fireflies.material.opacity = Math.min(fireflyVis, 1);
+    }
+}
+
+function updateClockDisplay() {
+    const totalMinutes = Math.floor(STATE.timeOfDay * 1440);
+    const hours = Math.floor(totalMinutes / 60) % 24;
+    const minutes = totalMinutes % 60;
+    document.getElementById('time-display').textContent =
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+// ============================================================
+//  动画循环
+// ============================================================
+function animate() {
+    requestAnimationFrame(animate);
+
+    const delta = STATE.clock.getDelta();
+    const elapsed = STATE.clock.getElapsedTime();
+
+    if (!STATE.locked && !STATE.meditating) {
+        STATE.renderer.render(STATE.scene, STATE.camera);
+        return;
+    }
+
+    // 第一人称移动
+    updateMovement(delta);
+
+    // 时间推进
+    if (STATE.timeAdvance) {
+        STATE.timeOfDay += delta * 0.003; // 大约 5.5 分钟一天
+        if (STATE.timeOfDay > 1) STATE.timeOfDay -= 1;
+        updateClockDisplay();
+    }
+    updateSkyAndLight(STATE.timeOfDay);
+
+    // 水面波动
+    if (STATE.objects.water) {
+        const waterPos = STATE.objects.water.geometry.attributes.position;
+        for (let i = 0; i < waterPos.count; i++) {
+            const x = waterPos.getX(i);
+            const z = waterPos.getZ(i);
+            const wave = Math.sin(x * 0.1 + elapsed * 0.8) * 0.3 +
+                         Math.sin(z * 0.15 + elapsed * 0.6) * 0.2 +
+                         Math.sin((x + z) * 0.08 + elapsed) * 0.15;
+            waterPos.setY(i, wave);
+        }
+        waterPos.needsUpdate = true;
+    }
+
+    // 云飘动
+    if (STATE.objects.clouds) {
+        STATE.objects.clouds.children.forEach(cloud => {
+            cloud.position.x += cloud.userData.speed * delta * STATE.speed;
+            if (cloud.position.x > 220) cloud.position.x = -220;
+        });
+    }
+
+    // 天气粒子动画
+    if (STATE.objects.weatherParticles) {
+        const pPos = STATE.objects.weatherParticles.geometry.attributes.position;
+        const camPos = STATE.camera.position;
+
+        for (let i = 0; i < pPos.count; i++) {
+            let px = pPos.getX(i);
+            let py = pPos.getY(i);
+            let pz = pPos.getZ(i);
+
+            if (STATE.weather === 'rain') {
+                py -= 40 * delta;
+                if (py < 0) {
+                    py = 60;
+                    px = camPos.x + (Math.random() - 0.5) * 120;
+                    pz = camPos.z + (Math.random() - 0.5) * 120;
+                }
+            } else if (STATE.weather === 'snow') {
+                py -= 3 * delta;
+                px += Math.sin(elapsed + i) * 0.3 * delta;
+                pz += Math.cos(elapsed + i * 0.7) * 0.3 * delta;
+                if (py < 0) {
+                    py = 60;
+                    px = camPos.x + (Math.random() - 0.5) * 120;
+                    pz = camPos.z + (Math.random() - 0.5) * 120;
+                }
+            }
+
+            pPos.setXYZ(i, px, py, pz);
+        }
+        pPos.needsUpdate = true;
+    }
+
+    // 萤火虫闪烁
+    if (STATE.objects.fireflies && STATE.objects.fireflies.material.opacity > 0) {
+        const fPos = STATE.objects.fireflies.geometry.attributes.position;
+        for (let i = 0; i < fPos.count; i++) {
+            const x = fPos.getX(i);
+            const y = fPos.getY(i);
+            const z = fPos.getZ(i);
+            fPos.setXYZ(i,
+                x + Math.sin(elapsed * 0.5 + i * 1.3) * 0.02,
+                y + Math.sin(elapsed * 0.8 + i * 0.9) * 0.01,
+                z + Math.cos(elapsed * 0.4 + i * 1.1) * 0.02
+            );
+        }
+        fPos.needsUpdate = true;
+        STATE.objects.fireflies.material.size = 0.3 + Math.sin(elapsed * 2) * 0.15;
+    }
+
+    // 树木微风摆动
+    STATE.objects.trees.forEach((tree, idx) => {
+        if (STATE.weather === 'rain' || STATE.weather === 'fog') {
+            tree.rotation.z = Math.sin(elapsed * 1.5 + idx * 0.5) * 0.015;
+            tree.rotation.x = Math.sin(elapsed * 0.8 + idx * 0.3) * 0.01;
+        } else {
+            tree.rotation.z = Math.sin(elapsed * 0.5 + idx * 0.5) * 0.005;
+        }
+    });
+
+    // 冥想呼吸
+    if (STATE.meditating) {
+        STATE.breathTimer += delta;
+        const cycleDur = 8; // 4s 吸 + 4s 呼
+        const phase = (STATE.breathTimer % cycleDur) / cycleDur;
+        const breathCircle = document.getElementById('breath-circle');
+        const breathText = document.getElementById('breath-text');
+
+        if (phase < 0.5) {
+            breathCircle.className = 'breath-circle inhale';
+            breathText.textContent = '吸';
+        } else {
+            breathCircle.className = 'breath-circle exhale';
+            breathText.textContent = '呼';
+        }
+
+        // 更新计时器
+        const medTime = Math.floor((Date.now() - STATE.meditationStart) / 1000);
+        const mins = Math.floor(medTime / 60).toString().padStart(2, '0');
+        const secs = (medTime % 60).toString().padStart(2, '0');
+        document.getElementById('med-timer').textContent = `${mins}:${secs}`;
+    }
+
+    // 小地图
+    updateMinimap();
+
+    STATE.renderer.render(STATE.scene, STATE.camera);
+}
+
+// ============================================================
+//  第一人称移动
+// ============================================================
+function updateMovement(delta) {
+    if (!STATE.locked) return;
+
+    const speed = STATE.speed * (STATE.moving.sprint ? 18 : 8) * delta;
+    const forward = new THREE.Vector3(-Math.sin(STATE.yaw), 0, -Math.cos(STATE.yaw));
+    const right = new THREE.Vector3(Math.cos(STATE.yaw), 0, -Math.sin(STATE.yaw));
+
+    const moveDir = new THREE.Vector3();
+    if (STATE.moving.forward) moveDir.add(forward);
+    if (STATE.moving.backward) moveDir.sub(forward);
+    if (STATE.moving.right) moveDir.add(right);
+    if (STATE.moving.left) moveDir.sub(right);
+
+    if (moveDir.length() > 0) {
+        moveDir.normalize().multiplyScalar(speed);
+        STATE.camera.position.add(moveDir);
+    }
+
+    if (STATE.flyMode) {
+        if (STATE.moving.up) STATE.camera.position.y += speed;
+    } else {
+        // 重力 & 跳跃
+        const groundY = getTerrainHeight(STATE.camera.position.x, STATE.camera.position.z, STATE.currentEnv);
+        const waterY = STATE.currentEnv === 'ocean' ? -1.5 : -1;
+        const targetY = Math.max(groundY, waterY) + 2;
+
+        if (STATE.moving.up && STATE.camera.position.y <= targetY + 0.1) {
+            STATE.velocity.y = 8;
+        }
+
+        STATE.velocity.y -= 25 * delta; // 重力
+        STATE.camera.position.y += STATE.velocity.y * delta;
+
+        if (STATE.camera.position.y < targetY) {
+            STATE.camera.position.y = targetY;
+            STATE.velocity.y = 0;
+        }
+    }
+
+    // 限制范围
+    STATE.camera.position.x = Math.max(-190, Math.min(190, STATE.camera.position.x));
+    STATE.camera.position.z = Math.max(-190, Math.min(190, STATE.camera.position.z));
+}
+
+// ============================================================
+//  小地图
+// ============================================================
+function updateMinimap() {
+    const canvas = document.getElementById('minimap-canvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // 简单的地形颜色
+    const cx = STATE.camera.position.x;
+    const cz = STATE.camera.position.z;
+    const scale = 0.25;
+
+    for (let px = 0; px < w; px += 2) {
+        for (let py = 0; py < h; py += 2) {
+            const wx = cx + (px - w / 2) / scale;
+            const wz = cz + (py - h / 2) / scale;
+            const terrH = getTerrainHeight(wx, wz, STATE.currentEnv);
+            const waterLine = STATE.currentEnv === 'ocean' ? -1.5 : -1;
+
+            if (terrH < waterLine) {
+                ctx.fillStyle = 'rgba(30,80,120,0.7)';
+            } else if (terrH < 2) {
+                ctx.fillStyle = 'rgba(40,90,40,0.5)';
+            } else if (terrH < 10) {
+                ctx.fillStyle = 'rgba(60,100,40,0.5)';
+            } else {
+                ctx.fillStyle = 'rgba(100,90,80,0.5)';
+            }
+            ctx.fillRect(px, py, 2, 2);
+        }
+    }
+
+    // 方向指示
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(-STATE.yaw + Math.PI);
+    ctx.beginPath();
+    ctx.moveTo(0, -6);
+    ctx.lineTo(-3, 3);
+    ctx.lineTo(3, 3);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(100,200,255,0.9)';
+    ctx.fill();
+    ctx.restore();
+}
+
+// ============================================================
+//  UI 控制
+// ============================================================
+function toggleEnvPanel() {
+    document.getElementById('env-selector').classList.toggle('show');
+    document.getElementById('volume-slider').classList.remove('show');
+}
+
+function switchEnvironment(env) {
+    STATE.currentEnv = env;
+    document.querySelectorAll('.env-option').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.env === env);
+    });
+    buildEnvironment(env);
+    stopAmbientSounds();
+    startAmbientSounds();
+    document.getElementById('env-selector').classList.remove('show');
+}
+
+function cycleWeather() {
+    STATE.weatherIndex = (STATE.weatherIndex + 1) % STATE.weatherTypes.length;
+    STATE.weather = STATE.weatherTypes[STATE.weatherIndex];
+
+    document.getElementById('weather-display').textContent = STATE.weatherNames[STATE.weather];
+    document.getElementById('weather-icon').textContent =
+        STATE.weather === 'clear' ? '☀' : STATE.weather === 'rain' ? '🌧' : STATE.weather === 'snow' ? '❄' : '🌫';
+
+    updateWeatherParticles();
+
+    if (STATE.weather === 'fog') addFog();
+    else removeFog();
+
+    startWeatherSound(STATE.weather);
+}
+
+function toggleTimeAdvance() {
+    STATE.timeAdvance = !STATE.timeAdvance;
+    document.getElementById('btn-time').classList.toggle('active', STATE.timeAdvance);
+}
+
+function toggleSoundPanel() {
+    document.getElementById('volume-slider').classList.toggle('show');
+    document.getElementById('env-selector').classList.remove('show');
+}
+
+function setVolume(type, value) {
+    const v = value / 100;
+    if (type === 'ambient' && STATE.ambientGain) STATE.ambientGain.gain.value = v;
+    if (type === 'music' && STATE.musicGain) STATE.musicGain.gain.value = v * 0.3;
+    if (type === 'weather' && STATE.weatherGain) STATE.weatherGain.gain.value = v;
+}
+
+function toggleMeditation() {
+    STATE.meditating = !STATE.meditating;
+    document.getElementById('btn-meditate').classList.toggle('active', STATE.meditating);
+    document.getElementById('meditation-timer').style.opacity = STATE.meditating ? '1' : '0.35';
+
+    if (STATE.meditating) {
+        STATE.meditationStart = Date.now();
+        STATE.breathTimer = 0;
+        // 冥想模式相机缓慢旋转
+    } else {
+        STATE.meditationStart = 0;
+    }
+}
+
+function adjustSpeed(dir) {
+    STATE.speed = Math.max(0.3, Math.min(3, STATE.speed + dir * 0.3));
+}
+
+function toggleFly() {
+    STATE.flyMode = !STATE.flyMode;
+    STATE.camera.parentElement || STATE.scene; // no-op ensure
+    document.querySelector('#side-panel .ctrl-btn:nth-child(3)').classList.toggle('active', STATE.flyMode);
+}
+
+function resumeFromPause() {
+    document.getElementById('pause-overlay').classList.remove('show');
+    document.getElementById('canvas-container').requestPointerLock();
+}
+
+// ============================================================
+//  输入处理
+// ============================================================
+function setupControls() {
+    document.addEventListener('keydown', (e) => {
+        switch (e.code) {
+            case 'KeyW': STATE.moving.forward = true; break;
+            case 'KeyS': STATE.moving.backward = true; break;
+            case 'KeyA': STATE.moving.left = true; break;
+            case 'KeyD': STATE.moving.right = true; break;
+            case 'Space': e.preventDefault(); STATE.moving.up = true; break;
+            case 'ShiftLeft': STATE.moving.sprint = true; break;
+            case 'Escape':
+                if (STATE.meditating) toggleMeditation();
+                break;
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        switch (e.code) {
+            case 'KeyW': STATE.moving.forward = false; break;
+            case 'KeyS': STATE.moving.backward = false; break;
+            case 'KeyA': STATE.moving.left = false; break;
+            case 'KeyD': STATE.moving.right = false; break;
+            case 'Space': STATE.moving.up = false; break;
+            case 'ShiftLeft': STATE.moving.sprint = false; break;
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!STATE.locked) return;
+        const sensitivity = 0.002;
+        STATE.yaw -= e.movementX * sensitivity;
+        STATE.pitch -= e.movementY * sensitivity;
+        STATE.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, STATE.pitch));
+
+        STATE.camera.rotation.order = 'YXZ';
+        STATE.camera.rotation.y = STATE.yaw;
+        STATE.camera.rotation.x = STATE.pitch;
+    });
+
+    document.addEventListener('pointerlockchange', () => {
+        STATE.locked = !!document.pointerLockElement;
+        if (!STATE.locked && STATE.timeOfDay > 0) {
+            document.getElementById('pause-overlay').classList.add('show');
+        }
+    });
+
+    document.getElementById('canvas-container').addEventListener('click', () => {
+        if (!STATE.locked) {
+            document.getElementById('pause-overlay').classList.remove('show');
+            document.getElementById('canvas-container').requestPointerLock();
+        }
+    });
+
+    // 滚轮调整速度
+    document.addEventListener('wheel', (e) => {
+        if (STATE.locked) {
+            adjustSpeed(e.deltaY > 0 ? -0.2 : 0.2);
+        }
+    });
+}
+
+// ============================================================
+//  初始化
+// ============================================================
+function initApp() {
+    document.getElementById('loading-screen').classList.add('hidden');
+
+    // 渲染器
+    STATE.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    STATE.renderer.setSize(window.innerWidth, window.innerHeight);
+    STATE.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    STATE.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    STATE.renderer.toneMappingExposure = 1.0;
+    document.getElementById('canvas-container').appendChild(STATE.renderer.domElement);
+
+    // 场景
+    STATE.scene = new THREE.Scene();
+
+    // 时钟
+    STATE.clock = new THREE.Clock();
+
+    // 相机
+    STATE.camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 600);
+    STATE.camera.position.set(0, 5, 15);
+
+    // 默认时间上午6点
+    STATE.timeOfDay = 0.25;
+
+    // 构建场景
+    buildEnvironment('forest');
+    updateClockDisplay();
+
+    // 控制
+    setupControls();
+
+    // 音频
+    initAudio();
+
+    // 窗口大小调整
+    window.addEventListener('resize', () => {
+        STATE.camera.aspect = window.innerWidth / window.innerHeight;
+        STATE.camera.updateProjectionMatrix();
+        STATE.renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 提示淡出
+    setTimeout(() => {
+        document.getElementById('hint').style.opacity = '0';
+    }, 8000);
+
+    // 关闭面板
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.ctrl-btn') && !e.target.closest('.env-selector') && !e.target.closest('.volume-slider')) {
+            document.getElementById('env-selector').classList.remove('show');
+            document.getElementById('volume-slider').classList.remove('show');
+        }
+    });
+
+    // 自动进入
+    setTimeout(() => {
+        document.getElementById('canvas-container').requestPointerLock();
+    }, 500);
+
+    // 启动渲染
+    animate();
+}
+
+// 预渲染启动画面星星 {
+    const screen = document.getElementById('loading-screen');
+    for (let i = 0; i < 50; i++) {
+        const star = document.createElement('div');
+        star.style.cssText = `
+            position:absolute;
+            width:${1 + Math.random() * 2}px;
+            height:${1 + Math.random() * 2}px;
+            background:rgba(180,210,255,${0.2 + Math.random() * 0.5});
+            border-radius:50%;
+            top:${Math.random() * 100}%;
+            left:${Math.random() * 100}%;
+            animation: twinkle ${2 + Math.random() * 3}s ease-in-out infinite ${Math.random() * 2}s;
+        `;
+        screen.appendChild(star);
+    }
+    const style = document.createElement('style');
+    style.textContent = `@keyframes twinkle {0%,100%{opacity:0.3}50%{opacity:1}}`;
+    document.head.appendChild(style);
+})();
+</script>
+
+</body>
+</html>
