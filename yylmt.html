@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>StreamWave — Music Player</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar backdrop (mobile) -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <!-- Sidebar: Playlist -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h1>🎧 StreamWave</h1>
+        <div class="badge-row">
+          <span class="badge" id="cache-status" title="Offline cache"></span>
+          <span class="badge orientation" id="orientation-badge">↕ Portrait</span>
+        </div>
+      </div>
+      <div class="playlist-count" id="playlist-count">12 tracks</div>
+      <div class="playlist-list" id="playlist-list">
+        <!-- Rendered by App -->
+      </div>
+    </aside>
+
+    <!-- Sidebar toggle (mobile) -->
+    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle playlist">☰</button>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top bar with search -->
+      <div class="top-bar">
+        <div class="search-wrapper">
+          <span class="search-icon">🔍</span>
+          <input
+            type="search"
+            id="search-input"
+            placeholder="Search tracks, artists, albums..."
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+          >
+          <div class="search-results" id="search-results"></div>
+        </div>
+      </div>
+
+      <!-- Content area: Now Playing + Waveform + Lyrics -->
+      <div class="content-area">
+        <!-- Now playing info -->
+        <div class="now-playing-header">
+          <div class="np-cover" id="np-cover" style="background: var(--player-cover); border-color: var(--player-accent);">
+            🎵
+          </div>
+          <div class="np-info">
+            <div class="np-title" id="np-title">Select a track</div>
+            <div class="np-artist" id="np-artist">Browse the playlist or search</div>
+          </div>
+        </div>
+
+        <!-- Waveform + Progress -->
+        <div class="waveform-section">
+          <div id="waveform"></div>
+          <div class="progress-bar-container" id="progress-bar-container">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+          </div>
+          <div class="time-display">
+            <span id="time-current">0:00</span>
+            <span id="time-total">0:00</span>
+          </div>
+
+          <!-- Player Controls -->
+          <div class="player-controls">
+            <button class="btn-control" id="btn-prev" aria-label="Previous" title="Rewind 10s">⏪</button>
+            <button class="btn-play" id="btn-play" aria-label="Play" title="Play / Pause">▶</button>
+            <button class="btn-control" id="btn-next" aria-label="Next" title="Forward 10s">⏩</button>
+          </div>
+
+          <!-- Volume (desktop) -->
+          <div class="volume-control">
+            <span class="volume-icon">🔊</span>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.8" aria-label="Volume">
+          </div>
+        </div>
+
+        <!-- Lyrics -->
+        <div class="lyrics-section">
+          <div class="lyrics-header">Lyrics</div>
+          <div class="lyrics-container" id="lyrics-container">
+            <div class="lyrics-empty">
+              <span>🎵</span>
+              <p>Select a track to see lyrics</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Collaborative toast notifications -->
+  <div class="collab-toasts" id="collab-toasts"></div>
+
+  <!-- Scripts (order matters) -->
+  <script src="js/mockData.js"></script>
+  <script src="js/audioGen.js"></script>
+  <script src="js/cache.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/lyrics.js"></script>
+  <script src="js/collaborative.js"></script>
+  <script type="module" src="js/player.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Mobile sidebar toggle -->
+  <script>
+    (function() {
+      const sidebar = document.getElementById('sidebar');
+      const toggle = document.getElementById('sidebar-toggle');
+      const backdrop = document.getElementById('sidebar-backdrop');
+
+      function openSidebar() {
+        sidebar.classList.add('open');
+        toggle.textContent = '✕';
+      }
+
+      function closeSidebar() {
+        sidebar.classList.remove('open');
+        toggle.textContent = '☰';
+      }
+
+      toggle.addEventListener('click', () => {
+        if (sidebar.classList.contains('open')) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
+      });
+
+      backdrop.addEventListener('click', closeSidebar);
+
+      // Close sidebar when selecting a track on mobile
+      sidebar.addEventListener('click', (e) => {
+        if (e.target.closest('.playlist-item') && window.innerWidth <= 640) {
+          setTimeout(closeSidebar, 200);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

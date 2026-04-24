@@ -1,151 +1,254 @@
-/**
- * 3D虚拟试衣间应用主程序
- * 负责初始化、事件监听和各模块协调
- */
+// Main application controller
+const App = (() => {
+  // DOM references
+  let playlistEl, searchInput, searchResults;
 
-class VirtualDressingRoom {
-    constructor() {
-        this.sceneManager = null;
-        this.isLoaded = false;
+  // Current state
+  let playlist = [];
+  let activeSongId = null;
 
-        // DOM元素
-        this.loadingElement = document.getElementById('loading');
-        this.dressButtons = document.querySelectorAll('.dress-btn');
-        this.colorButtons = document.querySelectorAll('.color-btn');
-        this.windSlider = document.getElementById('wind-strength');
-        this.elasticitySlider = document.getElementById('elasticity');
-        this.resetViewButton = document.getElementById('reset-view');
-        this.resetPhysicsButton = document.getElementById('reset-physics');
+  async function init() {
+    // Cache DOM elements
+    playlistEl = document.querySelector('#playlist-list');
+    searchInput = document.querySelector('#search-input');
+    searchResults = document.querySelector('#search-results');
 
-        this.init();
+    // Initialize subsystems
+    LyricsDisplay.init(document.querySelector('#lyrics-container'));
+
+    // Initialize player
+    const playerEls = {
+      waveformContainer: document.querySelector('#waveform'),
+      playBtn: document.querySelector('#btn-play'),
+      prevBtn: document.querySelector('#btn-prev'),
+      nextBtn: document.querySelector('#btn-next'),
+      progressContainer: document.querySelector('#progress-bar-container'),
+      progressBar: document.querySelector('#progress-bar-fill'),
+      currentTimeEl: document.querySelector('#time-current'),
+      totalTimeEl: document.querySelector('#time-total'),
+      volumeSlider: document.querySelector('#volume-slider'),
+      nowPlayingTitle: document.querySelector('#np-title'),
+      nowPlayingArtist: document.querySelector('#np-artist'),
+      nowPlayingCover: document.querySelector('#np-cover'),
+    };
+
+    MusicPlayer.init(playerEls, {
+      onTimeUpdate: (time) => {
+        LyricsDisplay.update(time * 1000);
+      },
+      onTrackEnd: () => {
+        playNextTrack();
+      },
+      onPlayStateChange: (playing) => {
+        updatePlaylistActiveState();
+      }
+    });
+
+    // Setup search
+    SearchEngine.setupSearchInput(searchInput, searchResults, (song) => {
+      CollaborativePlaylist.addSong(song);
+      if (!activeSongId) {
+        playSong(song);
+      }
+    });
+
+    // Init collaborative playlist
+    CollaborativePlaylist.init(INITIAL_PLAYLIST, (updatedPlaylist) => {
+      playlist = updatedPlaylist;
+      renderPlaylist();
+    });
+
+    // Initial playlist
+    playlist = CollaborativePlaylist.getPlaylist();
+    renderPlaylist();
+
+    // Auto-load first song
+    if (playlist.length > 0) {
+      playSong(playlist[0]);
     }
 
-    async init() {
-        try {
-            // 等待Three.js加载
-            await this.waitForThreeJS();
-
-            // 初始化场景管理器
-            this.sceneManager = new SceneManager();
-
-            // 隐藏加载动画
-            this.loadingElement.classList.add('hidden');
-            this.isLoaded = true;
-
-            // 设置事件监听
-            this.setupEventListeners();
-
-            console.log('3D虚拟试衣间初始化完成');
-        } catch (error) {
-            console.error('初始化失败:', error);
-            this.loadingElement.innerHTML = `
-                <div class="spinner"></div>
-                <p style="color: #e74c3c;">加载失败，请刷新页面重试</p>
-            `;
+    // Handle device rotation — nothing special needed since
+    // we use CSS media queries and the audio element persists.
+    // But we do need to handle orientation changes for the waveform.
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        // Re-create wavesurfer to fit new container width
+        if (MusicPlayer.getCurrentSong()) {
+          const song = MusicPlayer.getCurrentSong();
+          const wasPlaying = MusicPlayer.getIsPlaying();
+          const currentTime = MusicPlayer.getCurrentTime();
+          // Reload the song (wavesurfer auto-fits new container)
+          MusicPlayer.loadSong(song).then(() => {
+            if (wasPlaying) {
+              MusicPlayer.seekTo(currentTime);
+              MusicPlayer.play();
+            }
+          });
         }
-    }
+      }, 300); // Wait for CSS layout to settle after rotation
+    });
 
-    waitForThreeJS() {
-        return new Promise((resolve, reject) => {
-            const checkThree = () => {
-                if (typeof THREE !== 'undefined') {
-                    resolve();
-                } else {
-                    setTimeout(checkThree, 100);
-                }
-            };
+    // Update rotation indicator
+    updateOrientationBadge();
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateOrientationBadge, 100);
+    });
 
-            // 5秒超时
-            const timeout = setTimeout(() => {
-                reject(new Error('Three.js加载超时'));
-            }, 5000);
+    // Initialize cache status display
+    updateCacheStatus();
+  }
 
-            checkThree().then(() => clearTimeout(timeout));
-        });
-    }
+  function renderPlaylist() {
+    if (!playlistEl) return;
 
-    setupEventListeners() {
-        // 服装选择
-        this.dressButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const dressId = button.getAttribute('data-dress');
-                this.changeDress(dressId, button);
-            });
-        });
+    // Update playlist count badge
+    const countEl = document.querySelector('#playlist-count');
+    if (countEl) countEl.textContent = `${playlist.length} track${playlist.length !== 1 ? 's' : ''}`;
 
-        // 颜色选择
-        this.colorButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const color = button.getAttribute('data-color');
-                this.changeColor(color, button);
-            });
-        });
+    playlistEl.innerHTML = playlist.map((song, idx) => {
+      const isActive = song.id === activeSongId;
+      const isPlaying = isActive && MusicPlayer.getIsPlaying();
+      return `
+        <div class="playlist-item ${isActive ? 'active' : ''}" data-song-id="${song.id}" data-idx="${idx}">
+          <div class="pli-cover" style="background:${song.coverColor};border:2px solid ${song.accentColor}">
+            ${isActive && isPlaying ? '<span class="pli-eq">▮▮▮</span>' : `<span>🎵</span>`}
+          </div>
+          <div class="pli-info">
+            <div class="pli-title">${song.title}</div>
+            <div class="pli-artist">${song.artist} · ${formatDuration(song.duration)}</div>
+            <div class="pli-added">
+              Added by ${song.addedBy || 'You'}
+              ${song.addedAt ? '· ' + timeAgo(song.addedAt) : ''}
+            </div>
+          </div>
+          <div class="pli-actions">
+            <button class="pli-btn-remove" data-song-id="${song.id}" title="Remove">✕</button>
+          </div>
+        </div>`;
+    }).join('');
 
-        // 风力滑块
-        this.windSlider.addEventListener('input', (e) => {
-            const strength = parseInt(e.target.value);
-            if (this.sceneManager) {
-                this.sceneManager.setWindStrength(strength);
-            }
-        });
+    // Bind click to play
+    playlistEl.querySelectorAll('.playlist-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        // Don't trigger on remove button
+        if (e.target.closest('.pli-btn-remove')) return;
 
-        // 弹性滑块
-        this.elasticitySlider.addEventListener('input', (e) => {
-            const elasticity = parseInt(e.target.value) / 100;
-            if (this.sceneManager) {
-                this.sceneManager.setElasticity(elasticity);
-            }
-        });
+        const songId = item.dataset.songId;
+        const song = playlist.find(s => s.id === songId);
+        if (song) playSong(song);
+      });
+    });
 
-        // 重置视角
-        this.resetViewButton.addEventListener('click', () => {
-            if (this.sceneManager) {
-                this.sceneManager.resetCamera();
-            }
-        });
+    // Bind remove buttons
+    playlistEl.querySelectorAll('.pli-btn-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const songId = btn.dataset.songId;
+        const song = playlist.find(s => s.id === songId);
 
-        // 重置物理
-        this.resetPhysicsButton.addEventListener('click', () => {
-            if (this.sceneManager) {
-                this.sceneManager.resetPhysics();
-            }
-        });
-    }
-
-    changeDress(dressId, activeButton) {
-        if (!this.sceneManager) return;
-
-        // 更新按钮状态
-        this.dressButtons.forEach(btn => btn.classList.remove('active'));
-        activeButton.classList.add('active');
-
-        // 加载新服装
-        this.sceneManager.loadDress(dressId);
-
-        // 更新风力滑块值
-        const config = this.sceneManager.dressManager.getDressConfig(dressId);
-        if (config) {
-            this.windSlider.value = config.windStrength;
-            this.elasticitySlider.value = config.stiffness * 100;
+        // If removing the currently playing song, skip to next first
+        if (songId === activeSongId) {
+          const currentIdx = playlist.findIndex(s => s.id === songId);
+          const nextSong = playlist[currentIdx + 1] || playlist[currentIdx - 1] || null;
+          if (nextSong) {
+            playSong(nextSong);
+          }
         }
+
+        CollaborativePlaylist.removeSong(songId);
+      });
+    });
+  }
+
+  function playSong(song) {
+    activeSongId = song.id;
+    LyricsDisplay.loadLyrics(song.lrc);
+    MusicPlayer.loadSong(song).then(() => {
+      MusicPlayer.play();
+    });
+    renderPlaylist();
+  }
+
+  function playNextTrack() {
+    const currentIdx = playlist.findIndex(s => s.id === activeSongId);
+    const nextIdx = currentIdx + 1;
+    if (nextIdx < playlist.length) {
+      playSong(playlist[nextIdx]);
+    } else {
+      // Loop back to start
+      if (playlist.length > 0) {
+        playSong(playlist[0]);
+      }
     }
+  }
 
-    changeColor(color, activeButton) {
-        if (!this.sceneManager) return;
+  function updatePlaylistActiveState() {
+    const items = playlistEl.querySelectorAll('.playlist-item');
+    const isPlaying = MusicPlayer.getIsPlaying();
+    items.forEach(item => {
+      const isActive = item.dataset.songId === activeSongId;
+      item.classList.toggle('active', isActive);
+      const coverSpan = item.querySelector('.pli-cover span');
+      if (coverSpan && isActive && isPlaying) {
+        coverSpan.className = 'pli-eq';
+        coverSpan.textContent = '▮▮▮';
+      } else if (coverSpan && isActive && !isPlaying) {
+        coverSpan.className = '';
+        coverSpan.textContent = '🎵';
+      } else if (coverSpan && !isActive) {
+        coverSpan.className = '';
+        coverSpan.textContent = '🎵';
+      }
+    });
+  }
 
-        // 更新按钮状态
-        this.colorButtons.forEach(btn => btn.classList.remove('active'));
-        activeButton.classList.add('active');
+  function updateOrientationBadge() {
+    const badge = document.querySelector('#orientation-badge');
+    if (!badge) return;
+    const type = screen.orientation?.type || (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+    badge.textContent = type.includes('landscape') ? '↔ Landscape' : '↕ Portrait';
+  }
 
-        // 更改服装颜色
-        this.sceneManager.changeDressColor(color);
+  async function updateCacheStatus() {
+    const badge = document.querySelector('#cache-status');
+    if (!badge) return;
+    try {
+      const stats = await OfflineCache.getCacheStats();
+      badge.textContent = `💾 ${stats.cached} cached`;
+      badge.title = `${stats.cached} tracks cached for offline play`;
+    } catch (e) {
+      badge.textContent = '';
     }
-}
+  }
 
-// 页面加载完成后初始化
+  function updateCacheCount(count) {
+    const badge = document.querySelector('#cache-status');
+    if (badge) {
+      badge.textContent = count > 0 ? `💾 ${count} cached` : '';
+    }
+  }
+
+  function formatDuration(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return `${Math.floor(diff / 86400000)}d ago`;
+  }
+
+  // Refresh cache status periodically
+  setInterval(updateCacheStatus, 30000);
+
+  return { init };
+})();
+
+// Boot when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new VirtualDressingRoom();
-
-    // 添加到全局以便调试
-    window.app = app;
+  App.init();
 });
