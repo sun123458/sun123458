@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAMING ARENA - 年度对战数据终端</title>
+<style>
+  /* ========== 全局变量 & 重置 ========== */
+  :root {
+    --bg-deep: #0a0e17;
+    --bg-card: #111827;
+    --bg-card-hover: #1a2236;
+    --border: #1e293b;
+    --border-glow: #00f0ff22;
+    --accent-cyan: #00f0ff;
+    --accent-purple: #a855f7;
+    --accent-pink: #f472b6;
+    --accent-green: #22d3ee;
+    --accent-orange: #fb923c;
+    --accent-red: #ef4444;
+    --accent-yellow: #facc15;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --shadow-glow: 0 0 30px rgba(0,240,255,0.15);
+    --shadow-glow-strong: 0 0 40px rgba(0,240,255,0.3);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Rajdhani', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ========== 背景粒子 & 网格 ========== */
+  #bgCanvas {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    z-index: 0; pointer-events: none; opacity: 0.4;
+  }
+  .grid-overlay {
+    position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(rgba(0,240,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,240,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* ========== 主容器 ========== */
+  .app {
+    position: relative; z-index:1;
+    max-width: 1400px; margin: 0 auto; padding: 20px 24px 40px;
+  }
+
+  /* ========== 顶部标题区 ========== */
+  .header {
+    text-align: center; padding: 32px 0 20px;
+    position: relative;
+  }
+  .header::after {
+    content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 80%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-purple), transparent);
+  }
+  .header h1 {
+    font-size: 2.4rem; font-weight: 700; letter-spacing: 8px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-transform: uppercase;
+    position: relative;
+  }
+  .header h1 .blinker {
+    display: inline-block; width: 3px; height: 2rem;
+    background: var(--accent-cyan); margin-left: 4px; vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .header .sub {
+    color: var(--text-muted); font-size: 0.85rem; margin-top: 6px;
+    letter-spacing: 3px;
+  }
+
+  /* ========== 统计卡片区 ========== */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    margin: 28px 0 24px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px 18px;
+    position: relative; overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; top:0; left:0; width: 100%; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    transform: scaleX(0); transition: transform 0.4s ease; transform-origin: center;
+  }
+  .stat-card:hover { border-color: var(--accent-cyan); box-shadow: var(--shadow-glow); }
+  .stat-card:hover::before { transform: scaleX(1); }
+  .stat-card .label { color: var(--text-muted); font-size: 0.78rem; letter-spacing: 2px; text-transform: uppercase; }
+  .stat-card .value {
+    font-size: 2rem; font-weight: 700; margin-top: 6px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .stat-card .change { font-size: 0.75rem; margin-top: 4px; }
+  .stat-card .change.up { color: var(--accent-green); }
+  .stat-card .change.down { color: var(--accent-red); }
+
+  /* ========== 筛选控件区 ========== */
+  .controls {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .control-group { display: flex; flex-direction: column; gap: 4px; }
+  .control-group label {
+    font-size: 0.7rem; letter-spacing: 2px; color: var(--text-muted); text-transform: uppercase;
+  }
+  .control-group select {
+    background: var(--bg-deep); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 32px 8px 12px; font-size: 0.9rem;
+    font-family: inherit; cursor: pointer;
+    transition: border-color 0.3s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+  .control-group select:hover, .control-group select:focus {
+    border-color: var(--accent-cyan); outline: none;
+    box-shadow: 0 0 12px rgba(0,240,255,0.2);
+  }
+
+  /* 图表切换标签 */
+  .chart-tabs {
+    display: flex; gap: 4px; margin-left: auto;
+    background: var(--bg-deep); border-radius: 6px; padding: 3px;
+  }
+  .chart-tab {
+    padding: 8px 20px; border-radius: 4px; border: none;
+    background: transparent; color: var(--text-muted);
+    font-family: inherit; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: all 0.3s ease;
+    letter-spacing: 1px;
+    position: relative; overflow: hidden;
+  }
+  .chart-tab.active {
+    background: linear-gradient(135deg, rgba(0,240,255,0.15), rgba(168,85,247,0.15));
+    color: var(--accent-cyan);
+    box-shadow: inset 0 0 12px rgba(0,240,255,0.1);
+  }
+  .chart-tab:hover:not(.active) { color: var(--text-primary); }
+
+  /* ========== 图表容器 ========== */
+  .chart-wrapper {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-wrapper::before {
+    content: ''; position: absolute; top:0; left:0; right:0; height:1px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+  }
+  .chart-title {
+    font-size: 1rem; font-weight: 600; color: var(--text-secondary);
+    letter-spacing: 2px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chart-title .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 8px var(--accent-cyan);
+    animation: pulse-dot 2s ease infinite;
+  }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+  .chart-container {
+    position: relative;
+    height: 420px;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .chart-container.switching {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+
+  canvas { width: 100% !important; height: 100% !important; }
+
+  /* ========== Tooltip ========== */
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(10,14,23,0.95);
+    border: 1px solid var(--accent-cyan);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-glow-strong);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+    transition: opacity 0.2s, transform 0.2s;
+    min-width: 180px;
+  }
+  .tooltip .tt-title {
+    font-weight: 700; font-size: 0.95rem; margin-bottom: 8px;
+    color: var(--accent-cyan);
+    border-bottom: 1px solid rgba(0,240,255,0.2);
+    padding-bottom: 6px;
+  }
+  .tooltip .tt-row {
+    display: flex; justify-content: space-between; gap: 16px;
+    padding: 2px 0;
+  }
+  .tooltip .tt-label { color: var(--text-muted); }
+  .tooltip .tt-val { font-weight: 600; }
+  .tooltip .tt-val.win { color: var(--accent-green); }
+  .tooltip .tt-val.loss { color: var(--accent-red); }
+  .tooltip .tt-val.kd { color: var(--accent-yellow); }
+
+  /* ========== 图例 ========== */
+  .legend {
+    display: flex; gap: 24px; justify-content: center;
+    margin-top: 16px; flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.8rem; color: var(--text-secondary);
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 2px;
+  }
+
+  /* ========== 底部扫描线动画 ========== */
+  .scanline {
+    position: fixed; top:0; left:0; width:100%; height:2px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    opacity: 0.3; z-index: 1000; pointer-events: none;
+    animation: scan 4s linear infinite;
+  }
+  @keyframes scan { 0%{top:0} 100%{top:100vh} }
+
+  /* ========== 赛季标签粒子 ========== */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in { animation: fadeInUp 0.5s ease forwards; }
+
+  /* ========== 响应式 ========== */
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .controls { flex-direction: column; align-items: stretch; }
+    .chart-tabs { margin-left: 0; }
+  }
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .header h1 { font-size: 1.5rem; letter-spacing: 4px; }
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="grid-overlay"></div>
+<canvas id="bgCanvas"></canvas>
+<div class="scanline"></div>
+
+<div class="app">
+  <!-- 顶部 -->
+  <header class="header">
+    <h1>GAMING ARENA <span class="blinker"></span></h1>
+    <p class="sub">年度对战数据终端 &nbsp;|&nbsp; ANNUAL COMBAT ANALYTICS</p>
+  </header>
+
+  <!-- 统计卡片 -->
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- 筛选控件 -->
+  <div class="controls">
+    <div class="control-group">
+      <label>赛季 / Season</label>
+      <select id="seasonSel"></select>
+    </div>
+    <div class="control-group">
+      <label>模式 / Mode</label>
+      <select id="modeSel"></select>
+    </div>
+    <div class="chart-tabs">
+      <button class="chart-tab active" data-chart="bar">胜败柱状图</button>
+      <button class="chart-tab" data-chart="line">KD & 时长折线</button>
+      <button class="chart-tab" data-chart="combined">综合视图</button>
+    </div>
+  </div>
+
+  <!-- 图表 -->
+  <div class="chart-wrapper">
+    <div class="chart-title"><span class="dot"></span><span id="chartLabel">对战数据总览</span></div>
+    <div class="chart-container" id="chartBox">
+      <canvas id="mainChart"></canvas>
+    </div>
+    <div class="legend" id="legendArea"></div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip" style="display:none;"></div>
+
+<script>
+/* ================================================================
+   数据生成 - 随机生成游戏年度对战数据
+   ================================================================ */
+const SEASONS = ['S1 春季赛', 'S2 夏季赛', 'S3 秋季赛', 'S4 冬季赛', 'S5 全明星赛'];
+const MODES = ['排位赛', '匹配赛', '自定义', '锦标赛'];
+const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randF(min, max) { return +(Math.random() * (max - min) + min).toFixed(2); }
+
+// 为每个赛季、模式、月份生成数据
+const DATA = {};
+SEASONS.forEach(s => {
+  DATA[s] = {};
+  MODES.forEach(m => {
+    DATA[s][m] = MONTHS.map(month => ({
+      month,
+      wins: rand(5, 28),
+      losses: rand(3, 22),
+      kd: randF(0.6, 3.2),
+      avgDuration: randF(8, 45),
+      totalKills: rand(20, 120),
+      totalDeaths: rand(15, 90),
+      headshotRate: randF(15, 65),
+    }));
+  });
+});
+
+/* ================================================================
+   背景粒子动画
+   ================================================================ */
+(function initParticles() {
+  const c = document.getElementById('bgCanvas');
+  const ctx = c.getContext('2d');
+  let w, h, particles = [];
+
+  function resize() {
+    w = c.width = window.innerWidth;
+    h = c.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+      r: Math.random() * 1.5 + 0.5,
+      color: Math.random() > 0.5 ? 'rgba(0,240,255,' : 'rgba(168,85,247,'
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color + '0.6)';
+      ctx.fill();
+    });
+    // 连线
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 140) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = 'rgba(0,240,255,' + (1 - dist/140)*0.15 + ')';
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ================================================================
+   主逻辑
+   ================================================================ */
+const seasonSel = document.getElementById('seasonSel');
+const modeSel = document.getElementById('modeSel');
+const statsRow = document.getElementById('statsRow');
+const chartBox = document.getElementById('chartBox');
+const tooltipEl = document.getElementById('tooltip');
+const legendArea = document.getElementById('legendArea');
+const chartLabel = document.getElementById('chartLabel');
+
+let currentChartType = 'bar';
+let chartInstance = null;
+
+// 初始化下拉选项
+SEASONS.forEach((s, i) => {
+  const opt = document.createElement('option');
+  opt.value = s; opt.textContent = s;
+  seasonSel.appendChild(opt);
+});
+MODES.forEach((m, i) => {
+  const opt = document.createElement('option');
+  opt.value = m; opt.textContent = m;
+  modeSel.appendChild(opt);
+});
+
+function getCurrentData() {
+  return DATA[seasonSel.value][modeSel.value];
+}
+
+// 更新统计卡片
+function updateStats() {
+  const data = getCurrentData();
+  const totalWins = data.reduce((s, d) => s + d.wins, 0);
+  const totalLosses = data.reduce((s, d) => s + d.losses, 0);
+  const avgKD = (data.reduce((s, d) => s + d.kd, 0) / data.length).toFixed(2);
+  const avgDuration = (data.reduce((s, d) => s + d.avgDuration, 0) / data.length).toFixed(1);
+  const winRate = ((totalWins / (totalWins + totalLosses)) * 100).toFixed(1);
+
+  statsRow.innerHTML = `
+    <div class="stat-card animate-in">
+      <div class="label">总胜场 / WINS</div>
+      <div class="value">${totalWins}</div>
+      <div class="change up">&#9650; 胜率 ${winRate}%</div>
+    </div>
+    <div class="stat-card animate-in" style="animation-delay:0.1s">
+      <div class="label">总败场 / LOSSES</div>
+      <div class="value">${totalLosses}</div>
+      <div class="change down">&#9660; ${(100 - winRate).toFixed(1)}% 负率</div>
+    </div>
+    <div class="stat-card animate-in" style="animation-delay:0.15s">
+      <div class="label">平均 KD</div>
+      <div class="value">${avgKD}</div>
+      <div class="change ${avgKD >= 1 ? 'up' : 'down'}">${avgKD >= 1 ? '&#9650;' : '&#9660;'} ${avgKD >= 1 ? '高于' : '低于'}标准</div>
+    </div>
+    <div class="stat-card animate-in" style="animation-delay:0.2s">
+      <div class="label">场均时长 / AVG TIME</div>
+      <div class="value">${avgDuration}<span style="font-size:0.6em">min</span></div>
+      <div class="change" style="color:var(--text-muted)">&#9679; ${avgDuration > 25 ? '持久战型' : avgDuration > 15 ? '节奏型' : '速战速决'}</div>
+    </div>
+  `;
+}
+
+// Chart.js 全局默认
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(30,41,59,0.6)';
+Chart.defaults.font.family = "'Rajdhani','Microsoft YaHei',sans-serif";
+
+// Tooltip 外部处理
+function externalTooltipHandler(context) {
+  const {chart, tooltip} = context;
+  if (tooltip.opacity === 0) {
+    tooltipEl.style.display = 'none';
+    return;
+  }
+
+  const dataIndex = tooltip.dataPoints[0].dataIndex;
+  const d = getCurrentData()[dataIndex];
+
+  let html = `<div class="tt-title">${d.month} 对战记录</div>`;
+  html += `<div class="tt-row"><span class="tt-label">胜场</span><span class="tt-val win">${d.wins}</span></div>`;
+  html += `<div class="tt-row"><span class="tt-label">败场</span><span class="tt-val loss">${d.losses}</span></div>`;
+  html += `<div class="tt-row"><span class="tt-label">KD 比率</span><span class="tt-val kd">${d.kd}</span></div>`;
+  html += `<div class="tt-row"><span class="tt-label">场均时长</span><span class="tt-val" style="color:var(--accent-orange)">${d.avgDuration} min</span></div>`;
+  html += `<div class="tt-row"><span class="tt-label">总击杀</span><span class="tt-val">${d.totalKills}</span></div>`;
+  html += `<div class="tt-row"><span class="tt-label">总死亡</span><span class="tt-val">${d.totalDeaths}</span></div>`;
+  html += `<div class="tt-row"><span class="tt-label">爆头率</span><span class="tt-val" style="color:var(--accent-pink)">${d.headshotRate}%</span></div>`;
+
+  tooltipEl.innerHTML = html;
+  tooltipEl.style.display = 'block';
+
+  const rect = chartBox.getBoundingClientRect();
+  let left = tooltip.caretX + 16;
+  let top = tooltip.caretY - 20;
+  if (left + 200 > chartBox.offsetWidth) left = tooltip.caretX - 200;
+  if (top < 0) top = 10;
+
+  tooltipEl.style.left = left + 'px';
+  tooltipEl.style.top = top + 'px';
+}
+
+// 构建图表
+function buildChart() {
+  const data = getCurrentData();
+  const labels = data.map(d => d.month);
+
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+
+  let config;
+
+  if (currentChartType === 'bar') {
+    chartLabel.textContent = '胜败场柱状图';
+    config = {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '胜场',
+            data: data.map(d => d.wins),
+            backgroundColor: createGradientPattern('bar', '#00f0ff', '#22d3ee'),
+            borderColor: '#00f0ff',
+            borderWidth: 1,
+            borderRadius: 4,
+            borderSkipped: false,
+          },
+          {
+            label: '败场',
+            data: data.map(d => d.losses),
+            backgroundColor: createGradientPattern('bar', '#ef4444', '#f87171'),
+            borderColor: '#ef4444',
+            borderWidth: 1,
+            borderRadius: 4,
+            borderSkipped: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false, external: externalTooltipHandler },
+        },
+        scales: {
+          x: { grid: { color: 'rgba(30,41,59,0.4)' }, ticks: { font: { size: 12 } } },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(30,41,59,0.4)' },
+            ticks: { font: { size: 12 } }
+          }
+        },
+        animation: {
+          duration: 900,
+          easing: 'easeOutQuart',
+        }
+      }
+    };
+    setLegend([
+      { color: '#00f0ff', label: '胜场 Wins' },
+      { color: '#ef4444', label: '败场 Losses' }
+    ]);
+  } else if (currentChartType === 'line') {
+    chartLabel.textContent = 'KD比率 & 场均时长折线图';
+    config = {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'KD 比率',
+            data: data.map(d => d.kd),
+            borderColor: '#a855f7',
+            backgroundColor: 'rgba(168,85,247,0.08)',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#a855f7',
+            pointBorderColor: '#a855f7',
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#a855f7',
+            pointHoverBorderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            yAxisID: 'yKD',
+          },
+          {
+            label: '场均时长 (min)',
+            data: data.map(d => d.avgDuration),
+            borderColor: '#fb923c',
+            backgroundColor: 'rgba(251,146,60,0.08)',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#fb923c',
+            pointBorderColor: '#fb923c',
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#fb923c',
+            pointHoverBorderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            yAxisID: 'yTime',
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false, external: externalTooltipHandler },
+        },
+        scales: {
+          x: { grid: { color: 'rgba(30,41,59,0.4)' }, ticks: { font: { size: 12 } } },
+          yKD: {
+            type: 'linear', position: 'left',
+            beginAtZero: true,
+            grid: { color: 'rgba(30,41,59,0.3)' },
+            ticks: { font: { size: 12 }, callback: v => v.toFixed(1) },
+            title: { display: true, text: 'KD', color: '#a855f7', font: { size: 12 } }
+          },
+          yTime: {
+            type: 'linear', position: 'right',
+            beginAtZero: true,
+            grid: { drawOnChartArea: false },
+            ticks: { font: { size: 12 }, callback: v => v + 'm' },
+            title: { display: true, text: '时长', color: '#fb923c', font: { size: 12 } }
+          }
+        },
+        animation: {
+          duration: 1000,
+          easing: 'easeOutQuart',
+        }
+      }
+    };
+    setLegend([
+      { color: '#a855f7', label: 'KD 比率' },
+      { color: '#fb923c', label: '场均时长' }
+    ]);
+  } else {
+    // combined
+    chartLabel.textContent = '综合视图 - 柱状 + 双折线';
+    config = {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'bar', label: '胜场',
+            data: data.map(d => d.wins),
+            backgroundColor: 'rgba(0,240,255,0.35)',
+            borderColor: '#00f0ff', borderWidth: 1, borderRadius: 3,
+            order: 3,
+          },
+          {
+            type: 'bar', label: '败场',
+            data: data.map(d => d.losses),
+            backgroundColor: 'rgba(239,68,68,0.25)',
+            borderColor: '#ef4444', borderWidth: 1, borderRadius: 3,
+            order: 4,
+          },
+          {
+            type: 'line', label: 'KD',
+            data: data.map(d => d.kd),
+            borderColor: '#a855f7', borderWidth: 2.5,
+            pointBackgroundColor: '#a855f7', pointRadius: 4,
+            pointHoverRadius: 7, tension: 0.4,
+            yAxisID: 'yKD', order: 1,
+          },
+          {
+            type: 'line', label: '时长',
+            data: data.map(d => d.avgDuration),
+            borderColor: '#fb923c', borderWidth: 2.5,
+            pointBackgroundColor: '#fb923c', pointRadius: 4,
+            pointHoverRadius: 7, tension: 0.4,
+            yAxisID: 'yTime', order: 2,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false, external: externalTooltipHandler },
+        },
+        scales: {
+          x: { grid: { color: 'rgba(30,41,59,0.4)' }, ticks: { font: { size: 12 } } },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(30,41,59,0.3)' },
+            ticks: { font: { size: 12 } },
+            title: { display: true, text: '场次', color: '#94a3b8', font: { size: 12 } }
+          },
+          yKD: {
+            type: 'linear', position: 'left',
+            beginAtZero: true, grid: { drawOnChartArea: false },
+            ticks: { font: { size: 12 }, callback: v => v.toFixed(1) },
+            title: { display: true, text: 'KD', color: '#a855f7', font: { size: 12 } }
+          },
+          yTime: {
+            type: 'linear', position: 'right',
+            beginAtZero: true, grid: { drawOnChartArea: false },
+            ticks: { font: { size: 12 }, callback: v => v + 'm' },
+            title: { display: true, text: '时长', color: '#fb923c', font: { size: 12 } }
+          }
+        },
+        animation: {
+          duration: 1000,
+          easing: 'easeOutQuart',
+        }
+      }
+    };
+    setLegend([
+      { color: '#00f0ff', label: '胜场' },
+      { color: '#ef4444', label: '败场' },
+      { color: '#a855f7', label: 'KD' },
+      { color: '#fb923c', label: '时长' }
+    ]);
+  }
+
+  chartInstance = new Chart(document.getElementById('mainChart'), config);
+}
+
+function createGradientPattern(type, color1, color2) {
+  // Will be resolved post-creation via plugin, return solid for now
+  return color1 + '88';
+}
+
+function setLegend(items) {
+  legendArea.innerHTML = items.map(it =>
+    `<div class="legend-item"><span class="legend-dot" style="background:${it.color}"></span>${it.label}</div>`
+  ).join('');
+}
+
+// 带过渡动画的图表切换
+function switchChart(type) {
+  if (type === currentChartType) return;
+  currentChartType = type;
+
+  // 科技感过渡动画
+  chartBox.classList.add('switching');
+  setTimeout(() => {
+    buildChart();
+    chartBox.classList.remove('switching');
+  }, 400);
+}
+
+// 事件绑定
+document.querySelectorAll('.chart-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    switchChart(tab.dataset.chart);
+  });
+});
+
+seasonSel.addEventListener('change', () => {
+  chartBox.classList.add('switching');
+  setTimeout(() => {
+    updateStats();
+    buildChart();
+    chartBox.classList.remove('switching');
+  }, 300);
+});
+
+modeSel.addEventListener('change', () => {
+  chartBox.classList.add('switching');
+  setTimeout(() => {
+    updateStats();
+    buildChart();
+    chartBox.classList.remove('switching');
+  }, 300);
+});
+
+// 初始渲染
+updateStats();
+buildChart();
+</script>
+</body>
+</html>
