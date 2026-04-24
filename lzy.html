@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>粒子雨</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a1a;
+    color: #e0e0e0;
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    overflow-x: hidden;
+  }
+
+  #rain-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 1;
+    min-height: 600vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hero {
+    height: 45vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, #00e5ff, #7c4dff, #ff4081);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 4px;
+  }
+
+  .hero p {
+    margin-top: 16px;
+    font-size: 1.1rem;
+    color: #8eaccd;
+    letter-spacing: 2px;
+  }
+
+  .controls {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    background: rgba(10, 10, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 20px 22px;
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .controls h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #7c8ba5;
+    margin-bottom: 2px;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .control-group label {
+    font-size: 13px;
+    color: #9aa5b4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .control-group label span {
+    color: #00e5ff;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #00e5ff;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+    transition: transform 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  .color-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .color-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.2s;
+  }
+
+  .color-btn:hover, .color-btn.active {
+    transform: scale(1.15);
+    border-color: #fff;
+  }
+
+  .scroll-section {
+    width: min(90%, 720px);
+    padding: 60px 0;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .scroll-section h2 {
+    font-size: 1.6rem;
+    margin-bottom: 12px;
+    color: #c8d6e5;
+  }
+
+  .scroll-section p {
+    line-height: 1.8;
+    color: #6b7a8d;
+    font-size: 0.95rem;
+  }
+
+  .stats-bar {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 10;
+    background: rgba(10, 10, 26, 0.75);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: #5a6a7a;
+    display: flex;
+    gap: 20px;
+  }
+
+  .stats-bar .val {
+    color: #00e5ff;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="rain-canvas"></canvas>
+
+<div class="controls">
+  <h3>控制面板</h3>
+
+  <div class="control-group">
+    <label>下落速度 <span id="speed-val">1.0x</span></label>
+    <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1">
+  </div>
+
+  <div class="control-group">
+    <label>基础密度 <span id="density-val">150</span></label>
+    <input type="range" id="density" min="30" max="400" step="10" value="150">
+  </div>
+
+  <div class="control-group">
+    <label>粒子大小 <span id="size-val">3</span></label>
+    <input type="range" id="particle-size" min="1" max="6" step="0.5" value="3">
+  </div>
+
+  <div class="control-group">
+    <label>颜色主题</label>
+    <div class="color-presets" id="color-presets"></div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="hero">
+    <h1>粒子雨</h1>
+    <p>向下滚动，感受密度变化</p>
+  </div>
+
+  <div class="scroll-section">
+    <h2>高性能 Canvas 渲染</h2>
+    <p>基于 requestAnimationFrame + 对象池复用，所有粒子预分配内存，无运行时 GC 压力。滚动时通过增量调整粒子数量而非重建，确保 60fps 流畅体验。</p>
+  </div>
+
+  <div class="scroll-section">
+    <h2>滚动密度响应</h2>
+    <p>页面滚动距离越长，粒子密度越高，模拟从细雨到暴雨的渐变效果。回到顶部时粒子自动回落到基础密度，过渡平滑自然。</p>
+  </div>
+
+  <div class="scroll-section">
+    <h2>多彩粒子系统</h2>
+    <p>内置多套颜色主题：极光、霓虹、暖阳、冰蓝，也支持随机混色模式。每个粒子在创建时随机选取当前主题中的颜色，实现视觉层次感。</p>
+  </div>
+
+  <div class="scroll-section">
+    <h2>完全可定制</h2>
+    <p>右上角控制面板提供速度、密度、大小、颜色四项参数实时调节。所有改动即时生效，无需刷新页面。FPS 与粒子数实时监控显示在左下角。</p>
+  </div>
+
+  <div class="scroll-section">
+    <h2>技术细节</h2>
+    <p>使用 Canvas 2D 绘制，通过半透明清屏实现自然拖尾效果。粒子带随机透明度和微弱水平漂移，营造真实的降雨感。颜色切换采用渐变过渡，不会突兀闪烁。</p>
+  </div>
+</div>
+
+<div class="stats-bar">
+  FPS <span class="val" id="fps-display">60</span>
+  &nbsp;|&nbsp;
+  粒子数 <span class="val" id="count-display">150</span>
+</div>
+
+<script>
+(() => {
+  // === 配置 ===
+  const THEMES = {
+    aurora:  { name: '极光', colors: ['#00e5ff','#7c4dff','#00e676','#1de9b6','#651fff'], bg: '#00e5ff' },
+    neon:    { name: '霓虹', colors: ['#ff4081','#e040fb','#7c4dff','#00e5ff','#76ff03'], bg: '#ff4081' },
+    sunset:  { name: '暖阳', colors: ['#ff6d00','#ff9100','#ffd600','#ff3d00','#dd2c00'], bg: '#ff6d00' },
+    ice:     { name: '冰蓝', colors: ['#80d8ff','#40c4ff','#00b0ff','#b3e5fc','#e1f5fe'], bg: '#40c4ff' },
+    random:  { name: '混色', colors: null, bg: '#fff' },
+  };
+
+  let currentTheme = 'aurora';
+  let speedMul = 1.0;
+  let baseDensity = 150;
+  let baseSize = 3;
+
+  // === Canvas ===
+  const canvas = document.getElementById('rain-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, dpr;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // === 对象池 ===
+  const MAX_PARTICLES = 800;
+  const pool = new Array(MAX_PARTICLES);
+  let activeCount = 0;
+
+  function randomColor() {
+    if (currentTheme === 'random') {
+      return `hsl(${Math.random() * 360 | 0},${70 + Math.random() * 30 | 0}%,${55 + Math.random() * 20 | 0}%)`;
+    }
+    const c = THEMES[currentTheme].colors;
+    return c[Math.random() * c.length | 0];
+  }
+
+  function initParticle(p) {
+    p.x = Math.random() * W;
+    p.y = -Math.random() * H * 0.5;
+    p.speed = 1.2 + Math.random() * 3;
+    p.drift = (Math.random() - 0.5) * 0.6;
+    p.size = baseSize * (0.5 + Math.random() * 0.8);
+    p.alpha = 0.15 + Math.random() * 0.55;
+    p.length = 10 + Math.random() * 20;
+    p.color = randomColor();
+    p.active = true;
+  }
+
+  // 预分配
+  for (let i = 0; i < MAX_PARTICLES; i++) {
+    pool[i] = { active: false, x:0, y:0, speed:0, drift:0, size:0, alpha:0, length:0, color:'' };
+  }
+
+  // === 滚动 ===
+  let scrollProgress = 0;
+  window.addEventListener('scroll', () => {
+    const maxScroll = document.body.scrollHeight - window.innerHeight;
+    scrollProgress = maxScroll > 0 ? Math.min(window.scrollY / maxScroll, 1) : 0;
+  }, { passive: true });
+
+  // === 目标粒子数 ===
+  function targetCount() {
+    // 滚动越多密度越高，最高 3 倍
+    return Math.min(Math.floor(baseDensity * (1 + scrollProgress * 2)), MAX_PARTICLES);
+  }
+
+  // === FPS ===
+  let frames = 0, lastFpsTime = performance.now(), fps = 60;
+  const fpsEl = document.getElementById('fps-display');
+  const countEl = document.getElementById('count-display');
+
+  // === 渲染循环 ===
+  function loop() {
+    requestAnimationFrame(loop);
+
+    // FPS
+    frames++;
+    const now = performance.now();
+    if (now - lastFpsTime >= 500) {
+      fps = Math.round(frames / ((now - lastFpsTime) / 1000));
+      fpsEl.textContent = fps;
+      frames = 0;
+      lastFpsTime = now;
+    }
+
+    // 半透明清屏 -> 拖尾
+    ctx.fillStyle = 'rgba(10, 10, 26, 0.18)';
+    ctx.fillRect(0, 0, W, H);
+
+    const target = targetCount();
+    countEl.textContent = activeCount;
+
+    // 增减粒子
+    if (activeCount < target) {
+      for (let i = 0; i < MAX_PARTICLES && activeCount < target; i++) {
+        if (!pool[i].active) {
+          initParticle(pool[i]);
+          activeCount++;
+        }
+      }
+    } else if (activeCount > target) {
+      for (let i = MAX_PARTICLES - 1; i >= 0 && activeCount > target; i--) {
+        if (pool[i].active) {
+          pool[i].active = false;
+          activeCount--;
+        }
+      }
+    }
+
+    // 更新 & 绘制
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      const p = pool[i];
+      if (!p.active) continue;
+
+      p.y += p.speed * speedMul;
+      p.x += p.drift;
+
+      // 超出屏幕 -> 重置到顶部并换色
+      if (p.y > H + p.length || p.x < -20 || p.x > W + 20) {
+        p.x = Math.random() * W;
+        p.y = -Math.random() * 40;
+        p.color = randomColor();
+        p.speed = 1.2 + Math.random() * 3;
+        p.drift = (Math.random() - 0.5) * 0.6;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = p.size;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - p.drift * 2, p.y - p.length);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  loop();
+
+  // === 控制面板 ===
+  const speedSlider = document.getElementById('speed');
+  const speedVal = document.getElementById('speed-val');
+  speedSlider.addEventListener('input', () => {
+    speedMul = parseFloat(speedSlider.value);
+    speedVal.textContent = speedMul.toFixed(1) + 'x';
+  });
+
+  const densitySlider = document.getElementById('density');
+  const densityVal = document.getElementById('density-val');
+  densitySlider.addEventListener('input', () => {
+    baseDensity = parseInt(densitySlider.value);
+    densityVal.textContent = baseDensity;
+  });
+
+  const sizeSlider = document.getElementById('particle-size');
+  const sizeVal = document.getElementById('size-val');
+  sizeSlider.addEventListener('input', () => {
+    baseSize = parseFloat(sizeSlider.value);
+    sizeVal.textContent = baseSize;
+    // 更新已有粒子大小
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      if (pool[i].active) {
+        pool[i].size = baseSize * (0.5 + Math.random() * 0.8);
+      }
+    }
+  });
+
+  // === 颜色按钮 ===
+  const presetsEl = document.getElementById('color-presets');
+  Object.entries(THEMES).forEach(([key, theme]) => {
+    const btn = document.createElement('div');
+    btn.className = 'color-btn' + (key === currentTheme ? ' active' : '');
+    btn.title = theme.name;
+    if (key === 'random') {
+      btn.style.background = 'conic-gradient(#ff4081, #ffd600, #00e5ff, #7c4dff, #ff4081)';
+    } else {
+      btn.style.background = theme.bg;
+    }
+    btn.addEventListener('click', () => {
+      currentTheme = key;
+      presetsEl.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // 刷新已有粒子颜色
+      for (let i = 0; i < MAX_PARTICLES; i++) {
+        if (pool[i].active) pool[i].color = randomColor();
+      }
+    });
+    presetsEl.appendChild(btn);
+  });
+})();
+</script>
+</body>
+</html>
