@@ -1,1009 +1,984 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>捕虫大师 - Bug Catcher Master</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            background: #1a1a2e;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Press Start 2P', monospace;
-            overflow: hidden;
-        }
-        
-        h1 {
-            color: #f8f8f0;
-            font-size: 24px;
-            margin-bottom: 16px;
-            text-shadow: 4px 4px 0 #2a2a20;
-            letter-spacing: 2px;
-        }
-        
-        #game-container {
-            position: relative;
-            border: 8px solid #5a3a1a;
-            border-radius: 4px;
-            box-shadow: 0 0 0 4px #8a5a2a, 0 8px 32px rgba(0,0,0,0.5);
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
-        }
-        
-        #gameCanvas {
-            display: block;
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
-        }
-        
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        
-        #bug-counter {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            color: #f8f8f0;
-            font-size: 14px;
-            text-shadow: 2px 2px 0 #2a2a20, -1px -1px 0 #2a2a20, 1px -1px 0 #2a2a20, -1px 1px 0 #2a2a20;
-        }
-        
-        #dialog-box {
-            position: absolute;
-            bottom: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 85%;
-            background: linear-gradient(180deg, #f8e8c8 0%, #e8d4a8 100%);
-            border: 4px solid #5a3a1a;
-            border-radius: 4px;
-            padding: 16px;
-            display: none;
-            box-shadow: inset 0 0 0 2px #c8b080;
-        }
-        
-        #dialog-name {
-            color: #5a3a1a;
-            font-size: 10px;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }
-        
-        #dialog-text {
-            color: #2a2a20;
-            font-size: 10px;
-            line-height: 1.8;
-            min-height: 40px;
-        }
-        
-        #dialog-prompt {
-            color: #8a5a2a;
-            font-size: 8px;
-            text-align: right;
-            margin-top: 8px;
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
-        }
-        
-        #interaction-prompt {
-            position: absolute;
-            color: #f8f8f0;
-            font-size: 8px;
-            text-shadow: 2px 2px 0 #2a2a20;
-            display: none;
-            pointer-events: none;
-        }
-        
-        #controls-hint {
-            color: #8a8a70;
-            font-size: 10px;
-            margin-top: 16px;
-            text-align: center;
-        }
-        
-        .catch-effect {
-            position: absolute;
-            width: 32px;
-            height: 32px;
-            pointer-events: none;
-            animation: catchPop 0.4s ease-out forwards;
-        }
-        
-        @keyframes catchPop {
-            0% { transform: scale(0); opacity: 1; }
-            50% { transform: scale(1.5); opacity: 1; }
-            100% { transform: scale(2); opacity: 0; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>捕虫大冒险</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh; overflow: hidden;
+    font-family: 'Courier New', monospace;
+  }
+  #gameContainer { position: relative; }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border: 3px solid #e6c229;
+    display: block;
+  }
+  #ui {
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(0,0,0,0.7); color: #e6c229;
+    padding: 10px 16px; border-radius: 0;
+    border: 2px solid #e6c229;
+    font-size: 14px; line-height: 1.6;
+    z-index: 10; pointer-events: none;
+  }
+  #ui .label { color: #a8dadc; }
+  #ui .count { font-size: 20px; font-weight: bold; color: #f1faee; }
+  #dialog {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: 440px; background: rgba(10, 10, 40, 0.92);
+    border: 3px solid #e6c229; border-radius: 0;
+    padding: 14px 18px; color: #f1faee;
+    font-size: 14px; line-height: 1.6;
+    z-index: 10; display: none;
+  }
+  #dialog .speaker { color: #e6c229; font-weight: bold; margin-bottom: 4px; }
+  #dialog .hint { color: #888; font-size: 11px; margin-top: 6px; text-align: right; }
+  #controls {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(0,0,0,0.7); color: #a8dadc;
+    padding: 10px 14px; border: 2px solid #555;
+    font-size: 11px; line-height: 1.8;
+    z-index: 10; pointer-events: none;
+  }
+  #msg {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    color: #f1faee; font-size: 18px; font-weight: bold;
+    text-shadow: 0 0 10px rgba(230,194,41,0.8);
+    z-index: 20; display: none; pointer-events: none;
+  }
+</style>
 </head>
 <body>
-    <h1>捕虫大师</h1>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="640" height="480"></canvas>
-        <div id="ui-layer">
-            <div id="bug-counter">🐛 × 0</div>
-            <div id="interaction-prompt">按 E 互动</div>
-            <div id="dialog-box">
-                <div id="dialog-name"></div>
-                <div id="dialog-text"></div>
-                <div id="dialog-prompt">▼ 按 E 继续</div>
-            </div>
-        </div>
-    </div>
-    <div id="controls-hint">方向键移动 | E 互动 | 空格 捕虫</div>
+<div id="gameContainer">
+  <canvas id="game" width="640" height="480"></canvas>
+  <div id="ui">
+    <div class="label">捕虫计数</div>
+    <div class="count"><span id="bugCount">0</span> / <span id="bugTarget">10</span></div>
+  </div>
+  <div id="controls">
+    方向键 / WASD - 移动<br>
+    SPACE - 挥网捕虫<br>
+    E - 与NPC对话
+  </div>
+  <div id="dialog">
+    <div class="speaker" id="dlgSpeaker"></div>
+    <div id="dlgText"></div>
+    <div class="hint">按 E 关闭</div>
+  </div>
+  <div id="msg"></div>
+</div>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false;
+<script>
+// ===================== 游戏核心 =====================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
 
-        const TILE_SIZE = 16;
-        const MAP_WIDTH = 40;
-        const MAP_HEIGHT = 30;
+const TILE = 32;
+const COLS = 20;
+const ROWS = 15;
+const W = 640, H = 480;
 
-        const COLORS = {
-            grass1: '#3b5a2c',
-            grass2: '#4a6a3c',
-            grass3: '#2a4a1c',
-            dirt: '#8b5a2b',
-            dirtLight: '#a06830',
-            water: '#306090',
-            waterLight: '#5090c0',
-            tree: '#2a5a1c',
-            treeDark: '#1a4a0c',
-            rock: '#6a6a6a',
-            rockDark: '#4a4a4a',
-            flower1: '#e84040',
-            flower2: '#f8e040',
-            flower3: '#a040e8'
-        };
+// ===================== 输入管理 =====================
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-        const SPRITE_SIZE = 16;
-        const PIXEL_SCALE = 1;
+function consumeKey(code) {
+  if (justPressed[code]) { justPressed[code] = false; return true; }
+  return false;
+}
 
-        const sprites = {};
-        const spriteImages = {};
+// ===================== 像素精灵绘制器 =====================
+function drawPixels(x, y, data, scale = 2) {
+  for (let row = 0; row < data.length; row++) {
+    for (let col = 0; col < data[row].length; col++) {
+      const c = data[row][col];
+      if (c === 0) continue;
+      ctx.fillStyle = c;
+      ctx.fillRect(Math.floor(x + col * scale), Math.floor(y + row * scale), scale, scale);
+    }
+  }
+}
 
-        function createPixelSprite(width, height, drawFn) {
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.imageSmoothingEnabled = false;
-            drawFn(ctx);
-            return canvas;
-        }
+// ===================== 精灵帧定义 =====================
+// 玩家 (16x16 像素, 放大2倍=32)
+// 颜色: 1=帽子, 2=皮肤, 3=衬衫, 4=裤子, 5=鞋子, 6=头发, 7=眼睛
+const PC = {
+  1: '#e63946', 2: '#f4a261', 3: '#457b9d', 4: '#264653', 5: '#6d4c41',
+  6: '#5c3d2e', 7: '#1d3557'
+};
 
-        function drawPixel(ctx, x, y, color, size = 1) {
-            ctx.fillStyle = color;
-            ctx.fillRect(x, y, size, size);
-        }
+function playerFrame(dir, frame) {
+  // dir: 0=down, 1=up, 2=left, 3=right
+  const f = frame % 2; // 0 or 1
+  const base = [
+    "0000001111100000",
+    "0000011111111000",
+    "0000012222221000",
+    "0000012272272000",
+    "0000012222221000",
+    "0000012202202000",
+    "0000033333330000",
+    "0000033333330000",
+    "0000033333330000",
+    "0000003333300000",
+    "0000003333300000",
+    "0000044444400000",
+    "0000044004400000",
+    "0000040000400000",
+    "0000055005500000",
+    "0000050000500000",
+  ];
 
-        function initSprites() {
-            sprites.player = [];
-            const playerColors = {
-                skin: '#f8c8a0',
-                hair: '#4a3020',
-                cap: '#3cb858',
-                shirt: '#4080d0',
-                pants: '#304080',
-                shoes: '#503020'
-            };
+  if (dir === 0) { // down
+    const s = base.map(r => r.split('').map(c => PC[c] || 0));
+    if (f === 1) {
+      s[12][6] = 0; s[12][7] = 0; s[12][5] = 0;
+      s[13][6] = 0; s[13][7] = 0; s[13][5] = 0;
+      s[12][9] = PC[5]||0; s[12][8] = 0;
+      s[13][9] = PC[5]||0; s[13][8] = 0;
+    }
+    return s;
+  }
+  if (dir === 1) { // up
+    const s = [
+      "0000001111100000",
+      "0000011111111000",
+      "0000011121111000",
+      "0000011161111000",
+      "0000011161111000",
+      "0000011111111000",
+      "0000033333330000",
+      "0000033333330000",
+      "0000033333330000",
+      "0000003333300000",
+      "0000003333300000",
+      "0000044444400000",
+      "0000044004400000",
+      "0000040000400000",
+      "0000055005500000",
+      "0000050000500000",
+    ].map(r => r.split('').map(c => PC[c] || 0));
+    if (f === 1) {
+      s[12][6] = 0; s[12][7] = 0; s[12][5] = 0;
+      s[13][6] = 0; s[13][7] = 0; s[13][5] = 0;
+      s[12][9] = PC[5]||0; s[12][8] = 0;
+      s[13][9] = PC[5]||0; s[13][8] = 0;
+    }
+    return s;
+  }
+  // left/right - mirror
+  const lr = [
+    "0000000111110000",
+    "0000001111111000",
+    "0000002222221000",
+    "0000002272200000",
+    "0000002222220000",
+    "0000033333330000",
+    "0000033333330000",
+    "0000033333330000",
+    "0000003333300000",
+    "0000003333300000",
+    "0000044444400000",
+    "0000044004400000",
+    "0000040000400000",
+    "0000055005500000",
+    "0000050000500000",
+    "0000000000000000",
+  ].map(r => r.split('').map(c => PC[c] || 0));
 
-            for (let dir = 0; dir < 4; dir++) {
-                sprites.player[dir] = [];
-                for (let frame = 0; frame < 4; frame++) {
-                    const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                        const offset = frame % 2 === 1 ? 1 : 0;
-                        const legOffset = frame % 2 === 1 ? 1 : -1;
-                        
-                        drawPixel(ctx, 6, 2, playerColors.hair);
-                        drawPixel(ctx, 5, 3, playerColors.hair);
-                        drawPixel(ctx, 6, 3, playerColors.hair);
-                        drawPixel(ctx, 7, 3, playerColors.hair);
-                        drawPixel(ctx, 6, 3, playerColors.cap);
-                        drawPixel(ctx, 5, 4, playerColors.cap);
-                        drawPixel(ctx, 6, 4, playerColors.cap);
-                        drawPixel(ctx, 7, 4, playerColors.cap);
-                        drawPixel(ctx, 5, 5, playerColors.skin);
-                        drawPixel(ctx, 6, 5, playerColors.skin);
-                        drawPixel(ctx, 7, 5, playerColors.skin);
-                        drawPixel(ctx, 5, 6, playerColors.skin);
-                        drawPixel(ctx, 6, 6, playerColors.skin);
-                        drawPixel(ctx, 7, 6, playerColors.skin);
-                        drawPixel(ctx, 5, 7, playerColors.shirt);
-                        drawPixel(ctx, 6, 7, playerColors.shirt);
-                        drawPixel(ctx, 7, 7, playerColors.shirt);
-                        drawPixel(ctx, 4 + offset, 8, playerColors.shirt);
-                        drawPixel(ctx, 5, 8, playerColors.shirt);
-                        drawPixel(ctx, 6, 8, playerColors.shirt);
-                        drawPixel(ctx, 7, 8, playerColors.shirt);
-                        drawPixel(ctx, 8 - offset, 8, playerColors.shirt);
-                        drawPixel(ctx, 5 + legOffset, 9, playerColors.pants);
-                        drawPixel(ctx, 6 + legOffset, 9, playerColors.pants);
-                        drawPixel(ctx, 7 - legOffset, 9, playerColors.pants);
-                        drawPixel(ctx, 8 - legOffset, 9, playerColors.pants);
-                        drawPixel(ctx, 5 + legOffset, 10, playerColors.pants);
-                        drawPixel(ctx, 6 + legOffset, 10, playerColors.pants);
-                        drawPixel(ctx, 7 - legOffset, 10, playerColors.pants);
-                        drawPixel(ctx, 8 - legOffset, 10, playerColors.pants);
-                        drawPixel(ctx, 5 + legOffset, 11, playerColors.shoes);
-                        drawPixel(ctx, 6 + legOffset, 11, playerColors.shoes);
-                        drawPixel(ctx, 7 - legOffset, 11, playerColors.shoes);
-                        drawPixel(ctx, 8 - legOffset, 11, playerColors.shoes);
-                    });
-                    sprites.player[dir].push(s);
-                }
-            }
+  if (f === 1) {
+    lr[11][4] = 0; lr[11][5] = 0; lr[11][11] = 0; lr[11][12] = 0;
+    lr[12][4] = 0; lr[12][5] = 0; lr[12][11] = 0; lr[12][12] = 0;
+  }
 
-            sprites.playerIdle = [];
-            for (let dir = 0; dir < 4; dir++) {
-                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                    const playerColors = {
-                        skin: '#f8c8a0',
-                        hair: '#4a3020',
-                        cap: '#3cb858',
-                        shirt: '#4080d0',
-                        pants: '#304080',
-                        shoes: '#503020'
-                    };
-                    drawPixel(ctx, 6, 2, playerColors.hair);
-                    drawPixel(ctx, 5, 3, playerColors.hair);
-                    drawPixel(ctx, 6, 3, playerColors.hair);
-                    drawPixel(ctx, 7, 3, playerColors.hair);
-                    drawPixel(ctx, 6, 3, playerColors.cap);
-                    drawPixel(ctx, 5, 4, playerColors.cap);
-                    drawPixel(ctx, 6, 4, playerColors.cap);
-                    drawPixel(ctx, 7, 4, playerColors.cap);
-                    drawPixel(ctx, 5, 5, playerColors.skin);
-                    drawPixel(ctx, 6, 5, playerColors.skin);
-                    drawPixel(ctx, 7, 5, playerColors.skin);
-                    drawPixel(ctx, 5, 6, playerColors.skin);
-                    drawPixel(ctx, 6, 6, playerColors.skin);
-                    drawPixel(ctx, 7, 6, playerColors.skin);
-                    drawPixel(ctx, 5, 7, playerColors.shirt);
-                    drawPixel(ctx, 6, 7, playerColors.shirt);
-                    drawPixel(ctx, 7, 7, playerColors.shirt);
-                    drawPixel(ctx, 4, 8, playerColors.shirt);
-                    drawPixel(ctx, 5, 8, playerColors.shirt);
-                    drawPixel(ctx, 6, 8, playerColors.shirt);
-                    drawPixel(ctx, 7, 8, playerColors.shirt);
-                    drawPixel(ctx, 8, 8, playerColors.shirt);
-                    drawPixel(ctx, 5, 9, playerColors.pants);
-                    drawPixel(ctx, 6, 9, playerColors.pants);
-                    drawPixel(ctx, 7, 9, playerColors.pants);
-                    drawPixel(ctx, 8, 9, playerColors.pants);
-                    drawPixel(ctx, 5, 10, playerColors.pants);
-                    drawPixel(ctx, 6, 10, playerColors.pants);
-                    drawPixel(ctx, 7, 10, playerColors.pants);
-                    drawPixel(ctx, 8, 10, playerColors.pants);
-                    drawPixel(ctx, 5, 11, playerColors.shoes);
-                    drawPixel(ctx, 6, 11, playerColors.shoes);
-                    drawPixel(ctx, 7, 11, playerColors.shoes);
-                    drawPixel(ctx, 8, 11, playerColors.shoes);
-                });
-                sprites.playerIdle.push(s);
-            }
+  if (dir === 3) lr.forEach(row => row.reverse());
+  return lr;
+}
 
-            sprites.npcs = [];
-            const npcConfigs = [
-                { name: '老爷爷', cap: '#4080d0', shirt: '#3060a0', skin: '#f8d0b0' },
-                { name: '小女孩', cap: '#e860a0', shirt: '#f8a0c0', skin: '#fce0d0' },
-                { name: '科学家', cap: '#e0e0e0', shirt: '#f8f8f8', skin: '#f8d0b0' }
-            ];
+// NPC 精灵
+const NPC_COLORS = [
+  { 1:'#8338ec', 2:'#f4a261', 3:'#06d6a0', 4:'#ef476f', 7:'#1d3557' },
+  { 1:'#ff6b6b', 2:'#ffd6a5', 3:'#4ecdc4', 4:'#2d6a4f', 7:'#1d3557' },
+  { 1:'#ffd166', 2:'#06d6a0', 3:'#118ab2', 4:'#073b4c', 7:'#1d3557' },
+];
 
-            npcConfigs.forEach((config, idx) => {
-                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                    drawPixel(ctx, 6, 2, config.skin);
-                    drawPixel(ctx, 5, 3, config.skin);
-                    drawPixel(ctx, 6, 3, config.skin);
-                    drawPixel(ctx, 7, 3, config.skin);
-                    drawPixel(ctx, 5, 4, config.cap);
-                    drawPixel(ctx, 6, 4, config.cap);
-                    drawPixel(ctx, 7, 4, config.cap);
-                    drawPixel(ctx, 4, 5, config.cap);
-                    drawPixel(ctx, 5, 5, config.cap);
-                    drawPixel(ctx, 6, 5, config.skin);
-                    drawPixel(ctx, 7, 5, config.skin);
-                    drawPixel(ctx, 8, 5, config.cap);
-                    drawPixel(ctx, 5, 6, config.skin);
-                    drawPixel(ctx, 6, 6, config.skin);
-                    drawPixel(ctx, 7, 6, config.skin);
-                    drawPixel(ctx, 5, 7, config.shirt);
-                    drawPixel(ctx, 6, 7, config.shirt);
-                    drawPixel(ctx, 7, 7, config.shirt);
-                    drawPixel(ctx, 4, 8, config.shirt);
-                    drawPixel(ctx, 5, 8, config.shirt);
-                    drawPixel(ctx, 6, 8, config.shirt);
-                    drawPixel(ctx, 7, 8, config.shirt);
-                    drawPixel(ctx, 8, 8, config.shirt);
-                    drawPixel(ctx, 5, 9, '#3050a0');
-                    drawPixel(ctx, 6, 9, '#3050a0');
-                    drawPixel(ctx, 7, 9, '#3050a0');
-                    drawPixel(ctx, 8, 9, '#3050a0');
-                    drawPixel(ctx, 5, 10, '#3050a0');
-                    drawPixel(ctx, 6, 10, '#3050a0');
-                    drawPixel(ctx, 7, 10, '#3050a0');
-                    drawPixel(ctx, 8, 10, '#3050a0');
-                    drawPixel(ctx, 5, 11, '#503020');
-                    drawPixel(ctx, 6, 11, '#503020');
-                    drawPixel(ctx, 7, 11, '#503020');
-                    drawPixel(ctx, 8, 11, '#503020');
-                });
-                sprites.npcs.push(s);
-            });
+function npcFrame(id, frame) {
+  const nc = NPC_COLORS[id];
+  const f = frame % 2;
+  const sprite = [
+    "0000001111100000",
+    "0000011111111000",
+    "0000012222221000",
+    "0000012272272000",
+    "0000012222221000",
+    "0000033333330000",
+    "0000033333330000",
+    "0000033333330000",
+    "0000003333300000",
+    "0000003333300000",
+    "0000044444400000",
+    "0000044004400000",
+    "0000040000400000",
+    "0000040000400000",
+    "0000000000000000",
+    "0000000000000000",
+  ].map(r => r.split('').map(c => nc[c] || 0));
 
-            sprites.bugs = [];
-            const bugConfigs = [
-                { body: '#f8e040', wing: '#f8a040' },
-                { body: '#40a040', wing: '#60c060' },
-                { body: '#f8f080', wing: '#ffffa0' }
-            ];
+  if (f === 1) {
+    sprite[12] = sprite[12].map((c, i) => (i >= 5 && i <= 7) ? 0 : c);
+    sprite[13] = sprite[13].map((c, i) => (i >= 8 && i <= 10) ? nc[4] : (i >= 5 && i <= 7) ? 0 : c);
+  }
+  return sprite;
+}
 
-            bugConfigs.forEach((config, idx) => {
-                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                    drawPixel(ctx, 7, 6, '#202020');
-                    drawPixel(ctx, 8, 6, '#202020');
-                    drawPixel(ctx, 6, 7, config.body);
-                    drawPixel(ctx, 7, 7, config.body);
-                    drawPixel(ctx, 8, 7, config.body);
-                    drawPixel(ctx, 9, 7, config.body);
-                    drawPixel(ctx, 5, 8, config.wing);
-                    drawPixel(ctx, 6, 8, config.wing);
-                    drawPixel(ctx, 7, 8, config.body);
-                    drawPixel(ctx, 8, 8, config.body);
-                    drawPixel(ctx, 9, 8, config.wing);
-                    drawPixel(ctx, 10, 8, config.wing);
-                    drawPixel(ctx, 6, 9, config.body);
-                    drawPixel(ctx, 7, 9, config.body);
-                    drawPixel(ctx, 8, 9, config.body);
-                    drawPixel(ctx, 9, 9, config.body);
-                    drawPixel(ctx, 7, 10, config.body);
-                    drawPixel(ctx, 8, 10, config.body);
-                    if (idx === 2) {
-                        drawPixel(ctx, 5, 7, '#ffff00', 2);
-                        drawPixel(ctx, 10, 7, '#ffff00', 2);
-                        drawPixel(ctx, 4, 8, '#ffff00', 2);
-                        drawPixel(ctx, 11, 8, '#ffff00', 2);
-                    }
-                });
-                sprites.bugs.push(s);
-            });
+// 虫子精灵
+const BUG_TYPES = [
+  { // 蝴蝶
+    name: '蝴蝶',
+    colors: { 1:'#ff6b6b', 2:'#ffd93d', 3:'#1d3557' },
+    sprite: [
+      "1000000000000001",
+      "1100000000000011",
+      "1110000000000111",
+      "1111000000001111",
+      "1110000000000111",
+      "1100000000000011",
+      "0000033333000000",
+      "0000333333300000",
+      "0000033333000000",
+      "0000033333000000",
+      "0000003330000000",
+      "0000000330000000",
+    ]
+  },
+  { // 甲虫
+    name: '甲虫',
+    colors: { 1:'#06d6a0', 2:'#073b4c', 3:'#2d6a4f' },
+    sprite: [
+      "0000000000000000",
+      "0000011111100000",
+      "0000122222210000",
+      "0001222222221000",
+      "0001222222221000",
+      "0000122222210000",
+      "0000022222200000",
+      "0000033333300000",
+      "0000030000300000",
+      "0000030000300000",
+      "0000000000000000",
+      "0000000000000000",
+    ]
+  },
+  { // 萤火虫
+    name: '萤火虫',
+    colors: { 1:'#ffd166', 2:'#ffee93', 3:'#073b4c' },
+    sprite: [
+      "0000000000000000",
+      "0000000100000000",
+      "0000000100000000",
+      "0000011011000000",
+      "0000111111000000",
+      "0000011011000000",
+      "0000000100000000",
+      "0000122222100000",
+      "0001222222210000",
+      "0000122222100000",
+      "0000000100000000",
+      "0000000000000000",
+    ]
+  }
+];
 
-            sprites.tree = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                drawPixel(ctx, 6, 12, '#5a3020');
-                drawPixel(ctx, 7, 12, '#5a3020');
-                drawPixel(ctx, 7, 11, '#5a3020');
-                drawPixel(ctx, 5, 6, COLORS.treeDark);
-                drawPixel(ctx, 6, 5, COLORS.treeDark);
-                drawPixel(ctx, 7, 5, COLORS.treeDark);
-                drawPixel(ctx, 8, 6, COLORS.treeDark);
-                drawPixel(ctx, 4, 7, COLORS.treeDark);
-                drawPixel(ctx, 5, 7, COLORS.tree);
-                drawPixel(ctx, 6, 7, COLORS.tree);
-                drawPixel(ctx, 7, 7, COLORS.tree);
-                drawPixel(ctx, 8, 7, COLORS.tree);
-                drawPixel(ctx, 9, 7, COLORS.treeDark);
-                drawPixel(ctx, 5, 8, COLORS.tree);
-                drawPixel(ctx, 6, 8, COLORS.tree);
-                drawPixel(ctx, 7, 8, COLORS.tree);
-                drawPixel(ctx, 8, 8, COLORS.tree);
-                drawPixel(ctx, 9, 8, COLORS.tree);
-                drawPixel(ctx, 6, 9, COLORS.tree);
-                drawPixel(ctx, 7, 9, COLORS.tree);
-                drawPixel(ctx, 8, 9, COLORS.tree);
-                drawPixel(ctx, 7, 10, COLORS.tree);
-                drawPixel(ctx, 8, 10, COLORS.treeDark);
-                drawPixel(ctx, 6, 11, COLORS.treeDark);
-                drawPixel(ctx, 9, 11, COLORS.treeDark);
-            });
+function bugFrame(typeIdx, frame) {
+  const bug = BUG_TYPES[typeIdx];
+  const bc = bug.colors;
+  const f = frame % 2;
+  const s = bug.sprite.map(r => r.split('').map(c => {
+    if (c === '1') return bc[1];
+    if (c === '2') return bc[2];
+    if (c === '3') return bc[3];
+    return 0;
+  }));
+  // 翅膀拍动
+  if (typeIdx === 0 && f === 1) {
+    s[0] = s[0].map((c,i) => (i<4||i>=12) ? 0 : c);
+    s[1] = s[1].map((c,i) => (i<4||i>=12) ? 0 : c);
+    s[4] = s[4].map((c,i) => (i<4||i>=12) ? 0 : c);
+    s[5] = s[5].map((c,i) => (i<4||i>=12) ? 0 : c);
+  }
+  return s;
+}
 
-            sprites.rock = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                drawPixel(ctx, 5, 9, COLORS.rockDark);
-                drawPixel(ctx, 6, 8, COLORS.rockDark);
-                drawPixel(ctx, 7, 8, COLORS.rock);
-                drawPixel(ctx, 8, 8, COLORS.rock);
-                drawPixel(ctx, 9, 8, COLORS.rockDark);
-                drawPixel(ctx, 5, 9, COLORS.rock);
-                drawPixel(ctx, 6, 9, COLORS.rock);
-                drawPixel(ctx, 7, 9, COLORS.rock);
-                drawPixel(ctx, 8, 9, COLORS.rock);
-                drawPixel(ctx, 9, 9, COLORS.rock);
-                drawPixel(ctx, 6, 10, COLORS.rock);
-                drawPixel(ctx, 7, 10, COLORS.rock);
-                drawPixel(ctx, 8, 10, COLORS.rock);
-                drawPixel(ctx, 7, 11, COLORS.rockDark);
-                drawPixel(ctx, 8, 11, COLORS.rockDark);
-            });
+// 捕虫网动画帧
+function netFrame(dir, progress) {
+  // progress 0-1
+  const c = '#8b6914';
+  const r = '#c9a837';
+  const m = '#aaa';
+  const _ = 0, R = r, C = c, M = m;
+  if (dir === 0 || dir === 1) {
+    // 挥网弧形
+    const w1 = Math.floor(progress * 8);
+    const net = [
+      "MMMM____________",
+      `M${R ? 'R':'R'}${_}____________`,
+      `__${R}RRRRR${_}${_}${_}${_}${_}${_}`,
+      `__R${M}R${M}R${M}R${M}R_______`,
+      `__R${M}R${M}R${M}R${M}R_______`,
+      `________C${C}________`,
+      `_________C${C}_______`,
+      `__________C${C}______`,
+      "___________C_______",
+    ].map(r => r.split('').map(ch => ch === 'M' ? c : ch === 'R' ? r : ch === 'C' ? '#8b5e34' : 0));
+    drawPixels(0, 0, net, 2);
+    return;
+  }
+  // left/right
+  const net = [
+    "_________MM_____",
+    "_________MM_____",
+    "________RRRRR___",
+    "_______RMRRMR___",
+    "_______RMRRMR___",
+    "_____C_________",
+    "_____C_________",
+    "_____C_________",
+    "_____C_________",
+  ].map(r => r.split('').map(ch => ch === 'M' ? c : ch === 'R' ? r : ch === 'C' ? '#8b5e34' : 0));
+  if (dir === 3) net.forEach(row => row.reverse());
+  drawPixels(0, 0, net, 2);
+}
 
-            sprites.flowers = [];
-            const flowerColors = [COLORS.flower1, COLORS.flower2, COLORS.flower3];
-            flowerColors.forEach(color => {
-                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                    drawPixel(ctx, 8, 11, '#3a6a2c');
-                    drawPixel(ctx, 8, 12, '#3a6a2c');
-                    drawPixel(ctx, 7, 8, color);
-                    drawPixel(ctx, 8, 8, color);
-                    drawPixel(ctx, 9, 8, color);
-                    drawPixel(ctx, 6, 9, color);
-                    drawPixel(ctx, 7, 9, '#ffff80');
-                    drawPixel(ctx, 8, 9, '#ffff80');
-                    drawPixel(ctx, 9, 9, color);
-                    drawPixel(ctx, 10, 9, color);
-                    drawPixel(ctx, 7, 10, color);
-                    drawPixel(ctx, 8, 10, color);
-                    drawPixel(ctx, 9, 10, color);
-                });
-                sprites.flowers.push(s);
-            });
+// ===================== 地图数据 =====================
+// 0=草地, 1=花, 2=树, 3=石头, 4=水, 5=路, 6=桥
+const map = [
+  [2,2,0,0,0,5,0,0,0,0,0,0,0,0,2,2,0,0,0,2],
+  [2,0,1,1,0,5,0,1,0,0,0,4,4,0,0,0,1,1,0,2],
+  [0,0,1,0,0,5,0,1,0,3,0,4,4,0,0,0,0,1,0,0],
+  [0,0,0,0,3,5,0,0,0,0,0,0,0,0,3,0,0,0,0,0],
+  [0,1,0,0,0,5,5,5,5,5,5,5,5,5,0,0,0,1,0,0],
+  [0,1,0,0,0,0,0,0,0,0,0,0,0,5,0,0,0,1,1,0],
+  [0,0,0,3,0,0,1,1,0,0,0,0,0,5,0,3,0,0,0,0],
+  [0,0,0,0,0,0,1,0,0,0,0,3,0,5,0,0,0,0,0,0],
+  [0,3,0,1,0,0,0,0,0,1,0,0,0,5,5,0,0,0,3,0],
+  [0,0,0,1,1,0,0,3,0,1,0,0,0,0,5,0,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,3,0,0,5,0,0,0,0,0],
+  [0,1,0,0,0,1,1,0,0,0,0,0,0,0,5,0,0,0,0,0],
+  [0,1,0,0,0,1,0,0,0,0,0,0,1,0,5,5,5,0,0,0],
+  [2,0,0,3,0,0,0,0,3,0,1,1,1,0,0,0,5,0,0,2],
+  [2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,0,2,2],
+];
 
-            sprites.water = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                drawPixel(ctx, 0, 0, COLORS.water);
-                drawPixel(ctx, 1, 0, COLORS.water);
-                drawPixel(ctx, 2, 0, COLORS.waterLight);
-                drawPixel(ctx, 3, 0, COLORS.water);
-                drawPixel(ctx, 4, 0, COLORS.water);
-                drawPixel(ctx, 5, 0, COLORS.waterLight);
-                drawPixel(ctx, 6, 0, COLORS.water);
-                drawPixel(ctx, 7, 0, COLORS.water);
-                drawPixel(ctx, 0, 1, COLORS.waterLight);
-                drawPixel(ctx, 1, 1, COLORS.water);
-                drawPixel(ctx, 2, 1, COLORS.water);
-                drawPixel(ctx, 3, 1, COLORS.waterLight);
-                drawPixel(ctx, 4, 1, COLORS.water);
-                drawPixel(ctx, 5, 1, COLORS.water);
-                drawPixel(ctx, 6, 1, COLORS.waterLight);
-                drawPixel(ctx, 7, 1, COLORS.water);
-            });
+// ===================== 游戏实体 =====================
 
-            sprites.net = [];
-            for (let i = 0; i < 3; i++) {
-                const s = createPixelSprite(SPRITE_SIZE, SPRITE_SIZE, (ctx) => {
-                    const angle = (i / 3) * Math.PI - Math.PI / 2;
-                    const cx = 8 + Math.cos(angle) * 5;
-                    const cy = 8 + Math.sin(angle) * 5;
-                    
-                    for (let r = 2; r < 6; r++) {
-                        for (let a = 0; a < 8; a++) {
-                            const px = Math.round(cx + Math.cos(a * Math.PI / 4) * r);
-                            const py = Math.round(cy + Math.sin(a * Math.PI / 4) * r);
-                            if (px >= 0 && px < 16 && py >= 0 && py < 16) {
-                                if (Math.random() > 0.3) {
-                                    drawPixel(ctx, px, py, '#a08060');
-                                }
-                            }
-                        }
-                    }
-                    
-                    for (let ox = -1; ox <= 1; ox++) {
-                        for (let oy = -1; oy <= 1; oy++) {
-                            if (Math.random() > 0.5) {
-                                const px = Math.round(cx + ox);
-                                const py = Math.round(cy + oy);
-                                if (px >= 0 && px < 16 && py >= 0 && py < 16) {
-                                    drawPixel(ctx, px, py, '#a08060');
-                                }
-                            }
-                        }
-                    }
-                    
-                    const stickX = Math.round(8 + Math.cos(angle) * 5);
-                    const stickY = Math.round(8 + Math.sin(angle) * 5);
-                    for (let i = 0; i < 8; i++) {
-                        const sx = Math.round(stickX + (12 - stickX) * (i / 7));
-                        const sy = Math.round(stickY + (14 - stickY) * (i / 7));
-                        drawPixel(ctx, sx, sy, '#8a5a30');
-                    }
-                });
-                sprites.net.push(s);
-            }
-        }
+// 障碍物（碰撞用）
+const obstacles = [];
+function buildObstacles() {
+  obstacles.length = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (map[r][c] === 2 || map[r][c] === 3 || map[r][c] === 4) {
+        obstacles.push({ x: c * TILE, y: r * TILE, w: TILE, h: TILE });
+      }
+    }
+  }
+}
+buildObstacles();
 
-        const npcDialogues = [
-            {
-                name: '老爷爷',
-                lines: [
-                    '啊，年轻人！你也喜欢捕虫吗？',
-                    '我年轻时可是这一带有名的捕虫王！',
-                    '听说夜里能在河边抓到稀有的萤火虫...',
-                    '加油吧，年轻人！'
-                ]
-            },
-            {
-                name: '小女孩',
-                lines: [
-                    '大哥哥/大姐姐！这些花好漂亮！',
-                    '我看到好多漂亮的蝴蝶在花丛里飞来飞去~',
-                    '如果你抓到蝴蝶，能让我看看吗？',
-                    '这些花和蝴蝶都好可爱呀！'
-                ]
-            },
-            {
-                name: '科学家',
-                lines: [
-                    '你好，我是昆虫研究员。',
-                    '我对这个地区的甲虫进行了长期观察...',
-                    '有些甲虫是非常珍稀的物种！',
-                    '愿你的捕虫之旅收获满满。'
-                ]
-            }
-        ];
+function tileBlocked(tx, ty) {
+  if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) return true;
+  const t = map[ty][tx];
+  return t === 2 || t === 3 || t === 4;
+}
 
-        const gameMap = [];
-        for (let y = 0; y < MAP_HEIGHT; y++) {
-            gameMap[y] = [];
-            for (let x = 0; x < MAP_WIDTH; x++) {
-                gameMap[y][x] = { type: 'grass', variant: Math.floor(Math.random() * 3) };
-            }
-        }
+// 玩家
+const player = {
+  x: 10 * TILE, y: 7 * TILE, w: 24, h: 20,
+  dir: 0, // 0down 1up 2left 3right
+  speed: 2.5,
+  moving: false,
+  animTimer: 0,
+  animFrame: 0,
+  netSwing: 0,   // 0=idle, >0 = swinging
+  netDir: 0,
+};
 
-        for (let x = 0; x < MAP_WIDTH; x++) {
-            gameMap[MAP_HEIGHT - 1][x].type = 'dirt';
-            gameMap[0][x].type = 'dirt';
-        }
-        for (let y = 0; y < MAP_HEIGHT; y++) {
-            gameMap[y][0].type = 'dirt';
-            gameMap[y][MAP_WIDTH - 1].type = 'dirt';
-        }
+// NPC
+const npcs = [
+  {
+    id: 0, x: 3 * TILE + 4, y: 3 * TILE + 12, w: 24, h: 20,
+    name: '老猎人',
+    lines: [
+      '欢迎来到虫虫乐园！这里有很多珍稀的虫子。',
+      '试试朝地上的虫子靠近，然后按空格键挥网！',
+      '加油，你可以的！',
+    ],
+    lineIdx: 0,
+  },
+  {
+    id: 1, x: 14 * TILE + 4, y: 10 * TILE + 12, w: 24, h: 20,
+    name: '昆虫学家',
+    lines: [
+      '你知道吗？蝴蝶喜欢在花朵附近出没。',
+      '甲虫通常在树和石头周围活动。',
+      '捕捉10只虫子就能成为捕虫大师！',
+    ],
+    lineIdx: 1,
+  },
+  {
+    id: 2, x: 9 * TILE + 4, y: 2 * TILE + 12, w: 24, h: 20,
+    name: '小贩',
+    lines: [
+      '嘿嘿嘿，路过看看！这里是虫虫市场！',
+      '哦等等，市场还没开张...',
+      '不过你的捕虫网是免费的，好好加油吧！',
+    ],
+    lineIdx: 2,
+  },
+];
 
-        for (let i = 5; i < 12; i++) {
-            gameMap[MAP_HEIGHT - 2][i].type = 'dirt';
-        }
+// 虫子
+const bugs = [];
+const MAX_BUGS = 5;
+const BUG_SPAWN_INTERVAL = 180; // frames
+let bugSpawnTimer = 0;
+let bugCount = 0;
+const BUG_TARGET = 12;
 
-        const obstacles = [];
-
-        const treePositions = [
-            [5, 3], [8, 5], [3, 8], [12, 4], [15, 7],
-            [25, 3], [30, 5], [35, 4], [8, 15], [28, 12],
-            [33, 15], [5, 22], [35, 20]
-        ];
-        treePositions.forEach(([x, y]) => {
-            obstacles.push({ x: x * TILE_SIZE, y: y * TILE_SIZE, type: 'tree', width: TILE_SIZE, height: TILE_SIZE });
-            gameMap[y][x].type = 'tree';
+function spawnBug() {
+  if (bugs.length >= MAX_BUGS) return;
+  let attempts = 50;
+  while (attempts-- > 0) {
+    const tx = Math.floor(Math.random() * COLS);
+    const ty = Math.floor(Math.random() * ROWS);
+    if (!tileBlocked(tx, ty) && map[ty][tx] !== 5) {
+      // 不要在玩家身上生成
+      const bx = tx * TILE + 4, by = ty * TILE + 4;
+      const dx = Math.abs(bx - player.x), dy = Math.abs(by - player.y);
+      if (dx > TILE * 3 && dy > TILE * 3) {
+        const type = Math.floor(Math.random() * 3);
+        bugs.push({
+          type, x: bx, y: by,
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: (Math.random() - 0.5) * 1.2,
+          dirChangeTimer: Math.random() * 120 + 60,
+          alive: true,
+          animTimer: 0,
+          animFrame: 0,
+          caught: false,
+          catchAnim: 0,
+          name: BUG_TYPES[type].name,
         });
+        return;
+      }
+    }
+  }
+}
 
-        const rockPositions = [
-            [10, 8], [18, 6], [22, 10], [28, 8], [32, 12],
-            [12, 18], [25, 15], [30, 20]
-        ];
-        rockPositions.forEach(([x, y]) => {
-            obstacles.push({ x: x * TILE_SIZE, y: y * TILE_SIZE, type: 'rock', width: TILE_SIZE, height: TILE_SIZE });
-            gameMap[y][x].type = 'rock';
-        });
+// 对话
+let dialog = { active: false, npcId: -1, text: '', speaker: '' };
+function showMsg(text, duration = 90) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, duration * 16);
+}
 
-        for (let y = 2; y < 6; y++) {
-            for (let x = 2; x < 5; x++) {
-                gameMap[y][x].type = 'water';
-                obstacles.push({ x: x * TILE_SIZE, y: y * TILE_SIZE, type: 'water', width: TILE_SIZE, height: TILE_SIZE });
-            }
+// ===================== 碰撞检测 =====================
+function rectCollide(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function canMove(nx, ny) {
+  // 地图边界
+  if (nx < 0 || ny < 0 || nx + player.w > W || ny + player.h > H) return false;
+  // 障碍物
+  for (const ob of obstacles) {
+    if (rectCollide({ x: nx, y: ny, w: player.w, h: player.h }, ob)) return false;
+  }
+  // NPC碰撞
+  for (const npc of npcs) {
+    if (rectCollide({ x: nx, y: ny, w: player.w, h: player.h }, npc)) return false;
+  }
+  return true;
+}
+
+// ===================== 更新逻辑 =====================
+let gameOver = false;
+
+function update() {
+  if (dialog.active) {
+    if (consumeKey('KeyE') || consumeKey('Enter')) {
+      dialog.active = false;
+      document.getElementById('dialog').style.display = 'none';
+    }
+    return;
+  }
+  if (gameOver) return;
+
+  // 玩家移动
+  let dx = 0, dy = 0;
+  if (keys['ArrowUp'] || keys['KeyW']) { dy = -1; player.dir = 1; }
+  if (keys['ArrowDown'] || keys['KeyS']) { dy = 1; player.dir = 0; }
+  if (keys['ArrowLeft'] || keys['KeyA']) { dx = -1; player.dir = 2; }
+  if (keys['ArrowRight'] || keys['KeyD']) { dx = 1; player.dir = 3; }
+
+  player.moving = dx !== 0 || dy !== 0;
+
+  if (player.moving) {
+    // 标准化对角线移动
+    if (dx !== 0 && dy !== 0) {
+      dx *= 0.707;
+      dy *= 0.707;
+    }
+    const nx = player.x + dx * player.speed;
+    const ny = player.y + dy * player.speed;
+    if (canMove(nx, player.y)) player.x = nx;
+    if (canMove(player.x, ny)) player.y = ny;
+
+    player.animTimer++;
+    if (player.animTimer > 8) {
+      player.animTimer = 0;
+      player.animFrame = (player.animFrame + 1) % 4;
+    }
+  } else {
+    player.animFrame = 0;
+    player.animTimer = 0;
+  }
+
+  // 挥网捕虫
+  if (consumeKey('Space') && player.netSwing <= 0) {
+    player.netSwing = 20;
+    player.netDir = player.dir;
+  }
+  if (player.netSwing > 0) player.netSwing--;
+
+  // E键对话
+  if (consumeKey('KeyE')) {
+    // 检查面前NPC
+    for (const npc of npcs) {
+      const pcx = player.x + player.w / 2;
+      const pcy = player.y + player.h / 2;
+      const ncx = npc.x + npc.w / 2;
+      const ncy = npc.y + npc.h / 2;
+      const dist = Math.hypot(pcx - ncx, pcy - ncy);
+      if (dist < TILE * 1.8) {
+        const line = npc.lines[npc.lineIdx];
+        npc.lineIdx = (npc.lineIdx + 1) % npc.lines.length;
+        dialog.active = true;
+        dialog.speaker = npc.name;
+        dialog.text = line;
+        document.getElementById('dlgSpeaker').textContent = '【' + npc.name + '】';
+        document.getElementById('dlgText').textContent = line;
+        document.getElementById('dialog').style.display = 'block';
+        break;
+      }
+    }
+  }
+
+  // 虫子更新
+  for (let i = bugs.length - 1; i >= 0; i--) {
+    const bug = bugs[i];
+    if (bug.caught) {
+      bug.catchAnim--;
+      if (bug.catchAnim <= 0) {
+        bugs.splice(i, 1);
+      }
+      continue;
+    }
+
+    bug.dirChangeTimer--;
+    if (bug.dirChangeTimer <= 0) {
+      bug.vx = (Math.random() - 0.5) * 1.5;
+      bug.vy = (Math.random() - 0.5) * 1.5;
+      bug.dirChangeTimer = Math.random() * 120 + 60;
+    }
+
+    const nbx = bug.x + bug.vx;
+    const nby = bug.y + bug.vy;
+
+    // 边界碰反弹
+    if (nbx < 0 || nbx > W - 24) bug.vx *= -1;
+    if (nby < 0 || nby > H - 24) bug.vy *= -1;
+
+    // 障碍物检测
+    const bTileX = Math.floor((nbx + 12) / TILE);
+    const bTileY = Math.floor((nby + 12) / TILE);
+    if (tileBlocked(bTileX, bTileY)) {
+      bug.vx *= -1;
+      bug.vy *= -1;
+    } else {
+      bug.x += bug.vx;
+      bug.y += bug.vy;
+    }
+
+    bug.animTimer++;
+    if (bug.animTimer > 10) {
+      bug.animTimer = 0;
+      bug.animFrame = (bug.animFrame + 1) % 4;
+    }
+
+    // 被捕检测 - 网挥到一半时判定
+    if (player.netSwing > 5 && player.netSwing < 15) {
+      const netReach = { x: 0, y: 0, w: 0, h: 0 };
+      const pcx = player.x + player.w / 2;
+      const pcy = player.y + player.h / 2;
+      if (player.netDir === 0) { netReach.x = pcx - 24; netReach.y = pcy + 8; netReach.w = 48; netReach.h = 32; }
+      else if (player.netDir === 1) { netReach.x = pcx - 24; netReach.y = pcy - 40; netReach.w = 48; netReach.h = 32; }
+      else if (player.netDir === 2) { netReach.x = pcx - 48; netReach.y = pcy - 16; netReach.w = 32; netReach.h = 36; }
+      else { netReach.x = pcx + 16; netReach.y = pcy - 16; netReach.w = 32; netReach.h = 36; }
+
+      if (rectCollide(netReach, { x: bug.x, y: bug.y, w: 24, h: 24 })) {
+        bug.caught = true;
+        bug.catchAnim = 30;
+        bugCount++;
+        document.getElementById('bugCount').textContent = bugCount;
+        showMsg('捉到了 ' + bug.name + '！ +1');
+
+        if (bugCount >= BUG_TARGET && !gameOver) {
+          gameOver = true;
+          setTimeout(() => {
+            showMsg('恭喜！你是捕虫大师！', 180);
+          }, 1500);
         }
+      }
+    }
+  }
 
-        const flowerPositions = [
-            [14, 10], [16, 12], [20, 8], [24, 14], [27, 10],
-            [10, 20], [15, 22], [18, 25], [22, 18], [28, 22],
-            [32, 18], [8, 12], [30, 25], [34, 22]
-        ];
-        flowerPositions.forEach(([x, y]) => {
-            gameMap[y][x].type = 'flower';
-            gameMap[y][x].flowerColor = Math.floor(Math.random() * 3);
-        });
+  // 自动生成虫子
+  bugSpawnTimer++;
+  if (bugSpawnTimer >= BUG_SPAWN_INTERVAL) {
+    bugSpawnTimer = 0;
+    spawnBug();
+  }
 
-        const npcs = [
-            { x: 22 * TILE_SIZE, y: 12 * TILE_SIZE, type: 0 },
-            { x: 8 * TILE_SIZE, y: 24 * TILE_SIZE, type: 1 },
-            { x: 15 * TILE_SIZE, y: 4 * TILE_SIZE, type: 2 }
-        ];
+  // 清理justPressed
+  Object.keys(justPressed).forEach(k => justPressed[k] = false);
+}
 
-        const player = {
-            x: 20 * TILE_SIZE,
-            y: 20 * TILE_SIZE,
-            width: SPRITE_SIZE,
-            height: SPRITE_SIZE,
-            direction: 0,
-            moving: false,
-            animFrame: 0,
-            animTimer: 0,
-            speed: 2
-        };
+// ===================== 渲染 =====================
 
-        let bugs = [];
-        let bugCount = 0;
-        let lastBugSpawn = 0;
-        const BUG_SPAWN_INTERVAL = 5000;
-        const MAX_BUGS = 5;
+function drawTile(type, x, y) {
+  const g1 = '#588157', g2 = '#3a5a40', g3 = '#708238';
+  const fl1 = '#ff6b6b', fl2 = '#ffd93d', fl3 = '#ffffff';
 
-        let netSwinging = false;
-        let netFrame = 0;
-        let netTimer = 0;
-        const NET_SWING_DURATION = 400;
+  switch (type) {
+    case 0: // 草地
+      ctx.fillStyle = g1;
+      ctx.fillRect(x, y, TILE, TILE);
+      // 草纹
+      ctx.fillStyle = g3;
+      for (let i = 0; i < 3; i++) {
+        const gx = x + ((x * 7 + y * 13 + i * 11) % 24) + 4;
+        const gy = y + ((x * 11 + y * 7 + i * 17) % 24) + 4;
+        ctx.fillRect(gx, gy, 2, 4);
+      }
+      break;
+    case 1: // 花
+      ctx.fillStyle = g1;
+      ctx.fillRect(x, y, TILE, TILE);
+      // 花朵
+      const fx = x + 12, fy = y + 10;
+      const fc = [(x * 3 + y * 5) % 3];
+      ctx.fillStyle = fl2;
+      ctx.fillRect(fx, fy, 2, 6);
+      ctx.fillStyle = [fl1, fl2, fl3][fc[0]];
+      ctx.fillRect(fx - 2, fy - 2, 6, 6);
+      ctx.fillStyle = fl2;
+      ctx.fillRect(fx, fy, 2, 2);
+      break;
+    case 2: // 树
+      ctx.fillStyle = g1;
+      ctx.fillRect(x, y, TILE, TILE);
+      // 树干
+      ctx.fillStyle = '#8b5e34';
+      ctx.fillRect(x + 12, y + 16, 8, 16);
+      // 树冠
+      ctx.fillStyle = g2;
+      ctx.fillRect(x + 2, y + 2, 28, 18);
+      ctx.fillStyle = '#4a7c59';
+      ctx.fillRect(x + 6, y + 6, 20, 14);
+      ctx.fillStyle = g2;
+      ctx.fillRect(x + 10, y + 4, 12, 8);
+      break;
+    case 3: // 石头
+      ctx.fillStyle = g1;
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.fillStyle = '#888';
+      ctx.fillRect(x + 4, y + 8, 24, 20);
+      ctx.fillStyle = '#aaa';
+      ctx.fillRect(x + 6, y + 10, 20, 16);
+      ctx.fillStyle = '#999';
+      ctx.fillRect(x + 8, y + 12, 8, 6);
+      break;
+    case 4: // 水
+      ctx.fillStyle = '#219ebc';
+      ctx.fillRect(x, y, TILE, TILE);
+      // 水纹
+      ctx.fillStyle = '#48bfe3';
+      const wo = (Date.now() / 400 + x + y) % 16;
+      for (let w = 0; w < 2; w++) {
+        ctx.fillRect(x + 4 + w * 14 + (wo % 4), y + 8 + w * 10, 10, 2);
+      }
+      break;
+    case 5: // 路径
+      ctx.fillStyle = '#ddb892';
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.fillStyle = '#c9a876';
+      for (let d = 0; d < 2; d++) {
+        const dx2 = x + ((x * 3 + d * 17) % 20) + 6;
+        const dy2 = y + ((y * 7 + d * 13) % 20) + 6;
+        ctx.fillRect(dx2, dy2, 4, 4);
+      }
+      break;
+  }
+}
 
-        let dialogue = {
-            active: false,
-            npcIndex: -1,
-            lineIndex: 0
-        };
+function drawMap() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      drawTile(map[r][c], c * TILE, r * TILE);
+    }
+  }
+}
 
-        let nearbyNPC = -1;
-        let nearbyBug = -1;
+function drawPlayer() {
+  const frame = playerFrame(player.dir, player.animFrame);
+  drawPixels(player.x - 4, player.y - 6, frame, 2);
 
-        const keys = {};
-        document.addEventListener('keydown', (e) => {
-            keys[e.code] = true;
-            
-            if (e.code === 'KeyE') {
-                if (dialogue.active) {
-                    dialogue.lineIndex++;
-                    if (dialogue.lineIndex >= npcDialogues[dialogue.npcIndex].lines.length) {
-                        dialogue.active = false;
-                        document.getElementById('dialog-box').style.display = 'none';
-                    } else {
-                        document.getElementById('dialog-text').textContent = npcDialogues[dialogue.npcIndex].lines[dialogue.lineIndex];
-                    }
-                } else if (nearbyNPC >= 0) {
-                    dialogue.active = true;
-                    dialogue.npcIndex = nearbyNPC;
-                    dialogue.lineIndex = 0;
-                    const db = document.getElementById('dialog-box');
-                    db.style.display = 'block';
-                    document.getElementById('dialog-name').textContent = npcDialogues[dialogue.npcIndex].name;
-                    document.getElementById('dialog-text').textContent = npcDialogues[dialogue.npcIndex].lines[dialogue.lineIndex];
-                }
-            }
-            
-            if (e.code === 'Space') {
-                e.preventDefault();
-                if (!netSwinging && nearbyBug >= 0 && !dialogue.active) {
-                    netSwinging = true;
-                    netFrame = 0;
-                    netTimer = 0;
-                    
-                    const bug = bugs[nearbyBug];
-                    if (bug) {
-                        const dx = bug.x - player.x;
-                        const dy = bug.y - player.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (dist < 40) {
-                            let facingBug = false;
-                            switch (player.direction) {
-                                case 0: facingBug = dy < 0 && Math.abs(dx) < dy; break;
-                                case 1: facingBug = dx > 0 && Math.abs(dy) < dx; break;
-                                case 2: facingBug = dy > 0 && Math.abs(dx) < dy; break;
-                                case 3: facingBug = dx < 0 && Math.abs(dy) < Math.abs(dx); break;
-                            }
-                            
-                            if (facingBug) {
-                                setTimeout(() => {
-                                    bugs.splice(nearbyBug, 1);
-                                    bugCount++;
-                                    document.getElementById('bug-counter').textContent = `🐛 × ${bugCount}`;
-                                    showCatchEffect(bug.x, bug.y);
-                                }, 200);
-                            }
-                        }
-                    }
-                }
-            }
-        });
+  // 画名字标签
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(player.x - 4, player.y - 16, 32, 10);
+  ctx.fillStyle = '#f1faee';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('玩家', player.x + 12, player.y - 8);
+  ctx.textAlign = 'left';
+}
 
-        document.addEventListener('keyup', (e) => {
-            keys[e.code] = false;
-        });
+function drawNPCs() {
+  for (const npc of npcs) {
+    // NPC名字标签
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(npc.x - 4, npc.y - 16, 50, 10);
+    ctx.fillStyle = '#e6c229';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(npc.name, npc.x + 20, npc.y - 8);
+    ctx.textAlign = 'left';
 
-        function showCatchEffect(x, y) {
-            const effect = document.createElement('div');
-            effect.className = 'catch-effect';
-            effect.innerHTML = '✨';
-            effect.style.left = (x + player.width / 2 - 16) + 'px';
-            effect.style.top = (y + player.height / 2 - 16) + 'px';
-            document.getElementById('ui-layer').appendChild(effect);
-            setTimeout(() => effect.remove(), 400);
-        }
+    // 交互提示
+    const dist = Math.hypot(
+      (player.x + player.w/2) - (npc.x + npc.w/2),
+      (player.y + player.h/2) - (npc.y + npc.h/2)
+    );
+    if (dist < TILE * 2 && !dialog.active) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(npc.x + 2, npc.y - 28, 40, 12);
+      ctx.fillStyle = '#f1faee';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('按E对话', npc.x + 22, npc.y - 19);
+      ctx.textAlign = 'left';
+    }
 
-        function spawnBug() {
-            if (bugs.length >= MAX_BUGS) return;
-            
-            let attempts = 0;
-            while (attempts < 50) {
-                const x = (2 + Math.floor(Math.random() * (MAP_WIDTH - 4))) * TILE_SIZE;
-                const y = (2 + Math.floor(Math.random() * (MAP_HEIGHT - 4))) * TILE_SIZE;
-                
-                let valid = true;
-                for (const obs of obstacles) {
-                    if (Math.abs(x - obs.x) < TILE_SIZE * 2 && Math.abs(y - obs.y) < TILE_SIZE * 2) {
-                        valid = false;
-                        break;
-                    }
-                }
-                
-                for (const npc of npcs) {
-                    if (Math.abs(x - npc.x) < TILE_SIZE * 3 && Math.abs(y - npc.y) < TILE_SIZE * 3) {
-                        valid = false;
-                        break;
-                    }
-                }
-                
-                if (valid) {
-                    bugs.push({
-                        x, y,
-                        type: Math.floor(Math.random() * 3),
-                        vx: (Math.random() - 0.5) * 0.5,
-                        vy: (Math.random() - 0.5) * 0.5,
-                        timer: 0,
-                        frame: 0
-                    });
-                    return;
-                }
-                attempts++;
-            }
-        }
+    // 感叹号动画
+    const bounce = Math.sin(Date.now() / 300) * 3;
+    ctx.fillStyle = '#e6c229';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('!', npc.x + 20, npc.y - 22 + bounce);
 
-        function checkCollision(x, y, width, height) {
-            for (const obs of obstacles) {
-                if (x < obs.x + obs.width &&
-                    x + width > obs.x &&
-                    y < obs.y + obs.height &&
-                    y + height > obs.y) {
-                    return true;
-                }
-            }
-            
-            for (const npc of npcs) {
-                if (x < npc.x + SPRITE_SIZE &&
-                    x + width > npc.x &&
-                    y < npc.y + SPRITE_SIZE &&
-                    y + height > npc.y) {
-                    return true;
-                }
-            }
-            
-            return false;
-        }
+    const frame = npcFrame(npc.id, Math.floor(Date.now() / 500));
+    drawPixels(npc.x - 4, npc.y - 6, frame, 2);
+  }
+}
 
-        function updateBugs(deltaTime) {
-            for (const bug of bugs) {
-                bug.timer += deltaTime;
-                if (bug.timer > 1000) {
-                    bug.vx = (Math.random() - 0.5) * 0.8;
-                    bug.vy = (Math.random() - 0.5) * 0.8;
-                    bug.timer = 0;
-                }
-                
-                const newX = bug.x + bug.vx;
-                const newY = bug.y + bug.vy;
-                
-                let canMove = true;
-                for (const obs of obstacles) {
-                    if (newX < obs.x + obs.width &&
-                        newX + SPRITE_SIZE > obs.x &&
-                        newY < obs.y + obs.height &&
-                        newY + SPRITE_SIZE > obs.y) {
-                        canMove = false;
-                        bug.vx = -bug.vx;
-                        bug.vy = -bug.vy;
-                        break;
-                    }
-                }
-                
-                if (canMove) {
-                    bug.x = Math.max(TILE_SIZE, Math.min(newX, (MAP_WIDTH - 1) * TILE_SIZE));
-                    bug.y = Math.max(TILE_SIZE, Math.min(newY, (MAP_HEIGHT - 1) * TILE_SIZE));
-                }
-                
-                bug.frame = Math.floor(Date.now() / 200) % 2;
-            }
-        }
+function drawBugs() {
+  for (const bug of bugs) {
+    if (bug.caught) {
+      // 捕获动画 - 缩小消失
+      const scale = bug.catchAnim / 30;
+      ctx.globalAlpha = scale;
+      ctx.save();
+      ctx.translate(bug.x + 12, bug.y + 12);
+      ctx.scale(scale, scale);
+      ctx.translate(-12, -12);
+      const frame = bugFrame(bug.type, bug.animFrame);
+      drawPixels(0, 0, frame, 2);
+      ctx.restore();
+      ctx.globalAlpha = 1;
 
-        function updatePlayer(deltaTime) {
-            if (dialogue.active || netSwinging) return;
-            
-            let dx = 0, dy = 0;
-            
-            if (keys['ArrowUp'] || keys['KeyW']) { dy = -1; player.direction = 0; }
-            if (keys['ArrowDown'] || keys['KeyS']) { dy = 1; player.direction = 2; }
-            if (keys['ArrowLeft'] || keys['KeyA']) { dx = -1; player.direction = 3; }
-            if (keys['ArrowRight'] || keys['KeyD']) { dx = 1; player.direction = 1; }
-            
-            if (dx !== 0 || dy !== 0) {
-                player.moving = true;
-                
-                const newX = player.x + dx * player.speed;
-                const newY = player.y + dy * player.speed;
-                
-                if (!checkCollision(newX, player.y, player.width, player.height)) {
-                    player.x = newX;
-                }
-                if (!checkCollision(player.x, newY, player.width, player.height)) {
-                    player.y = newY;
-                }
-                
-                player.animTimer += deltaTime;
-                if (player.animTimer > 150) {
-                    player.animFrame = (player.animFrame + 1) % 4;
-                    player.animTimer = 0;
-                }
-            } else {
-                player.moving = false;
-                player.animFrame = 0;
-            }
-        }
+      // +1 文字飘起
+      ctx.fillStyle = '#06d6a0';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('+1', bug.x + 8, bug.y - (30 - bug.catchAnim) * 1.5);
+    } else {
+      // 闪烁效果
+      const glow = Math.sin(Date.now() / 200 + bug.x) * 0.2 + 0.8;
+      ctx.globalAlpha = glow;
+      const frame = bugFrame(bug.type, bug.animFrame);
+      drawPixels(bug.x, bug.y, frame, 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
 
-        function updateNet(deltaTime) {
-            if (netSwinging) {
-                netTimer += deltaTime;
-                if (netTimer > NET_SWING_DURATION / 3) {
-                    netFrame++;
-                    netTimer = 0;
-                    if (netFrame >= 3) {
-                        netSwinging = false;
-                        netFrame = 0;
-                    }
-                }
-            }
-        }
+function drawNet() {
+  if (player.netSwing <= 0) return;
 
-        function updateNPCProximity() {
-            nearbyNPC = -1;
-            nearbyBug = -1;
-            
-            const prompt = document.getElementById('interaction-prompt');
-            
-            for (let i = 0; i < npcs.length; i++) {
-                const npc = npcs[i];
-                const dist = Math.sqrt(Math.pow(player.x - npc.x, 2) + Math.pow(player.y - npc.y, 2));
-                if (dist < 50) {
-                    nearbyNPC = i;
-                    break;
-                }
-            }
-            
-            for (let i = 0; i < bugs.length; i++) {
-                const bug = bugs[i];
-                const dist = Math.sqrt(Math.pow(player.x - bug.x, 2) + Math.pow(player.y - bug.y, 2));
-                if (dist < 40) {
-                    nearbyBug = i;
-                    break;
-                }
-            }
-            
-            if (nearbyNPC >= 0 && !dialogue.active) {
-                prompt.style.display = 'block';
-                prompt.style.left = (npcs[nearbyNPC].x - 10) + 'px';
-                prompt.style.top = (npcs[nearbyNPC].y - 20) + 'px';
-            } else if (nearbyBug >= 0 && !dialogue.active) {
-                prompt.style.display = 'block';
-                prompt.style.left = (bugs[nearbyBug].x - 10) + 'px';
-                prompt.style.top = (bugs[nearbyBug].y - 20) + 'px';
-                prompt.textContent = '按空格捕虫';
-            } else {
-                prompt.style.display = 'none';
-                prompt.textContent = '按 E 互动';
-            }
-        }
+  const progress = 1 - (player.netSwing / 20);
+  ctx.save();
 
-        function drawMap() {
-            for (let y = 0; y < MAP_HEIGHT; y++) {
-                for (let x = 0; x < MAP_WIDTH; x++) {
-                    const tile = gameMap[y][x];
-                    const px = x * TILE_SIZE;
-                    const py = y * TILE_SIZE;
-                    
-                    switch (tile.type) {
-                        case 'grass':
-                            ctx.fillStyle = [COLORS.grass1, COLORS.grass2, COLORS.grass3][tile.variant];
-                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                            break;
-                        case 'dirt':
-                            ctx.fillStyle = (x + y) % 2 === 0 ? COLORS.dirt : COLORS.dirtLight;
-                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                            break;
-                        case 'tree':
-                            ctx.fillStyle = COLORS.grass1;
-                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                            ctx.drawImage(sprites.tree, px, py);
-                            break;
-                        case 'rock':
-                            ctx.fillStyle = COLORS.grass1;
-                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                            ctx.drawImage(sprites.rock, px, py);
-                            break;
-                        case 'water':
-                            ctx.drawImage(sprites.water, px, py);
-                            break;
-                        case 'flower':
-                            ctx.fillStyle = COLORS.grass2;
-                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                            ctx.drawImage(sprites.flowers[tile.flowerColor], px, py);
-                            break;
-                    }
-                }
-            }
-        }
+  const pcx = player.x + player.w / 2;
+  const pcy = player.y + player.h / 2;
 
-        function drawNPCs() {
-            for (let i = 0; i < npcs.length; i++) {
-                ctx.drawImage(sprites.npcs[npcs[i].type], npcs[i].x, npcs[i].y);
-            }
-        }
+  ctx.globalAlpha = 0.8;
 
-        function drawBugs() {
-            for (const bug of bugs) {
-                ctx.drawImage(sprites.bugs[bug.type], bug.x, bug.y);
-            }
-        }
+  // 网的范围指示
+  const netReach = { x: 0, y: 0, w: 0, h: 0 };
+  if (player.netDir === 0) { netReach.x = pcx - 24; netReach.y = pcy + 4; netReach.w = 48; netReach.h = 36; }
+  else if (player.netDir === 1) { netReach.x = pcx - 24; netReach.y = pcy - 40; netReach.w = 48; netReach.h = 36; }
+  else if (player.netDir === 2) { netReach.x = pcx - 44; netReach.y = pcy - 16; netReach.w = 36; netReach.h = 40; }
+  else { netReach.x = pcx + 8; netReach.y = pcy - 16; netReach.w = 36; netReach.h = 40; }
 
-        function drawPlayer() {
-            const sprite = player.moving ? 
-                sprites.player[player.direction][player.animFrame] : 
-                sprites.playerIdle[player.direction];
-            ctx.drawImage(sprite, player.x, player.y);
-            
-            if (netSwinging) {
-                let netX = player.x;
-                let netY = player.y;
-                
-                switch (player.direction) {
-                    case 0: netY -= TILE_SIZE; break;
-                    case 1: netX += TILE_SIZE; break;
-                    case 2: netY += TILE_SIZE; break;
-                    case 3: netX -= TILE_SIZE; break;
-                }
-                
-                ctx.drawImage(sprites.net[netFrame], netX, netY);
-            }
-        }
+  ctx.fillStyle = 'rgba(200, 168, 55, 0.25)';
+  ctx.fillRect(netReach.x, netReach.y, netReach.w, netReach.h);
 
-        let lastTime = 0;
-        function gameLoop(timestamp) {
-            const deltaTime = timestamp - lastTime;
-            lastTime = timestamp;
-            
-            if (timestamp - lastBugSpawn > BUG_SPAWN_INTERVAL + Math.random() * 3000) {
-                spawnBug();
-                lastBugSpawn = timestamp;
-            }
-            
-            updatePlayer(deltaTime);
-            updateBugs(deltaTime);
-            updateNet(deltaTime);
-            updateNPCProximity();
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            drawMap();
-            drawNPCs();
-            drawBugs();
-            drawPlayer();
-            
-            requestAnimationFrame(gameLoop);
-        }
+  // 简易网图形
+  const colors = { c: '#8b6914', r: '#c9a837', m: '#aaa' };
+  ctx.translate(pcx - 16, pcy - 16);
 
-        initSprites();
-        for (let i = 0; i < 3; i++) {
-            spawnBug();
-        }
-        requestAnimationFrame(gameLoop);
-    </script>
+  if (player.netDir === 0) {
+    // 向下挥网
+    const offset = Math.sin(progress * Math.PI) * 20;
+    ctx.fillStyle = colors.c;
+    ctx.fillRect(15, 0, 4, 20 + offset);
+    ctx.fillStyle = colors.r;
+    ctx.fillRect(4, 16 + offset, 24, 12);
+    ctx.strokeStyle = colors.m;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(10, 18 + offset); ctx.lineTo(22, 18 + offset);
+    ctx.moveTo(10, 22 + offset); ctx.lineTo(22, 22 + offset);
+    ctx.moveTo(10, 26 + offset); ctx.lineTo(22, 26 + offset);
+    ctx.moveTo(16, 16 + offset); ctx.lineTo(16, 28 + offset);
+    ctx.stroke();
+  } else if (player.netDir === 1) {
+    const offset = Math.sin(progress * Math.PI) * 20;
+    ctx.fillStyle = colors.c;
+    ctx.fillRect(15, 32 - offset, 4, -20);
+    ctx.fillStyle = colors.r;
+    ctx.fillRect(4, -4 - offset, 24, 12);
+    ctx.strokeStyle = colors.m;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(10, -2 - offset); ctx.lineTo(22, -2 - offset);
+    ctx.moveTo(10, 2 - offset); ctx.lineTo(22, 2 - offset);
+    ctx.moveTo(16, -6 - offset); ctx.lineTo(16, 6 - offset);
+    ctx.stroke();
+  } else if (player.netDir === 2) {
+    const offset = Math.sin(progress * Math.PI) * 20;
+    ctx.fillStyle = colors.c;
+    ctx.fillRect(30, 14, -20, 4);
+    ctx.fillStyle = colors.r;
+    ctx.fillRect(4, 4, 12, 24);
+    ctx.strokeStyle = colors.m;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(6, 10); ctx.lineTo(6, 22);
+    ctx.moveTo(10, 10); ctx.lineTo(10, 22);
+    ctx.moveTo(2, 14); ctx.lineTo(16, 14);
+    ctx.moveTo(2, 18); ctx.lineTo(16, 18);
+    ctx.stroke();
+  } else {
+    const offset = Math.sin(progress * Math.PI) * 20;
+    ctx.fillStyle = colors.c;
+    ctx.fillRect(0, 14, 20, 4);
+    ctx.fillStyle = colors.r;
+    ctx.fillRect(20, 4, 12, 24);
+    ctx.strokeStyle = colors.m;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(22, 10); ctx.lineTo(22, 22);
+    ctx.moveTo(26, 10); ctx.lineTo(26, 22);
+    ctx.moveTo(20, 14); ctx.lineTo(34, 14);
+    ctx.moveTo(20, 18); ctx.lineTo(34, 18);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawUI() {
+  document.getElementById('bugCount').textContent = bugCount;
+  document.getElementById('bugTarget').textContent = BUG_TARGET;
+
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#e6c229';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('你是捕虫大师！', W/2, H/2 - 10);
+    ctx.fillStyle = '#f1faee';
+    ctx.font = '14px monospace';
+    ctx.fillText('捕捉了 ' + bugCount + ' 只虫子', W/2, H/2 + 20);
+    ctx.textAlign = 'left';
+  }
+}
+
+// ===================== 游戏循环 =====================
+let lastTime = 0;
+const FPS = 60;
+const FRAME_TIME = 1000 / FPS;
+let accumulator = 0;
+
+function gameLoop(timestamp) {
+  const delta = timestamp - lastTime;
+  lastTime = timestamp;
+  accumulator += delta;
+
+  while (accumulator >= FRAME_TIME) {
+    update();
+    accumulator -= FRAME_TIME;
+  }
+
+  // 渲染
+  ctx.clearRect(0, 0, W, H);
+  drawMap();
+  drawBugs();
+  drawNPCs();
+  drawNet();
+  drawPlayer();
+  drawUI();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ===================== 初始化 =====================
+function init() {
+  // 初始生成几只虫子
+  for (let i = 0; i < 3; i++) spawnBug();
+  bugSpawnTimer = 0;
+  lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
+}
+
+init();
+</script>
 </body>
 </html>
