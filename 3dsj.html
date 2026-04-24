@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D 虚拟试衣间</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    overflow: hidden;
+    color: #fff;
+    height: 100vh;
+    width: 100vw;
+  }
+  #canvas-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+  canvas { display: block; }
+
+  /* Top bar */
+  .top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: rgba(15, 15, 25, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .top-bar h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .top-bar-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05);
+    color: #ccc;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .toggle-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .toggle-btn.active {
+    background: rgba(167, 139, 250, 0.2);
+    border-color: rgba(167, 139, 250, 0.5);
+    color: #a78bfa;
+  }
+  .toggle-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #555;
+    transition: all 0.3s ease;
+  }
+  .toggle-btn.active .toggle-dot { background: #a78bfa; box-shadow: 0 0 8px #a78bfa; }
+
+  /* Clothing name overlay */
+  .clothing-name-overlay {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+  }
+  .clothing-name-overlay .name {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+  }
+  .clothing-name-overlay .desc {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 6px;
+    letter-spacing: 1px;
+  }
+  .clothing-name-overlay.fade-out { opacity: 0; }
+
+  /* Bottom panel */
+  .bottom-panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 10;
+    padding: 16px 20px 24px;
+    background: rgba(15, 15, 25, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .clothing-cards {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .clothing-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    cursor: pointer;
+    transition: all 0.35s ease;
+    user-select: none;
+  }
+  .clothing-card:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.2);
+    transform: translateY(-2px);
+  }
+  .clothing-card.active {
+    border-color: rgba(167, 139, 250, 0.6);
+    background: rgba(167, 139, 250, 0.1);
+    box-shadow: 0 4px 20px rgba(167, 139, 250, 0.15);
+  }
+  .color-swatch {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .clothing-card .card-info {
+    display: flex;
+    flex-direction: column;
+  }
+  .clothing-card .card-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .clothing-card .card-sub {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    white-space: nowrap;
+  }
+
+  /* Loading */
+  .loading-screen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 100;
+    background: #0a0a0f;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    transition: opacity 0.8s ease;
+  }
+  .loading-screen.hidden { opacity: 0; pointer-events: none; }
+  .loading-spinner {
+    width: 48px; height: 48px;
+    border: 3px solid rgba(167,139,250,0.15);
+    border-top: 3px solid #a78bfa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; color: rgba(255,255,255,0.4); letter-spacing: 2px; }
+
+  /* Wind indicator */
+  .wind-indicator {
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .wind-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 1px;
+    writing-mode: vertical-lr;
+  }
+  .wind-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+  }
+  .wind-bar {
+    width: 3px;
+    background: rgba(167,139,250,0.3);
+    border-radius: 2px;
+    transition: height 0.3s ease, background 0.3s ease;
+  }
+  .wind-bar:nth-child(1) { height: 8px; }
+  .wind-bar:nth-child(2) { height: 14px; }
+  .wind-bar:nth-child(3) { height: 20px; }
+  .wind-bar:nth-child(4) { height: 26px; }
+  .wind-bar:nth-child(5) { height: 32px; }
+
+  @media (max-width: 640px) {
+    .clothing-card { padding: 8px 12px; }
+    .clothing-card .card-name { font-size: 11px; }
+    .clothing-card .card-sub { display: none; }
+    .color-swatch { width: 22px; height: 22px; border-radius: 6px; }
+    .top-bar h1 { font-size: 16px; }
+    .clothing-name-overlay .name { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">加载试衣间...</div>
+</div>
+
+<div class="top-bar">
+  <h1>3D VIRTUAL FITTING ROOM</h1>
+  <div class="top-bar-controls">
+    <button class="toggle-btn active" id="autoRotateBtn" onclick="toggleAutoRotate()">
+      <div class="toggle-dot"></div>
+      <span>自动旋转</span>
+    </button>
+    <button class="toggle-btn" id="windBtn" onclick="toggleWind()">
+      <div class="toggle-dot"></div>
+      <span>风力</span>
+    </button>
+  </div>
+</div>
+
+<div class="clothing-name-overlay" id="nameOverlay">
+  <div class="name" id="clothingName">休闲 T 恤</div>
+  <div class="desc" id="clothingDesc">经典舒适，日常百搭</div>
+</div>
+
+<div class="bottom-panel">
+  <div class="clothing-cards" id="clothingCards"></div>
+</div>
+
+<div class="wind-indicator">
+  <div class="wind-label">布料物理</div>
+  <div class="wind-bars">
+    <div class="wind-bar"></div>
+    <div class="wind-bar"></div>
+    <div class="wind-bar"></div>
+    <div class="wind-bar"></div>
+    <div class="wind-bar"></div>
+  </div>
+</div>
+
+<div id="canvas-container"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ==================== GLOBALS ====================
+let scene, camera, renderer, controls;
+let humanGroup, clothingGroup, currentClothingMesh;
+let currentClothingIndex = 0;
+let isTransitioning = false;
+let autoRotate = true;
+let windEnabled = false;
+let clothSystems = [];
+let clock = new THREE.Clock();
+
+// Clothing definitions
+const CLOTHING_LIST = [
+  { name: '休闲 T 恤', desc: '经典舒适，日常百搭', color: '#3b82f6', darkColor: '#1e40af', type: 'tshirt' },
+  { name: '优雅连衣裙', desc: '柔美飘逸，优雅动人', color: '#ef4444', darkColor: '#991b1b', type: 'dress' },
+  { name: '商务西装', desc: '精致剪裁，职场首选', color: '#1e1e2e', darkColor: '#0f0f1a', type: 'suit' },
+  { name: '运动卫衣', desc: '休闲运动，活力满满', color: '#6b7280', darkColor: '#374151', type: 'hoodie' },
+  { name: '经典风衣', desc: '时尚百搭，英伦风范', color: '#d4a574', darkColor: '#92400e', type: 'coat' },
+];
+
+// ==================== INIT ====================
+function init() {
+  // Scene
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0a0a0f, 0.06);
+
+  // Camera
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 1.2, 4.5);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  // Controls
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.target.set(0, 1.0, 0);
+  controls.minDistance = 2;
+  controls.maxDistance = 8;
+  controls.maxPolarAngle = Math.PI * 0.85;
+  controls.minPolarAngle = Math.PI * 0.15;
+  controls.autoRotate = autoRotate;
+  controls.autoRotateSpeed = 1.5;
+
+  // Lights
+  setupLights();
+
+  // Environment
+  setupEnvironment();
+
+  // Human body
+  humanGroup = createHumanBody();
+  scene.add(humanGroup);
+
+  // Clothing group
+  clothingGroup = new THREE.Group();
+  scene.add(clothingGroup);
+
+  // Ground
+  createGround();
+
+  // UI
+  buildClothingCards();
+
+  // First clothing
+  switchClothing(0, false);
+
+  // Events
+  window.addEventListener('resize', onResize);
+
+  // Hide loading
+  setTimeout(() => {
+    document.getElementById('loadingScreen').classList.add('hidden');
+  }, 800);
+
+  // Start loop
+  animate();
+}
+
+// ==================== LIGHTS ====================
+function setupLights() {
+  const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+  scene.add(ambientLight);
+
+  const keyLight = new THREE.DirectionalLight(0xffeedd, 1.8);
+  keyLight.position.set(3, 5, 4);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.width = 1024;
+  keyLight.shadow.mapSize.height = 1024;
+  keyLight.shadow.camera.near = 0.5;
+  keyLight.shadow.camera.far = 20;
+  keyLight.shadow.camera.left = -3;
+  keyLight.shadow.camera.right = 3;
+  keyLight.shadow.camera.top = 4;
+  keyLight.shadow.camera.bottom = -1;
+  scene.add(keyLight);
+
+  const fillLight = new THREE.DirectionalLight(0x8888ff, 0.5);
+  fillLight.position.set(-3, 3, -2);
+  scene.add(fillLight);
+
+  const rimLight = new THREE.PointLight(0xa78bfa, 1.2, 10);
+  rimLight.position.set(-2, 3, -3);
+  scene.add(rimLight);
+
+  const bottomLight = new THREE.PointLight(0x60a5fa, 0.4, 8);
+  bottomLight.position.set(0, -0.5, 2);
+  scene.add(bottomLight);
+}
+
+// ==================== ENVIRONMENT ====================
+function setupEnvironment() {
+  // Subtle gradient background using a large sphere
+  const bgGeom = new THREE.SphereGeometry(30, 32, 32);
+  const bgMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: {
+      uTopColor: { value: new THREE.Color(0x0f0a1a) },
+      uBottomColor: { value: new THREE.Color(0x0a0a0f) },
+    },
+    vertexShader: `
+      varying vec3 vWorldPos;
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uTopColor;
+      uniform vec3 uBottomColor;
+      varying vec3 vWorldPos;
+      void main() {
+        float h = normalize(vWorldPos).y * 0.5 + 0.5;
+        gl_FragColor = vec4(mix(uBottomColor, uTopColor, h), 1.0);
+      }
+    `,
+  });
+  scene.add(new THREE.Mesh(bgGeom, bgMat));
+}
+
+function createGround() {
+  const groundGeom = new THREE.CircleGeometry(5, 64);
+  const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x111118,
+    metalness: 0.8,
+    roughness: 0.3,
+  });
+  const ground = new THREE.Mesh(groundGeom, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Ground ring glow
+  const ringGeom = new THREE.RingGeometry(0.8, 1.4, 64);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x6d28d9,
+    transparent: true,
+    opacity: 0.06,
+    side: THREE.DoubleSide,
+  });
+  const ring = new THREE.Mesh(ringGeom, ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.01;
+  scene.add(ring);
+}
+
+// ==================== HUMAN BODY ====================
+function createHumanBody() {
+  const group = new THREE.Group();
+  const skinColor = 0xf5c6a0;
+  const skinMat = new THREE.MeshStandardMaterial({
+    color: skinColor,
+    roughness: 0.6,
+    metalness: 0.05,
+  });
+
+  // Skin profile: radius at different heights (neck to feet)
+  // Used by LatheGeometry to create body segments
+
+  // -- Torso + Hip (main body) --
+  const bodyProfile = [
+    [0.00, 0.0],    // top of neck
+    [0.08, 0.05],   // neck
+    [0.095, 0.10],  // base of neck
+    [0.135, 0.18],  // shoulders
+    [0.155, 0.25],  // upper chest
+    [0.150, 0.35],  // chest
+    [0.140, 0.45],  // mid torso
+    [0.130, 0.55],  // waist
+    [0.125, 0.62],  // lower waist
+    [0.140, 0.72],  // hip
+    [0.145, 0.78],  // upper hip
+    [0.130, 0.85],  // crotch
+  ];
+
+  const torsoPoints = bodyProfile.map(p => new THREE.Vector2(p[0], p[1] + 0.95));
+  const torsoGeom = new THREE.LatheGeometry(torsoPoints, 32);
+  const torso = new THREE.Mesh(torsoGeom, skinMat);
+  torso.castShadow = true;
+  group.add(torso);
+
+  // -- Neck --
+  const neckGeom = new THREE.CylinderGeometry(0.065, 0.08, 0.15, 16);
+  const neck = new THREE.Mesh(neckGeom, skinMat);
+  neck.position.y = 1.02;
+  group.add(neck);
+
+  // -- Head --
+  const headGeom = new THREE.SphereGeometry(0.125, 24, 24);
+  const head = new THREE.Mesh(headGeom, skinMat);
+  head.position.y = 1.22;
+  head.scale.set(1, 1.1, 0.95);
+  head.castShadow = true;
+  group.add(head);
+
+  // -- Eyes (subtle) --
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+  const eyeGeom = new THREE.SphereGeometry(0.015, 8, 8);
+  const leftEye = new THREE.Mesh(eyeGeom, eyeMat);
+  leftEye.position.set(-0.04, 1.24, 0.11);
+  group.add(leftEye);
+  const rightEye = new THREE.Mesh(eyeGeom, eyeMat);
+  rightEye.position.set(0.04, 1.24, 0.11);
+  group.add(rightEye);
+
+  // -- Arms --
+  const upperArmLen = 0.35;
+  const lowerArmLen = 0.30;
+
+  // Left upper arm
+  const upperArmGeom = new THREE.CylinderGeometry(0.045, 0.038, upperArmLen, 10);
+  const leftUpperArm = new THREE.Mesh(upperArmGeom, skinMat);
+  leftUpperArm.position.set(-0.20, 0.80, 0);
+  leftUpperArm.rotation.z = 0.15;
+  leftUpperArm.castShadow = true;
+  group.add(leftUpperArm);
+
+  // Right upper arm
+  const rightUpperArm = new THREE.Mesh(upperArmGeom, skinMat);
+  rightUpperArm.position.set(0.20, 0.80, 0);
+  rightUpperArm.rotation.z = -0.15;
+  rightUpperArm.castShadow = true;
+  group.add(rightUpperArm);
+
+  // Left forearm
+  const forearmGeom = new THREE.CylinderGeometry(0.038, 0.028, lowerArmLen, 10);
+  const leftForearm = new THREE.Mesh(forearmGeom, skinMat);
+  leftForearm.position.set(-0.24, 0.50, 0);
+  leftForearm.rotation.z = 0.08;
+  leftForearm.castShadow = true;
+  group.add(leftForearm);
+
+  // Right forearm
+  const rightForearm = new THREE.Mesh(forearmGeom, skinMat);
+  rightForearm.position.set(0.24, 0.50, 0);
+  rightForearm.rotation.z = -0.08;
+  rightForearm.castShadow = true;
+  group.add(rightForearm);
+
+  // -- Hands --
+  const handGeom = new THREE.SphereGeometry(0.03, 8, 8);
+  const leftHand = new THREE.Mesh(handGeom, skinMat);
+  leftHand.position.set(-0.256, 0.33, 0);
+  group.add(leftHand);
+  const rightHand = new THREE.Mesh(handGeom, skinMat);
+  rightHand.position.set(0.256, 0.33, 0);
+  group.add(rightHand);
+
+  // -- Legs --
+  const upperLegLen = 0.45;
+  const lowerLegLen = 0.42;
+
+  // Left thigh
+  const thighGeom = new THREE.CylinderGeometry(0.065, 0.05, upperLegLen, 12);
+  const leftThigh = new THREE.Mesh(thighGeom, skinMat);
+  leftThigh.position.set(-0.07, 0.62, 0);
+  leftThigh.castShadow = true;
+  group.add(leftThigh);
+
+  // Right thigh
+  const rightThigh = new THREE.Mesh(thighGeom, skinMat);
+  rightThigh.position.set(0.07, 0.62, 0);
+  rightThigh.castShadow = true;
+  group.add(rightThigh);
+
+  // Left shin
+  const shinGeom = new THREE.CylinderGeometry(0.048, 0.035, lowerLegLen, 12);
+  const leftShin = new THREE.Mesh(shinGeom, skinMat);
+  leftShin.position.set(-0.07, 0.20, 0);
+  leftShin.castShadow = true;
+  group.add(leftShin);
+
+  // Right shin
+  const rightShin = new THREE.Mesh(shinGeom, skinMat);
+  rightShin.position.set(0.07, 0.20, 0);
+  rightShin.castShadow = true;
+  group.add(rightShin);
+
+  // -- Feet --
+  const footGeom = new THREE.BoxGeometry(0.07, 0.04, 0.12);
+  const leftFoot = new THREE.Mesh(footGeom, skinMat);
+  leftFoot.position.set(-0.07, 0.0, 0.02);
+  group.add(leftFoot);
+  const rightFoot = new THREE.Mesh(footGeom, skinMat);
+  rightFoot.position.set(0.07, 0.0, 0.02);
+  group.add(rightFoot);
+
+  return group;
+}
+
+// ==================== CLOTHING CREATION ====================
+
+// Get body radius at a given height for collision detection
+function getBodyRadius(y) {
+  const profile = [
+    [0.00, 0.95], [0.08, 1.00], [0.095, 1.05],
+    [0.135, 1.13], [0.155, 1.20], [0.150, 1.30],
+    [0.140, 1.40], [0.130, 1.50], [0.125, 1.57],
+    [0.140, 1.67], [0.145, 1.73], [0.130, 1.80],
+  ];
+  // Below crotch
+  if (y < 0.85) return 0.06;
+  // Above neck
+  if (y > 1.10) return 0.07;
+
+  for (let i = 0; i < profile.length - 1; i++) {
+    if (y >= profile[i][1] && y <= profile[i + 1][1]) {
+      const t = (y - profile[i][1]) / (profile[i + 1][1] - profile[i][1]);
+      return profile[i][0] + t * (profile[i + 1][0] - profile[i][0]);
+    }
+  }
+  return 0.08;
+}
+
+function createClothingMaterial(color, darkColor) {
+  return new THREE.MeshStandardMaterial({
+    color: new THREE.Color(color),
+    roughness: 0.45,
+    metalness: 0.0,
+    side: THREE.DoubleSide,
+  });
+}
+
+// --- T-Shirt ---
+function createTShirt(color, darkColor) {
+  const group = new THREE.Group();
+  const mat = createClothingMaterial(color, darkColor);
+  const clothMat = mat.clone();
+  clothMat.color = new THREE.Color(darkColor);
+
+  // Body profile for T-shirt (slightly larger than body)
+  const profile = [
+    [0.11, 0.0],
+    [0.12, 0.05],
+    [0.15, 0.15],
+    [0.175, 0.25],
+    [0.170, 0.35],
+    [0.160, 0.45],
+    [0.155, 0.55],
+    [0.158, 0.65],
+    [0.162, 0.72],
+  ].map(p => new THREE.Vector2(p[0], p[1] + 1.08));
+
+  const bodyGeom = new THREE.LatheGeometry(profile, 32);
+  const body = new THREE.Mesh(bodyGeom, mat);
+  body.castShadow = true;
+  group.add(body);
+
+  // Left sleeve
+  const sleeveProfile = [
+    [0.05, 0.0], [0.065, 0.05], [0.072, 0.12], [0.070, 0.18], [0.075, 0.22],
+  ];
+  const sleevePointsL = sleeveProfile.map(p => new THREE.Vector2(p[0], p[1]));
+  const sleeveGeom = new THREE.LatheGeometry(sleevePointsL, 12, 0, Math.PI);
+  const leftSleeve = new THREE.Mesh(sleeveGeom, mat);
+  leftSleeve.position.set(-0.20, 1.13, 0);
+  leftSleeve.rotation.z = 0.15;
+  leftSleeve.rotation.y = Math.PI;
+  leftSleeve.castShadow = true;
+  group.add(leftSleeve);
+
+  // Right sleeve
+  const sleevePointsR = sleeveProfile.map(p => new THREE.Vector2(p[0], p[1]));
+  const rightSleeveGeom = new THREE.LatheGeometry(sleevePointsR, 12, 0, Math.PI);
+  const rightSleeve = new THREE.Mesh(rightSleeveGeom, mat);
+  rightSleeve.position.set(0.20, 1.13, 0);
+  rightSleeve.rotation.z = -0.15;
+  rightSleeve.rotation.y = 0;
+  rightSleeve.castShadow = true;
+  group.add(rightSleeve);
+
+  // Collar
+  const collarGeom = new THREE.TorusGeometry(0.10, 0.015, 8, 24);
+  const collar = new THREE.Mesh(collarGeom, clothMat);
+  collar.position.y = 1.12;
+  collar.rotation.x = Math.PI / 2;
+  group.add(collar);
+
+  // Bottom hem with cloth physics
+  const hemSystem = createHemCloth(0.162, 1.80, 0.10, 12, mat);
+  group.add(hemSystem.mesh);
+  clothSystems.push(hemSystem);
+
+  return group;
+}
+
+// --- Dress ---
+function createDress(color, darkColor) {
+  const group = new THREE.Group();
+  const mat = createClothingMaterial(color, darkColor);
+
+  // Bodice
+  const bodiceProfile = [
+    [0.11, 0.0], [0.13, 0.05], [0.16, 0.15], [0.175, 0.25],
+    [0.168, 0.35], [0.155, 0.45], [0.150, 0.55],
+  ].map(p => new THREE.Vector2(p[0], p[1] + 1.08));
+
+  const bodiceGeom = new THREE.LatheGeometry(bodiceProfile, 32);
+  const bodice = new THREE.Mesh(bodiceGeom, mat);
+  bodice.castShadow = true;
+  group.add(bodice);
+
+  // Skirt - flares out
+  const skirtProfile = [
+    [0.15, 0.0], [0.17, 0.05], [0.20, 0.15], [0.25, 0.30],
+    [0.32, 0.50], [0.38, 0.70], [0.42, 0.85],
+  ].map(p => new THREE.Vector2(p[0], p[1] + 1.63));
+
+  const skirtGeom = new THREE.LatheGeometry(skirtProfile, 48);
+  const skirt = new THREE.Mesh(skirtGeom, mat);
+  skirt.castShadow = true;
+  group.add(skirt);
+
+  // Cloth physics for skirt bottom
+  const skirtSystem = createSkirtCloth(0.42, 1.90, 0.12, 24, mat);
+  group.add(skirtSystem.mesh);
+  clothSystems.push(skirtSystem);
+
+  // Waist belt
+  const beltMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(darkColor), roughness: 0.3, metalness: 0.2 });
+  const beltGeom = new THREE.TorusGeometry(0.153, 0.012, 8, 32);
+  const belt = new THREE.Mesh(beltGeom, beltMat);
+  belt.position.y = 1.62;
+  belt.rotation.x = Math.PI / 2;
+  group.add(belt);
+
+  // Short sleeves
+  const sleeveMat = mat.clone();
+  sleeveMat.color = new THREE.Color(darkColor);
+  const sleeveGeom = new THREE.CylinderGeometry(0.072, 0.068, 0.10, 12);
+  const leftSleeveD = new THREE.Mesh(sleeveGeom, sleeveMat);
+  leftSleeveD.position.set(-0.19, 1.18, 0);
+  leftSleeveD.rotation.z = 0.15;
+  group.add(leftSleeveD);
+  const rightSleeveD = new THREE.Mesh(sleeveGeom, sleeveMat);
+  rightSleeveD.position.set(0.19, 1.18, 0);
+  rightSleeveD.rotation.z = -0.15;
+  group.add(rightSleeveD);
+
+  return group;
+}
+
+// --- Suit ---
+function createSuit(color, darkColor) {
+  const group = new THREE.Group();
+  const mat = createClothingMaterial(color, darkColor);
+  const pantsMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0x1a1a2e),
+    roughness: 0.5,
+    metalness: 0.0,
+    side: THREE.DoubleSide,
+  });
+
+  // Suit jacket body
+  const jacketProfile = [
+    [0.11, 0.0], [0.125, 0.05], [0.16, 0.15], [0.18, 0.25],
+    [0.175, 0.35], [0.165, 0.45], [0.155, 0.55],
+    [0.158, 0.65], [0.165, 0.72], [0.168, 0.78],
+  ].map(p => new THREE.Vector2(p[0], p[1] + 1.05));
+
+  const jacketGeom = new THREE.LatheGeometry(jacketProfile, 32);
+  const jacket = new THREE.Mesh(jacketGeom, mat);
+  jacket.castShadow = true;
+  group.add(jacket);
+
+  // Suit lapels (front detail) - use two thin boxes
+  const lapelMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0x15152a),
+    roughness: 0.4, metalness: 0.0, side: THREE.DoubleSide,
+  });
+  const lapelGeom = new THREE.BoxGeometry(0.03, 0.25, 0.01);
+  const leftLapel = new THREE.Mesh(lapelGeom, lapelMat);
+  leftLapel.position.set(-0.06, 1.28, 0.16);
+  leftLapel.rotation.z = 0.15;
+  group.add(leftLapel);
+  const rightLapel = new THREE.Mesh(lapelGeom, lapelMat);
+  rightLapel.position.set(0.06, 1.28, 0.16);
+  rightLapel.rotation.z = -0.15;
+  group.add(rightLapel);
+
+  // Shirt/tie peek
+  const tieMat = new THREE.MeshStandardMaterial({ color: 0x8b0000, roughness: 0.3 });
+  const tieGeom = new THREE.BoxGeometry(0.04, 0.20, 0.015);
+  const tie = new THREE.Mesh(tieGeom, tieMat);
+  tie.position.set(0, 1.27, 0.17);
+  group.add(tie);
+
+  // Sleeves (longer for suit)
+  const sleeveProfile = [
+    [0.055, 0.0], [0.060, 0.08], [0.055, 0.18],
+    [0.048, 0.30], [0.042, 0.40], [0.038, 0.48],
+  ];
+  const sleevePoints = sleeveProfile.map(p => new THREE.Vector2(p[0], p[1]));
+
+  const leftSleeveGeom = new THREE.LatheGeometry(sleevePoints, 10, 0, Math.PI);
+  const leftSleeve = new THREE.Mesh(leftSleeveGeom, mat);
+  leftSleeve.position.set(-0.20, 1.48, 0);
+  leftSleeve.rotation.z = 0.12;
+  leftSleeve.rotation.y = Math.PI;
+  leftSleeve.castShadow = true;
+  group.add(leftSleeve);
+
+  const rightSleeveGeom = new THREE.LatheGeometry(sleevePoints, 10, 0, Math.PI);
+  const rightSleeve = new THREE.Mesh(rightSleeveGeom, mat);
+  rightSleeve.position.set(0.20, 1.48, 0);
+  rightSleeve.rotation.z = -0.12;
+  rightSleeve.castShadow = true;
+  group.add(rightSleeve);
+
+  // Pants - left leg
+  const pantsProfile = [
+    [0.075, 0.0], [0.080, 0.05], [0.075, 0.20],
+    [0.065, 0.35], [0.052, 0.50], [0.045, 0.60],
+  ].map(p => new THREE.Vector2(p[0], p[1]));
+
+  const leftPantsGeom = new THREE.LatheGeometry(pantsProfile, 12);
+  const leftPants = new THREE.Mesh(leftPantsGeom, pantsMat);
+  leftPants.position.set(-0.065, 1.22, 0);
+  leftPants.castShadow = true;
+  group.add(leftPants);
+
+  const rightPantsGeom = new THREE.LatheGeometry(pantsProfile, 12);
+  const rightPants = new THREE.Mesh(rightPantsGeom, pantsMat);
+  rightPants.position.set(0.065, 1.22, 0);
+  rightPants.castShadow = true;
+  group.add(rightPants);
+
+  // Pant hem cloth physics
+  const pHemL = createHemCloth(0.045, 1.80, 0.05, 8, pantsMat);
+  group.add(pHemL.mesh);
+  clothSystems.push(pHemL);
+
+  const pHemR = createHemCloth(0.045, 1.80, 0.05, 8, pantsMat);
+  group.add(pHemR.mesh);
+  clothSystems.push(pHemR);
+
+  return group;
+}
+
+// --- Hoodie ---
+function createHoodie(color, darkColor) {
+  const group = new THREE.Group();
+  const mat = createClothingMaterial(color, darkColor);
+  const darkMat = mat.clone();
+  darkMat.color = new THREE.Color(darkColor);
+
+  // Body
+  const profile = [
+    [0.115, 0.0], [0.12, 0.05], [0.155, 0.15], [0.178, 0.25],
+    [0.172, 0.35], [0.162, 0.45], [0.155, 0.55],
+    [0.160, 0.65], [0.165, 0.72],
+  ].map(p => new THREE.Vector2(p[0], p[1] + 1.05));
+
+  const bodyGeom = new THREE.LatheGeometry(profile, 32);
+  const body = new THREE.Mesh(bodyGeom, mat);
+  body.castShadow = true;
+  group.add(body);
+
+  // Hood (behind head)
+  const hoodGeom = new THREE.SphereGeometry(0.16, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6);
+  const hood = new THREE.Mesh(hoodGeom, darkMat);
+  hood.position.set(0, 1.22, -0.04);
+  hood.scale.set(1.1, 1.0, 0.95);
+  group.add(hood);
+
+  // Kangaroo pocket
+  const pocketMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(darkColor),
+    roughness: 0.5, side: THREE.DoubleSide
+  });
+  const pocketGeom = new THREE.BoxGeometry(0.20, 0.12, 0.04);
+  const pocket = new THREE.Mesh(pocketGeom, pocketMat);
+  pocket.position.set(0, 1.40, 0.15);
+  group.add(pocket);
+
+  // Long sleeves
+  const sleeveProfile = [
+    [0.058, 0.0], [0.062, 0.08], [0.058, 0.18],
+    [0.050, 0.30], [0.043, 0.42], [0.038, 0.50],
+  ];
+  const sleevePoints = sleeveProfile.map(p => new THREE.Vector2(p[0], p[1]));
+
+  const leftSleeveGeom = new THREE.LatheGeometry(sleevePoints, 10, 0, Math.PI);
+  const leftSleeve = new THREE.Mesh(leftSleeveGeom, mat);
+  leftSleeve.position.set(-0.20, 1.48, 0);
+  leftSleeve.rotation.z = 0.12;
+  leftSleeve.rotation.y = Math.PI;
+  leftSleeve.castShadow = true;
+  group.add(leftSleeve);
+
+  const rightSleeveGeom = new THREE.LatheGeometry(sleevePoints, 10, 0, Math.PI);
+  const rightSleeve = new THREE.Mesh(rightSleeveGeom, mat);
+  rightSleeve.position.set(0.20, 1.48, 0);
+  rightSleeve.rotation.z = -0.12;
+  rightSleeve.castShadow = true;
+  group.add(rightSleeve);
+
+  // Ribbed cuffs
+  const cuffMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(darkColor), roughness: 0.7 });
+  const cuffGeom = new THREE.TorusGeometry(0.038, 0.008, 6, 12);
+  const leftCuff = new THREE.Mesh(cuffGeom, cuffMat);
+  leftCuff.position.set(-0.245, 0.98, 0);
+  leftCuff.rotation.x = Math.PI / 2;
+  group.add(leftCuff);
+  const rightCuff = new THREE.Mesh(cuffGeom, cuffMat);
+  rightCuff.position.set(0.245, 0.98, 0);
+  rightCuff.rotation.x = Math.PI / 2;
+  group.add(rightCuff);
+
+  // Bottom ribbing
+  const ribGeom = new THREE.TorusGeometry(0.163, 0.010, 6, 32);
+  const rib = new THREE.Mesh(ribGeom, darkMat);
+  rib.position.y = 1.75;
+  rib.rotation.x = Math.PI / 2;
+  group.add(rib);
+
+  // Hem cloth
+  const hemSystem = createHemCloth(0.163, 1.75, 0.08, 12, mat);
+  group.add(hemSystem.mesh);
+  clothSystems.push(hemSystem);
+
+  // Drawstrings
+  const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const stringGeom = new THREE.CylinderGeometry(0.003, 0.003, 0.12, 4);
+  const leftString = new THREE.Mesh(stringGeom, stringMat);
+  leftString.position.set(-0.03, 1.12, 0.125);
+  group.add(leftString);
+  const rightString = new THREE.Mesh(stringGeom, stringMat);
+  rightString.position.set(0.03, 1.12, 0.125);
+  group.add(rightString);
+
+  return group;
+}
+
+// --- Coat ---
+function createCoat(color, darkColor) {
+  const group = new THREE.Group();
+  const mat = createClothingMaterial(color, darkColor);
+  const darkMat = mat.clone();
+  darkMat.color = new THREE.Color(darkColor);
+
+  // Long body
+  const profile = [
+    [0.115, 0.0], [0.125, 0.05], [0.165, 0.15], [0.185, 0.25],
+    [0.180, 0.35], [0.168, 0.45], [0.158, 0.55],
+    [0.163, 0.65], [0.170, 0.72], [0.175, 0.82],
+    [0.180, 0.95], [0.185, 1.10],
+  ].map(p => new THREE.Vector2(p[0], p[1] + 1.05));
+
+  const bodyGeom = new THREE.LatheGeometry(profile, 32);
+  const body = new THREE.Mesh(bodyGeom, mat);
+  body.castShadow = true;
+  group.add(body);
+
+  // Collar
+  const collarShape = new THREE.Shape();
+  collarShape.moveTo(-0.04, 0);
+  collarShape.lineTo(0, 0.08);
+  collarShape.lineTo(0.04, 0);
+  const collarExtrudeSettings = { steps: 1, depth: 0.01, bevelEnabled: false };
+  const collarGeom = new THREE.ExtrudeGeometry(collarShape, collarExtrudeSettings);
+  const collarMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(darkColor), roughness: 0.4, side: THREE.DoubleSide });
+
+  // Front collar left
+  const collarL = new THREE.Mesh(collarGeom, collarMat);
+  collarL.position.set(-0.10, 1.10, 0.13);
+  collarL.rotation.y = 0.3;
+  group.add(collarL);
+  // Front collar right
+  const collarR = new THREE.Mesh(collarGeom, collarMat);
+  collarR.position.set(0.04, 1.10, 0.13);
+  collarR.rotation.y = -0.3;
+  collarR.scale.x = -1;
+  group.add(collarR);
+
+  // Belt
+  const beltMat = new THREE.MeshStandardMaterial({ color: 0x5c3a14, roughness: 0.3, metalness: 0.3 });
+  const beltGeom = new THREE.TorusGeometry(0.162, 0.012, 8, 32);
+  const belt = new THREE.Mesh(beltGeom, beltMat);
+  belt.position.y = 1.68;
+  belt.rotation.x = Math.PI / 2;
+  group.add(belt);
+
+  // Belt buckle
+  const buckleMat = new THREE.MeshStandardMaterial({ color: 0xc0a060, roughness: 0.2, metalness: 0.8 });
+  const buckleGeom = new THREE.BoxGeometry(0.03, 0.04, 0.015);
+  const buckle = new THREE.Mesh(buckleGeom, buckleMat);
+  buckle.position.set(0, 1.68, 0.175);
+  group.add(buckle);
+
+  // Long sleeves
+  const sleeveProfile = [
+    [0.060, 0.0], [0.068, 0.08], [0.063, 0.20],
+    [0.055, 0.35], [0.048, 0.48], [0.043, 0.55],
+  ];
+  const sleevePts = sleeveProfile.map(p => new THREE.Vector2(p[0], p[1]));
+  const leftSleeveGeom = new THREE.LatheGeometry(sleevePts, 10, 0, Math.PI);
+  const leftSleeve = new THREE.Mesh(leftSleeveGeom, mat);
+  leftSleeve.position.set(-0.20, 1.48, 0);
+  leftSleeve.rotation.z = 0.12;
+  leftSleeve.rotation.y = Math.PI;
+  leftSleeve.castShadow = true;
+  group.add(leftSleeve);
+
+  const rightSleeveGeom = new THREE.LatheGeometry(sleevePts, 10, 0, Math.PI);
+  const rightSleeve = new THREE.Mesh(rightSleeveGeom, mat);
+  rightSleeve.position.set(0.20, 1.48, 0);
+  rightSleeve.rotation.z = -0.12;
+  rightSleeve.castShadow = true;
+  group.add(rightSleeve);
+
+  // Bottom cloth physics
+  const coatHem = createSkirtCloth(0.185, 1.95, 0.25, 24, mat);
+  group.add(coatHem.mesh);
+  clothSystems.push(coatHem);
+
+  // Button details
+  const buttonMat = new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.3, metalness: 0.5 });
+  for (let i = 0; i < 4; i++) {
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.008, 8, 8), buttonMat);
+    btn.position.set(0, 1.35 - i * 0.12, 0.18);
+    group.add(btn);
+  }
+
+  return group;
+}
+
+// ==================== CLOTH PHYSICS ====================
+
+// Spring-Mass cloth system for hems
+function createHemCloth(radius, height, length, segments, material) {
+  const segs = segments;
+  const rows = 3;
+  const positions = [];
+  const restPositions = [];
+
+  for (let j = 0; j <= rows; j++) {
+    for (let i = 0; i <= segs; i++) {
+      const angle = (i / segs) * Math.PI * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const y = height - (j / rows) * length;
+      positions.push(new THREE.Vector3(x, y, z));
+      restPositions.push(new THREE.Vector3(x, y, z));
+    }
+  }
+
+  const geom = new THREE.BufferGeometry();
+  const posArr = new Float32Array((rows + 1) * (segs + 1) * 3);
+
+  // Faces
+  const indices = [];
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < segs; i++) {
+      const a = j * (segs + 1) + i;
+      const b = a + 1;
+      const c = a + segs + 1;
+      const d = c + 1;
+      indices.push(a, b, c);
+      indices.push(b, d, c);
+    }
+  }
+
+  geom.setIndex(indices);
+  geom.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+  geom.computeVertexNormals();
+
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.castShadow = true;
+
+  // Cloth system data
+  const system = {
+    mesh, positions, restPositions,
+    velocities: positions.map(() => new THREE.Vector3()),
+    topRow: true, // first row is pinned
+    segs, rows, radius, height, length,
+    type: 'hem',
+  };
+
+  return system;
+}
+
+function createSkirtCloth(radius, height, length, segments, material) {
+  const segs = segments;
+  const rows = 5;
+  const positions = [];
+  const restPositions = [];
+
+  for (let j = 0; j <= rows; j++) {
+    const flare = 1.0 + (j / rows) * 0.3; // skirt flares out
+    for (let i = 0; i <= segs; i++) {
+      const angle = (i / segs) * Math.PI * 2;
+      const r = radius * flare;
+      const x = Math.cos(angle) * r;
+      const z = Math.sin(angle) * r;
+      const y = height - (j / rows) * length;
+      positions.push(new THREE.Vector3(x, y, z));
+      restPositions.push(new THREE.Vector3(x, y, z));
+    }
+  }
+
+  const geom = new THREE.BufferGeometry();
+  const posArr = new Float32Array((rows + 1) * (segs + 1) * 3);
+
+  const indices = [];
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < segs; i++) {
+      const a = j * (segs + 1) + i;
+      const b = a + 1;
+      const c = a + segs + 1;
+      const d = c + 1;
+      indices.push(a, b, c);
+      indices.push(b, d, c);
+    }
+  }
+
+  geom.setIndex(indices);
+  geom.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+  geom.computeVertexNormals();
+
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.castShadow = true;
+
+  const system = {
+    mesh, positions, restPositions,
+    velocities: positions.map(() => new THREE.Vector3()),
+    topRow: true,
+    segs, rows, radius, height, length,
+    type: 'skirt',
+  };
+
+  return system;
+}
+
+function updateClothPhysics(system, dt, time) {
+  const gravity = new THREE.Vector3(0, -0.8, 0);
+  const windForce = new THREE.Vector3();
+
+  if (windEnabled) {
+    windForce.x = Math.sin(time * 1.5) * 0.6 + 0.3;
+    windForce.y = Math.sin(time * 2.0) * 0.1;
+    windForce.z = Math.cos(time * 1.2) * 0.4;
+  } else {
+    // Subtle ambient wind
+    windForce.x = Math.sin(time * 0.8) * 0.15;
+    windForce.y = 0;
+    windForce.z = Math.cos(time * 0.6) * 0.1;
+  }
+
+  const segs = system.segs;
+  const rows = system.rows;
+  const damping = 0.92;
+  const stiffness = 8.0;
+
+  // Update each vertex (skip top row - pinned to body)
+  for (let j = 1; j <= rows; j++) {
+    for (let i = 0; i <= segs; i++) {
+      const idx = j * (segs + 1) + i;
+      const pos = system.positions[idx];
+      const vel = system.velocities[idx];
+      const rest = system.restPositions[idx];
+
+      // Gravity
+      vel.add(gravity.clone().multiplyScalar(dt));
+
+      // Wind (stronger at bottom)
+      const windFactor = j / rows;
+      vel.add(windForce.clone().multiplyScalar(dt * windFactor * 3.0));
+
+      // Spring force back to rest position
+      const spring = rest.clone().sub(pos).multiplyScalar(stiffness * dt);
+      vel.add(spring);
+
+      // Structural springs - connect to neighbors
+      const neighbors = [];
+
+      // Same row neighbors
+      const leftIdx = j * (segs + 1) + ((i - 1 + segs + 1) % (segs + 1));
+      const rightIdx = j * (segs + 1) + ((i + 1) % (segs + 1));
+      neighbors.push(system.positions[leftIdx]);
+      neighbors.push(system.positions[rightIdx]);
+
+      // Upper row neighbor
+      if (j > 0) {
+        const upperIdx = (j - 1) * (segs + 1) + i;
+        neighbors.push(system.positions[upperIdx]);
+      }
+      // Lower row neighbor
+      if (j < rows) {
+        const lowerIdx = (j + 1) * (segs + 1) + i;
+        neighbors.push(system.positions[lowerIdx]);
+      }
+
+      for (const neighbor of neighbors) {
+        const diff = neighbor.clone().sub(pos);
+        vel.add(diff.multiplyScalar(stiffness * 0.5 * dt));
+      }
+
+      // Damping
+      vel.multiplyScalar(damping);
+
+      // Update position
+      pos.add(vel.clone().multiplyScalar(dt));
+
+      // Body collision - keep outside body radius
+      const bodyR = getBodyRadius(pos.y);
+      const distXZ = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+      const minDist = bodyR + 0.01;
+      if (distXZ < minDist && pos.y > 0.85 && pos.y < 1.85) {
+        const scale = minDist / Math.max(distXZ, 0.001);
+        pos.x *= scale;
+        pos.z *= scale;
+        // Push velocity outward
+        const normal = new THREE.Vector3(pos.x, 0, pos.z).normalize();
+        vel.add(normal.multiplyScalar(0.3));
+      }
+
+      // Floor constraint
+      if (pos.y < 0.01) {
+        pos.y = 0.01;
+        vel.y = Math.abs(vel.y) * 0.3;
+      }
+    }
+  }
+
+  // Update geometry
+  const posArr = system.mesh.geometry.attributes.position.array;
+  for (let j = 0; j <= rows; j++) {
+    for (let i = 0; i <= segs; i++) {
+      const idx = j * (segs + 1) + i;
+      const p = system.positions[idx];
+      posArr[idx * 3] = p.x;
+      posArr[idx * 3 + 1] = p.y;
+      posArr[idx * 3 + 2] = p.z;
+    }
+  }
+  system.mesh.geometry.attributes.position.needsUpdate = true;
+  system.mesh.geometry.computeVertexNormals();
+}
+
+// ==================== CLOTHING SWITCHING ====================
+
+function clearClothSystems() {
+  clothSystems = [];
+}
+
+function createClothingByIndex(index) {
+  const item = CLOTHING_LIST[index];
+  clearClothSystems();
+
+  switch (item.type) {
+    case 'tshirt': return createTShirt(item.color, item.darkColor);
+    case 'dress': return createDress(item.color, item.darkColor);
+    case 'suit': return createSuit(item.color, item.darkColor);
+    case 'hoodie': return createHoodie(item.color, item.darkColor);
+    case 'coat': return createCoat(item.color, item.darkColor);
+    default: return createTShirt(item.color, item.darkColor);
+  }
+}
+
+window.switchClothing = function(index, animate = true) {
+  if (isTransitioning || index === currentClothingIndex && animate) return;
+  isTransitioning = true;
+
+  const oldMesh = currentClothingMesh;
+  const newMesh = createClothingByIndex(index);
+
+  // Update name overlay
+  const nameEl = document.getElementById('clothingName');
+  const descEl = document.getElementById('clothingDesc');
+  const overlay = document.getElementById('nameOverlay');
+
+  overlay.classList.add('fade-out');
+
+  setTimeout(() => {
+    nameEl.textContent = CLOTHING_LIST[index].name;
+    descEl.textContent = CLOTHING_LIST[index].desc;
+    nameEl.style.color = CLOTHING_LIST[index].color;
+    overlay.classList.remove('fade-out');
+  }, 400);
+
+  if (!animate) {
+    if (oldMesh) clothingGroup.remove(oldMesh);
+    clothingGroup.add(newMesh);
+    currentClothingMesh = newMesh;
+    currentClothingIndex = index;
+    isTransitioning = false;
+    updateCards();
+    return;
+  }
+
+  // Fade out old
+  if (oldMesh) {
+    const startScale = oldMesh.scale.x;
+    const fadeOut = { progress: 0 };
+    animateValue(fadeOut, 'progress', 1, 300, (v) => {
+      const s = startScale * (1 - v * 0.3);
+      oldMesh.scale.set(s, s, s);
+      oldMesh.traverse(child => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = true;
+          child.material.opacity = 1 - v;
+        }
+      });
+    }, () => {
+      clothingGroup.remove(oldMesh);
+    });
+  }
+
+  // Fade in new
+  newMesh.scale.set(0.85, 0.85, 0.85);
+  newMesh.traverse(child => {
+    if (child.isMesh && child.material) {
+      child.material.transparent = true;
+      child.material.opacity = 0;
+    }
+  });
+  clothingGroup.add(newMesh);
+
+  setTimeout(() => {
+    animateValue({ progress: 0 }, 'progress', 1, 400, (v) => {
+      const s = 0.85 + 0.15 * v;
+      newMesh.scale.set(s, s, s);
+      newMesh.traverse(child => {
+        if (child.isMesh && child.material) {
+          child.material.opacity = v;
+        }
+      });
+    }, () => {
+      newMesh.traverse(child => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = false;
+          child.material.opacity = 1;
+        }
+      });
+      isTransitioning = false;
+    });
+  }, animate && oldMesh ? 200 : 0);
+
+  currentClothingMesh = newMesh;
+  currentClothingIndex = index;
+  updateCards();
+};
+
+function animateValue(obj, prop, target, duration, onUpdate, onComplete) {
+  const start = obj[prop];
+  const startTime = performance.now();
+  function tick(now) {
+    const elapsed = now - startTime;
+    let t = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    t = 1 - Math.pow(1 - t, 3);
+    obj[prop] = start + (target - start) * t;
+    onUpdate(t);
+    if (t < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      if (onComplete) onComplete();
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// ==================== UI ====================
+
+function buildClothingCards() {
+  const container = document.getElementById('clothingCards');
+  container.innerHTML = '';
+  CLOTHING_LIST.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'clothing-card' + (i === 0 ? ' active' : '');
+    card.dataset.index = i;
+    card.innerHTML = `
+      <div class="color-swatch" style="background: linear-gradient(135deg, ${item.color}, ${item.darkColor})"></div>
+      <div class="card-info">
+        <div class="card-name">${item.name}</div>
+        <div class="card-sub">${item.desc}</div>
+      </div>
+    `;
+    card.addEventListener('click', () => switchClothing(i));
+    container.appendChild(card);
+  });
+}
+
+function updateCards() {
+  document.querySelectorAll('.clothing-card').forEach((card, i) => {
+    card.classList.toggle('active', i === currentClothingIndex);
+  });
+}
+
+window.toggleAutoRotate = function() {
+  autoRotate = !autoRotate;
+  controls.autoRotate = autoRotate;
+  document.getElementById('autoRotateBtn').classList.toggle('active', autoRotate);
+};
+
+window.toggleWind = function() {
+  windEnabled = !windEnabled;
+  document.getElementById('windBtn').classList.toggle('active', windEnabled);
+};
+
+// ==================== WIND INDICATOR ====================
+
+function updateWindIndicator(time) {
+  const bars = document.querySelectorAll('.wind-bar');
+  const active = windEnabled;
+  bars.forEach((bar, i) => {
+    const h = 8 + (i + 1) * 6;
+    bar.style.height = h + 'px';
+    if (active) {
+      const phase = Math.sin(time * 3 + i * 0.8) * 0.5 + 0.5;
+      bar.style.background = `rgba(167,139,250,${0.2 + phase * 0.5})`;
+      bar.style.height = (h * (0.5 + phase * 0.5)) + 'px';
+    } else {
+      const phase = Math.sin(time * 1.2 + i * 0.5) * 0.5 + 0.5;
+      bar.style.background = `rgba(167,139,250,${0.1 + phase * 0.15})`;
+    }
+  });
+}
+
+// ==================== RESIZE ====================
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// ==================== ANIMATION LOOP ====================
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.033); // Cap at ~30fps minimum
+  const time = clock.startTime + clock.elapsedTime;
+
+  // Update cloth physics
+  for (const system of clothSystems) {
+    updateClothPhysics(system, dt, time);
+  }
+
+  // Update wind indicator
+  updateWindIndicator(time);
+
+  // Update controls
+  controls.update();
+
+  // Render
+  renderer.render(scene, camera);
+}
+
+// ==================== START ====================
+init();
+
+// Set initial name color
+document.getElementById('clothingName').style.color = CLOTHING_LIST[0].color;
+</script>
+</body>
+</html>
