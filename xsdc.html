@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>限时大促 - 狂欢盛典</title>
+<style>
+/* ========== 基础重置 ========== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-tap-highlight-color:transparent}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;background:#1a0a0a;color:#fff;line-height:1.6;overflow-x:hidden}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+button{border:none;cursor:pointer;font-family:inherit}
+
+/* ========== 主题色变量 ========== */
+:root{
+  --red-primary:#e53935;
+  --red-dark:#b71c1c;
+  --red-deeper:#7f0000;
+  --gold-primary:#ffd700;
+  --gold-light:#ffe566;
+  --gold-dark:#c5a600;
+  --orange:#ff6f00;
+  --bg-dark:#0d0000;
+  --bg-card:rgba(40,5,5,.85);
+  --shadow-red:0 4px 20px rgba(229,57,53,.4);
+  --shadow-gold:0 4px 20px rgba(255,215,0,.3);
+  --radius:12px;
+  --radius-sm:8px;
+}
+
+/* ========== 顶部横幅公告 ========== */
+.top-bar{background:linear-gradient(90deg,var(--red-dark),var(--red-primary),var(--red-dark));padding:8px 16px;text-align:center;font-size:13px;color:var(--gold-light);letter-spacing:1px;overflow:hidden;position:relative}
+.top-bar .announce{display:inline-block;animation:marquee 20s linear infinite;white-space:nowrap}
+@keyframes marquee{0%{transform:translateX(100vw)}100%{transform:translateX(-100%)}}
+
+/* ========== 浮动操作按钮（移动端） ========== */
+.float-btn{position:fixed;right:16px;bottom:100px;z-index:100;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--red-primary),var(--orange));box-shadow:var(--shadow-red);display:flex;align-items:center;justify-content:center;font-size:20px;animation:pulse-float 2s ease-in-out infinite}
+.float-btn:active{transform:scale(.92)}
+@keyframes pulse-float{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.float-coupon{position:fixed;right:16px;bottom:160px;z-index:100;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--gold-dark),var(--gold-primary));box-shadow:var(--shadow-gold);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--red-dark);font-weight:700;animation:pulse-float 2s ease-in-out infinite .5s}
+
+/* ========== Hero 头部区域 ========== */
+.hero{
+  position:relative;
+  min-height:520px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;
+  padding:60px 20px 40px;
+  background:linear-gradient(180deg,var(--red-deeper) 0%,#2a0000 50%,var(--bg-dark) 100%);
+}
+.hero::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 20% 30%,rgba(255,215,0,.15) 0%,transparent 50%),
+    radial-gradient(circle at 80% 20%,rgba(255,69,0,.2) 0%,transparent 50%),
+    radial-gradient(circle at 50% 80%,rgba(229,57,53,.15) 0%,transparent 50%);
+  animation:bg-shift 8s ease-in-out infinite alternate;
+}
+@keyframes bg-shift{0%{opacity:.6}100%{opacity:1}}
+
+/* 粒子 / 光斑 */
+.particles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.particle{position:absolute;border-radius:50%;animation:float-up linear infinite}
+@keyframes float-up{0%{transform:translateY(100vh) scale(0);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(-10vh) scale(1);opacity:0}}
+
+.hero-badge{
+  position:relative;z-index:1;
+  background:linear-gradient(135deg,var(--gold-primary),var(--orange));
+  color:var(--red-dark);font-weight:800;font-size:14px;
+  padding:6px 28px;border-radius:30px;letter-spacing:4px;
+  text-transform:uppercase;
+  animation:badge-glow 2s ease-in-out infinite;
+  margin-bottom:16px;
+}
+@keyframes badge-glow{0%,100%{box-shadow:0 0 10px rgba(255,215,0,.5)}50%{box-shadow:0 0 30px rgba(255,215,0,.8)}}
+
+.hero h1{
+  position:relative;z-index:1;
+  font-size:clamp(36px,8vw,72px);
+  font-weight:900;
+  text-align:center;
+  background:linear-gradient(180deg,var(--gold-primary) 0%,var(--gold-light) 40%,var(--gold-primary) 60%,var(--orange) 100%);
+  background-size:100% 200%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  animation:shimmer 3s ease-in-out infinite;
+  line-height:1.2;margin-bottom:12px;
+}
+@keyframes shimmer{0%{background-position:0% 100%}50%{background-position:0% 0%}100%{background-position:0% 100%}}
+
+.hero .subtitle{
+  position:relative;z-index:1;
+  font-size:clamp(16px,3.5vw,24px);
+  color:rgba(255,255,255,.85);
+  text-align:center;
+  letter-spacing:3px;
+  margin-bottom:32px;
+}
+
+/* ========== 倒计时 ========== */
+.countdown-section{
+  position:relative;z-index:1;
+  text-align:center;margin-bottom:20px;
+}
+.countdown-label{font-size:15px;color:var(--gold-light);margin-bottom:12px;letter-spacing:2px}
+.countdown-wrap{display:flex;align-items:center;justify-content:center;gap:8px}
+.cd-block{
+  background:linear-gradient(180deg,#1a0000,#2d0000);
+  border:2px solid var(--gold-primary);
+  border-radius:var(--radius-sm);
+  min-width:64px;padding:10px 8px;
+  text-align:center;
+  box-shadow:var(--shadow-gold),inset 0 0 15px rgba(255,215,0,.1);
+}
+.cd-block .num{font-size:clamp(28px,6vw,40px);font-weight:900;color:var(--gold-primary);line-height:1;display:block}
+.cd-block .txt{font-size:11px;color:rgba(255,255,255,.6);margin-top:4px;display:block}
+.cd-sep{font-size:clamp(24px,5vw,36px);font-weight:900;color:var(--red-primary);animation:blink 1s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+.hero-cta{
+  position:relative;z-index:1;margin-top:24px;
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,var(--gold-primary),var(--orange));
+  color:var(--red-dark);font-weight:800;font-size:18px;
+  padding:14px 48px;border-radius:50px;
+  box-shadow:0 0 30px rgba(255,215,0,.5);
+  transition:all .3s;letter-spacing:2px;
+}
+.hero-cta:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 50px rgba(255,215,0,.7)}
+.hero-cta:active{transform:scale(.97)}
+
+/* ========== 分区标题 ========== */
+.section-title{
+  text-align:center;padding:48px 20px 24px;position:relative;
+}
+.section-title h2{
+  display:inline-block;
+  font-size:clamp(24px,5vw,36px);font-weight:900;
+  color:var(--gold-primary);
+  text-shadow:0 0 20px rgba(255,215,0,.3);
+  position:relative;
+}
+.section-title h2::before,.section-title h2::after{
+  content:"";position:absolute;top:50%;width:clamp(30px,8vw,80px);height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold-primary));
+}
+.section-title h2::before{right:calc(100% + 16px)}
+.section-title h2::after{left:calc(100% + 16px);transform:scaleX(-1)}
+.section-title p{color:rgba(255,255,255,.6);font-size:14px;margin-top:8px}
+
+/* ========== 分区活动 ========== */
+.zone-section{background:var(--bg-dark);padding:0 16px 40px}
+.zone-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:1200px;margin:0 auto}
+.zone-card{
+  position:relative;border-radius:var(--radius);overflow:hidden;
+  border:2px solid rgba(255,215,0,.15);
+  transition:all .3s;
+}
+.zone-card:hover{border-color:var(--gold-primary);transform:translateY(-4px);box-shadow:var(--shadow-gold)}
+.zone-card-header{
+  padding:20px;text-align:center;position:relative;
+}
+.zone-card-header h3{font-size:20px;font-weight:800;margin-bottom:4px}
+.zone-card-header .zone-tag{
+  display:inline-block;font-size:11px;font-weight:700;
+  padding:2px 12px;border-radius:20px;margin-bottom:8px;letter-spacing:1px;
+}
+.zone-card-body{padding:0 20px 20px}
+
+.zone-card:nth-child(1) .zone-card-header{background:linear-gradient(135deg,#ff6f00,#ff8f00)}
+.zone-card:nth-child(1) .zone-tag{background:rgba(255,255,255,.25);color:#fff}
+.zone-card:nth-child(2) .zone-card-header{background:linear-gradient(135deg,var(--red-primary),#f44336)}
+.zone-card:nth-child(2) .zone-tag{background:rgba(255,255,255,.25);color:#fff}
+.zone-card:nth-child(3) .zone-card-header{background:linear-gradient(135deg,#c5a600,var(--gold-primary))}
+.zone-card:nth-child(3) .zone-tag{background:rgba(0,0,0,.2);color:#fff}
+
+.zone-desc{font-size:13px;color:rgba(255,255,255,.7);line-height:1.8;margin-bottom:12px}
+.zone-countdown{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:14px}
+.zone-countdown .cd-mini{
+  background:rgba(0,0,0,.4);border:1px solid var(--gold-primary);
+  border-radius:6px;padding:4px 8px;font-size:16px;font-weight:800;
+  color:var(--gold-primary);min-width:32px;text-align:center;
+}
+.zone-countdown .cd-mini-sep{color:var(--red-primary);font-weight:700}
+
+.zone-enter{
+  display:block;width:100%;text-align:center;
+  background:linear-gradient(135deg,var(--gold-primary),var(--orange));
+  color:var(--red-dark);font-weight:800;font-size:15px;
+  padding:10px;border-radius:var(--radius-sm);
+  transition:all .3s;
+}
+.zone-enter:hover{box-shadow:0 0 20px rgba(255,215,0,.5)}
+
+/* ========== 秒杀产品 ========== */
+.flash-section{padding:20px 16px 48px;background:linear-gradient(180deg,#1a0000,var(--bg-dark))}
+.flash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;max-width:1200px;margin:0 auto}
+.flash-card{
+  background:var(--bg-card);border-radius:var(--radius);overflow:hidden;
+  border:1px solid rgba(255,215,0,.1);transition:all .3s;position:relative;
+}
+.flash-card:hover{border-color:var(--red-primary);transform:translateY(-3px);box-shadow:var(--shadow-red)}
+.flash-card .badge-seckill{
+  position:absolute;top:12px;left:0;z-index:2;
+  background:linear-gradient(90deg,var(--red-primary),var(--orange));
+  color:#fff;font-size:12px;font-weight:800;padding:4px 14px 4px 8px;
+  border-radius:0 20px 20px 0;letter-spacing:1px;
+}
+.flash-card .badge-seckill::after{
+  content:"";position:absolute;right:4px;top:50%;transform:translateY(-50%);
+  width:8px;height:8px;border-radius:50%;background:#fff;
+}
+.flash-card .prod-img{
+  width:100%;aspect-ratio:1;object-fit:cover;
+  background:#2a0a0a;display:flex;align-items:center;justify-content:center;
+  font-size:48px;color:rgba(255,215,0,.3);position:relative;overflow:hidden;
+}
+.flash-card .prod-img::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,transparent 60%,rgba(0,0,0,.3));
+}
+.flash-card .prod-info{padding:14px}
+.flash-card .prod-name{font-size:14px;font-weight:600;color:#fff;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:8px;min-height:42px}
+.flash-card .price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.flash-card .price-now{font-size:22px;font-weight:900;color:var(--red-primary)}
+.flash-card .price-now .yen{font-size:14px}
+.flash-card .price-old{font-size:13px;color:rgba(255,255,255,.4);text-decoration:line-through}
+.flash-card .tag-save{
+  font-size:11px;font-weight:700;color:var(--red-dark);
+  background:linear-gradient(135deg,var(--gold-primary),var(--orange));
+  padding:1px 8px;border-radius:10px;
+}
+
+/* 进度条 */
+.flash-card .progress-wrap{margin-bottom:10px}
+.flash-card .progress-bar{height:16px;background:rgba(255,255,255,.08);border-radius:10px;overflow:hidden;position:relative}
+.flash-card .progress-bar .fill{
+  height:100%;border-radius:10px;position:relative;
+  background:linear-gradient(90deg,var(--orange),var(--red-primary));
+  transition:width 1s ease;
+}
+.flash-card .progress-bar .fill::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);
+  animation:progress-shine 2s linear infinite;
+}
+@keyframes progress-shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.flash-card .progress-text{font-size:11px;color:rgba(255,255,255,.6);text-align:right;margin-top:3px}
+
+.flash-card .btn-buy{
+  display:block;width:100%;text-align:center;
+  background:linear-gradient(135deg,var(--red-primary),var(--orange));
+  color:#fff;font-weight:800;font-size:15px;
+  padding:10px;border-radius:var(--radius-sm);
+  transition:all .3s;letter-spacing:1px;
+}
+.flash-card .btn-buy:hover{box-shadow:0 0 20px rgba(229,57,53,.5);transform:scale(1.02)}
+
+/* ========== 优惠券区 ========== */
+.coupon-section{padding:48px 16px;background:linear-gradient(180deg,var(--bg-dark),#1a0505,var(--bg-dark))}
+.coupon-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;max-width:1000px;margin:0 auto}
+.coupon-card{
+  position:relative;border-radius:var(--radius);overflow:hidden;
+  background:linear-gradient(135deg,#2a0808,#1a0000);
+  border:2px solid rgba(255,215,0,.2);
+  transition:all .3s;display:flex;
+}
+.coupon-card:hover{border-color:var(--gold-primary);box-shadow:var(--shadow-gold)}
+.coupon-left{
+  flex-shrink:0;width:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--red-primary),var(--red-dark));
+  padding:20px 10px;position:relative;
+}
+.coupon-left::after{
+  content:"";position:absolute;right:0;top:0;bottom:0;width:1px;
+  background:repeating-linear-gradient(180deg,var(--gold-primary) 0,var(--gold-primary) 6px,transparent 6px,transparent 12px);
+}
+.coupon-left .amount{font-size:32px;font-weight:900;color:var(--gold-primary);line-height:1}
+.coupon-left .amount .yen{font-size:16px}
+.coupon-left .condition{font-size:10px;color:rgba(255,255,255,.7);margin-top:4px;text-align:center;line-height:1.4}
+.coupon-right{flex:1;padding:16px;display:flex;flex-direction:column;justify-content:center}
+.coupon-right .coupon-name{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px}
+.coupon-right .coupon-time{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:10px}
+.coupon-right .btn-claim{
+  display:inline-block;text-align:center;
+  background:linear-gradient(135deg,var(--gold-primary),var(--orange));
+  color:var(--red-dark);font-weight:800;font-size:13px;
+  padding:7px 24px;border-radius:20px;
+  transition:all .3s;align-self:flex-start;
+}
+.coupon-right .btn-claim:hover{box-shadow:0 0 15px rgba(255,215,0,.5)}
+.coupon-right .btn-claim.claimed{background:rgba(255,255,255,.1);color:rgba(255,255,255,.4);pointer-events:none}
+
+/* ========== 活动规则 ========== */
+.rules-section{padding:48px 16px;background:var(--bg-dark)}
+.rules-card{
+  max-width:800px;margin:0 auto;
+  background:var(--bg-card);border:1px solid rgba(255,215,0,.1);
+  border-radius:var(--radius);padding:28px 24px;
+}
+.rules-card h3{font-size:18px;font-weight:800;color:var(--gold-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.rules-card ol{padding-left:20px;color:rgba(255,255,255,.75);font-size:13px;line-height:2}
+.rules-card ol li{margin-bottom:6px}
+
+/* ========== 售后提示 ========== */
+.service-section{padding:48px 16px;background:linear-gradient(180deg,var(--bg-dark),#0d0000)}
+.service-card{
+  max-width:800px;margin:0 auto;
+  background:var(--bg-card);border:1px solid rgba(255,215,0,.1);
+  border-radius:var(--radius);padding:28px 24px;
+}
+.service-card h3{font-size:18px;font-weight:800;color:var(--gold-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.service-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px}
+.service-item{text-align:center;padding:16px 8px}
+.service-item .icon{font-size:32px;margin-bottom:8px}
+.service-item .svc-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+.service-item .svc-desc{font-size:12px;color:rgba(255,255,255,.5);line-height:1.5}
+.service-notice{margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:rgba(255,255,255,.4);line-height:1.8}
+
+/* ========== 底部 ========== */
+.footer{background:#050000;padding:24px 16px;text-align:center;color:rgba(255,255,255,.3);font-size:12px;border-top:1px solid rgba(255,215,0,.05)}
+.footer a{color:var(--gold-primary)}
+
+/* ========== Toast ========== */
+.toast{
+  position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-20px);
+  background:linear-gradient(135deg,var(--gold-primary),var(--orange));
+  color:var(--red-dark);font-weight:700;font-size:14px;
+  padding:10px 28px;border-radius:30px;
+  box-shadow:0 4px 25px rgba(255,215,0,.4);
+  z-index:999;opacity:0;transition:all .4s;pointer-events:none;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ========== 回到顶部 ========== */
+.back-top{
+  position:fixed;right:16px;bottom:40px;z-index:100;
+  width:40px;height:40px;border-radius:50%;
+  background:var(--bg-card);border:1px solid rgba(255,215,0,.2);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--gold-primary);font-size:18px;
+  opacity:0;transition:all .3s;pointer-events:none;
+}
+.back-top.visible{opacity:1;pointer-events:auto}
+.back-top:hover{border-color:var(--gold-primary);box-shadow:var(--shadow-gold)}
+
+/* ========== 响应式 ========== */
+@media(max-width:768px){
+  .hero{min-height:440px;padding:40px 16px 30px}
+  .flash-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .flash-card .prod-info{padding:10px}
+  .flash-card .prod-name{font-size:13px;min-height:36px}
+  .flash-card .price-now{font-size:18px}
+  .coupon-left{width:80px;padding:14px 8px}
+  .coupon-left .amount{font-size:26px}
+  .zone-cards{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .flash-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .flash-card .price-row{gap:4px}
+  .flash-card .price-old{font-size:11px}
+  .coupon-grid{grid-template-columns:1fr}
+  .coupon-left{width:90px}
+}
+@media(min-width:1024px){
+  .flash-grid{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toast"></div>
+
+<!-- 顶部滚动公告 -->
+<div class="top-bar">
+  <span class="announce">🔥 限时大促火热进行中！全场低至1折起，更有满减优惠券等你来领，错过再等一年！赶快抢购吧 ➔</span>
+</div>
+
+<!-- ========== 英雄区域 ========== -->
+<section class="hero" id="top">
+  <div class="particles" id="particles"></div>
+  <div class="hero-badge">⚡ FLASH SALE ⚡</div>
+  <h1>限时大促<br>狂欢盛典</h1>
+  <p class="subtitle">全场低至1折起 · 24小时火力全开</p>
+
+  <!-- 倒计时 -->
+  <div class="countdown-section">
+    <div class="countdown-label">⏰ 距活动结束还剩</div>
+    <div class="countdown-wrap">
+      <div class="cd-block"><span class="num" id="cd-hours">00</span><span class="txt">时</span></div>
+      <span class="cd-sep">:</span>
+      <div class="cd-block"><span class="num" id="cd-mins">00</span><span class="txt">分</span></div>
+      <span class="cd-sep">:</span>
+      <div class="cd-block"><span class="num" id="cd-secs">00</span><span class="txt">秒</span></div>
+    </div>
+  </div>
+
+  <a href="#flash" class="hero-cta">🔥 立即抢购</a>
+</section>
+
+<!-- ========== 分区活动 ========== -->
+<section class="zone-section">
+  <div class="section-title">
+    <h2>🔥 精彩分区</h2>
+    <p>多重活动同时开启，优惠叠加享不停</p>
+  </div>
+  <div class="zone-cards">
+    <!-- 分区1 -->
+    <div class="zone-card">
+      <div class="zone-card-header">
+        <span class="zone-tag">10:00 开抢</span>
+        <h3>☀️ 早市尖货</h3>
+      </div>
+      <div class="zone-card-body">
+        <p class="zone-desc">每日10:00刷新，精选超值好物，限量抢购，先到先得！数量有限，售完即止。</p>
+        <div class="zone-countdown">
+          <span class="cd-mini" data-zone="morning">00</span><span class="cd-mini-sep">:</span>
+          <span class="cd-mini" data-zone="morning">00</span><span class="cd-mini-sep">:</span>
+          <span class="cd-mini" data-zone="morning">00</span>
+        </div>
+        <button class="zone-enter" onclick="showToast('早市专场即将开抢！敬请期待')">立即进入 →</button>
+      </div>
+    </div>
+    <!-- 分区2 -->
+    <div class="zone-card">
+      <div class="zone-card-header">
+        <span class="zone-tag">14:00 开抢</span>
+        <h3>🎯 午间秒杀</h3>
+      </div>
+      <div class="zone-card-body">
+        <p class="zone-desc">每天14:00准时开抢，爆款单品直降到底！最高立省500元，手慢无！</p>
+        <div class="zone-countdown">
+          <span class="cd-mini" data-zone="noon">00</span><span class="cd-mini-sep">:</span>
+          <span class="cd-mini" data-zone="noon">00</span><span class="cd-mini-sep">:</span>
+          <span class="cd-mini" data-zone="noon">00</span>
+        </div>
+        <button class="zone-enter" onclick="showToast('午间秒杀火爆进行中！')">立即进入 →</button>
+      </div>
+    </div>
+    <!-- 分区3 -->
+    <div class="zone-card">
+      <div class="zone-card-header">
+        <span class="zone-tag">20:00 开抢</span>
+        <h3>🌙 晚间特惠</h3>
+      </div>
+      <div class="zone-card-body">
+        <p class="zone-desc">每晚20:00终极福利场，全场折上折，叠加优惠券更划算！闭眼前最后一波！</p>
+        <div class="zone-countdown">
+          <span class="cd-mini" data-zone="night">00</span><span class="cd-mini-sep">:</span>
+          <span class="cd-mini" data-zone="night">00</span><span class="cd-mini-sep">:</span>
+          <span class="cd-mini" data-zone="night">00</span>
+        </div>
+        <button class="zone-enter" onclick="showToast('晚间特惠即将开始，敬请关注！')">立即进入 →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 秒杀产品 ========== -->
+<section class="flash-section" id="flash">
+  <div class="section-title">
+    <h2>⚡ 限时秒杀</h2>
+    <p>爆款尖货，手慢无！库存实时递减中</p>
+  </div>
+  <div class="flash-grid" id="flash-grid">
+    <!-- JS 动态渲染 -->
+  </div>
+</section>
+
+<!-- ========== 优惠券领取区 ========== -->
+<section class="coupon-section" id="coupons">
+  <div class="section-title">
+    <h2>🎫 超值优惠券</h2>
+    <p>限量发放，先到先得，下单立减！</p>
+  </div>
+  <div class="coupon-grid" id="coupon-grid">
+    <!-- JS 动态渲染 -->
+  </div>
+</section>
+
+<!-- ========== 活动规则 ========== -->
+<section class="rules-section">
+  <div class="section-title">
+    <h2>📋 活动规则</h2>
+  </div>
+  <div class="rules-card">
+    <h3>📢 活动须知</h3>
+    <ol>
+      <li><strong>活动时间：</strong>即日起至活动倒计时结束为止，每日各时段限量开抢。</li>
+      <li><strong>秒杀规则：</strong>每位用户每款商品限购1件，订单支付时效为30分钟，超时自动取消。</li>
+      <li><strong>优惠券使用：</strong>优惠券可在下单时自动抵扣，每个订单限用1张，不可与其他优惠叠加（特殊标注除外）。</li>
+      <li><strong>价格说明：</strong>活动价格为限时特惠价，活动结束后将恢复原价，请抓紧时间下单。</li>
+      <li><strong>库存说明：</strong>秒杀商品库存有限，售完即止，以成功下单时间为准。</li>
+      <li><strong>发货时效：</strong>大促期间订单量较大，承诺72小时内发货（预售商品除外）。</li>
+      <li><strong>活动解释：</strong>本活动最终解释权归平台所有。如有疑问请联系在线客服。</li>
+      <li><strong>注意事项：</strong>禁止使用外挂、脚本等不正当手段参与活动，违者取消资格。</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ========== 售后提示 ========== -->
+<section class="service-section">
+  <div class="section-title">
+    <h2>🛡️ 售后保障</h2>
+    <p>放心购物，无忧售后</p>
+  </div>
+  <div class="service-card">
+    <div class="service-items">
+      <div class="service-item">
+        <div class="icon">🚚</div>
+        <div class="svc-title">闪电发货</div>
+        <div class="svc-desc">72小时内极速发出<br>物流实时追踪</div>
+      </div>
+      <div class="service-item">
+        <div class="icon">🔄</div>
+        <div class="svc-title">7天无理由</div>
+        <div class="svc-desc">收货7天内<br>支持无理由退换</div>
+      </div>
+      <div class="service-item">
+        <div class="icon">✅</div>
+        <div class="svc-title">正品保障</div>
+        <div class="svc-desc">100%正品承诺<br>假一赔十</div>
+      </div>
+      <div class="service-item">
+        <div class="icon">💬</div>
+        <div class="svc-title">在线客服</div>
+        <div class="svc-desc">7×24小时<br>随时为您服务</div>
+      </div>
+    </div>
+    <div class="service-notice">
+      <strong>温馨提示：</strong>大促期间咨询量较大，如遇排队请耐心等待，我们将尽快为您处理。退换货商品请保持原包装完好，不影响二次销售。如有任何售后问题，可联系在线客服或拨打客服热线 400-XXX-XXXX。
+    </div>
+  </div>
+</section>
+
+<!-- ========== 底部 ========== -->
+<footer class="footer">
+  <p>本页面为限时大促专题页，活动最终解释权归平台所有</p>
+  <p style="margin-top:6px">Copyright &copy; 2026 All Rights Reserved</p>
+</footer>
+
+<!-- 浮动按钮 -->
+<a href="#flash" class="float-btn" title="秒杀专场">⚡</a>
+<a href="#coupons" class="float-coupon" title="领优惠券">🎫</a>
+<div class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="回到顶部">↑</div>
+
+<script>
+// ========== 数据 ==========
+const PRODUCTS = [
+  { name:"爆款无线蓝牙耳机 降噪防水超长续航", price:59, oldPrice:299, tag:"省240", sold:87, img:"🎧" },
+  { name:"智能运动手环 心率监测血氧检测IP68防水", price:39, oldPrice:199, tag:"省160", sold:73, img:"⌚" },
+  { name:"10W快充移动电源 20000mAh大容量便携", price:49, oldPrice:159, tag:"省110", sold:91, img:"🔋" },
+  { name:"高清便携投影仪 家用办公投影画质清晰", price:299, oldPrice:1299, tag:"省1000", sold:62, img:"📽️" },
+  { name:"真丝纯棉四件套 100%桑蚕丝面料亲肤透气", price:199, oldPrice:899, tag:"省700", sold:78, img:"🛏️" },
+  { name:"全自动咖啡机 一键萃取意式浓缩家用办公", price:399, oldPrice:1599, tag:"省1200", sold:55, img:"☕" },
+  { name:"高端跑步鞋 减震透气轻量化飞织专业运动", price:129, oldPrice:599, tag:"省470", sold:83, img:"👟" },
+  { name:"智能扫地机器人 激光导航自动回充大吸力", price:499, oldPrice:2499, tag:"省2000", sold:48, img:"🤖" },
+];
+
+const COUPONS = [
+  { amount:20, condition:"满100可用", name:"新人专享券", time:"即日起至2026.5.31" },
+  { amount:50, condition:"满300可用", name:"满减狂欢券", time:"即日起至2026.5.31" },
+  { amount:100, condition:"满500可用", name:"超级大额券", time:"即日起至2026.5.31" },
+  { amount:200, condition:"满1000可用", name:"终极福利券", time:"即日起至2026.5.31" },
+];
+
+// ========== 渲染产品 ==========
+function renderProducts(){
+  const grid = document.getElementById('flash-grid');
+  grid.innerHTML = PRODUCTS.map((p, i) => `
+    <div class="flash-card">
+      <span class="badge-seckill">秒杀</span>
+      <div class="prod-img">${p.img}</div>
+      <div class="prod-info">
+        <div class="prod-name">${p.name}</div>
+        <div class="price-row">
+          <span class="price-now"><span class="yen">¥</span>${p.price}</span>
+          <span class="price-old">¥${p.oldPrice}</span>
+          <span class="tag-save">${p.tag}</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="fill" style="width:${p.sold}%"></div></div>
+          <div class="progress-text">已抢${p.sold}%</div>
+        </div>
+        <button class="btn-buy" onclick="showToast('已加入抢购队列，请尽快支付！')">立即抢购</button>
+      </div>
+    </div>
+  `).join('');
+}
+renderProducts();
+
+// ========== 渲染优惠券 ==========
+function renderCoupons(){
+  const grid = document.getElementById('coupon-grid');
+  grid.innerHTML = COUPONS.map((c, i) => `
+    <div class="coupon-card">
+      <div class="coupon-left">
+        <span class="amount"><span class="yen">¥</span>${c.amount}</span>
+        <span class="condition">${c.condition}</span>
+      </div>
+      <div class="coupon-right">
+        <div class="coupon-name">${c.name}</div>
+        <div class="coupon-time">${c.time}</div>
+        <button class="btn-claim" data-idx="${i}" onclick="claimCoupon(this)">立即领取</button>
+      </div>
+    </div>
+  `).join('');
+}
+renderCoupons();
+
+// ========== 领券 ==========
+function claimCoupon(btn){
+  btn.textContent = '已领取 ✓';
+  btn.classList.add('claimed');
+  showToast('🎉 优惠券领取成功，下单时自动抵扣！');
+}
+
+// ========== Toast ==========
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ========== 主倒计时（活动结束时间：从现在起 24 小时） ==========
+const END_TIME = Date.now() + 24 * 60 * 60 * 1000;
+
+function updateMainCountdown(){
+  const diff = Math.max(0, END_TIME - Date.now());
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  document.getElementById('cd-hours').textContent = String(h).padStart(2,'0');
+  document.getElementById('cd-mins').textContent = String(m).padStart(2,'0');
+  document.getElementById('cd-secs').textContent = String(s).padStart(2,'0');
+}
+updateMainCountdown();
+setInterval(updateMainCountdown, 1000);
+
+// ========== 分区倒计时 ==========
+function updateZoneCountdowns(){
+  const now = new Date();
+  const zones = [
+    { key:'morning', hour:10 },
+    { key:'noon', hour:14 },
+    { key:'night', hour:20 },
+  ];
+  zones.forEach(z => {
+    let target = new Date(now);
+    target.setHours(z.hour,0,0,0);
+    if(now >= target) target.setDate(target.getDate() + 1);
+    const diff = Math.max(0, target - now);
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    document.querySelectorAll(`.cd-mini[data-zone="${z.key}"]`).forEach((el, i) => {
+      const v = [h,m,s][i];
+      el.textContent = String(v).padStart(2,'0');
+    });
+  });
+}
+updateZoneCountdowns();
+setInterval(updateZoneCountdowns, 1000);
+
+// ========== 粒子效果 ==========
+function createParticles(){
+  const container = document.getElementById('particles');
+  const colors = ['#ffd700','#ff6f00','#e53935','#ffe566','#ff4444'];
+  for(let i = 0; i < 30; i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random() * 6 + 3;
+    p.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${Math.random()*100}%;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${Math.random()*6+4}s;
+      animation-delay:${Math.random()*6}s;
+      box-shadow:0 0 ${size*2}px currentColor;
+    `;
+    container.appendChild(p);
+  }
+}
+createParticles();
+
+// ========== 回到顶部 ==========
+window.addEventListener('scroll', () => {
+  document.getElementById('backTop').classList.toggle('visible', window.scrollY > 400);
+});
+
+// ========== 进度条动画（滚动到可视区域时触发） ==========
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if(e.isIntersecting){
+      const fill = e.target.querySelector('.fill');
+      if(fill){
+        const w = fill.style.width;
+        fill.style.width = '0%';
+        requestAnimationFrame(() => { fill.style.width = w; });
+      }
+    }
+  });
+}, { threshold: 0.3 });
+document.querySelectorAll('.flash-card').forEach(card => observer.observe(card));
+
+// ========== 模拟库存递减 ==========
+setInterval(() => {
+  const cards = document.querySelectorAll('.flash-card');
+  const idx = Math.floor(Math.random() * cards.length);
+  const text = cards[idx].querySelector('.progress-text');
+  const bar = cards[idx].querySelector('.fill');
+  const match = text.textContent.match(/已抢(\d+)%/);
+  if(match && parseInt(match[1]) < 98){
+    const newVal = parseInt(match[1]) + 1;
+    text.textContent = `已抢${newVal}%`;
+    bar.style.width = `${newVal}%`;
+    if(newVal > 90) bar.style.background = 'linear-gradient(90deg,#f44336,#e53935)';
+  }
+}, 3000 + Math.random() * 4000);
+</script>
+</body>
+</html>
