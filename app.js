@@ -1,492 +1,486 @@
-// ==================== 全局变量 ====================
-let map;
-let markers = [];
-let routeLayer;
-let polyline;
-let pendingLatLng = null;
+// ========== 模拟停车场数据 ==========
+const CENTER = [31.2304, 121.4737]; // 默认中心(上海人民广场)
 
-// 景点类型配置
-const markerTypes = {
-    sight: { icon: '🏛️', color: '#2196F3' },
-    food: { icon: '🍜', color: '#FF9800' },
-    hotel: { icon: '🏨', color: '#9C27B0' },
-    shopping: { icon: '🛍️', color: '#E91E63' }
+const parkingLotData = [
+  { id: 1,  name: '人民广场地下停车库',     address: '黄浦区西藏中路290号',         lat: 31.2314,  lng: 121.4747, distance: 120,  price: 10,  totalSpaces: 500, availableSpaces: 186, type: '地下', hourly: '首小时¥10, 之后¥6/h', daily: '¥60/天', features: ['充电桩', '无障碍', '监控', '24小时'], rating: 4.5 },
+  { id: 2,  name: '来福士广场停车场',         address: '黄浦区西藏中路268号',         lat: 31.2328,  lng: 121.4755, distance: 280,  price: 15,  totalSpaces: 800, availableSpaces: 312, type: '地下', hourly: '¥15/h', daily: '¥90/天', features: ['充电桩', '洗车', '24小时'], rating: 4.7 },
+  { id: 3,  name: '南京东路步行街停车场',     address: '黄浦区南京东路300号',         lat: 31.2352,  lng: 121.4782, distance: 560,  price: 12,  totalSpaces: 300, availableSpaces: 8,   type: '地下', hourly: '¥12/h', daily: '¥80/天', features: ['监控', '24小时'], rating: 4.2 },
+  { id: 4,  name: '淮海路立体停车场',         address: '黄浦区淮海中路300号',         lat: 31.2268,  lng: 121.4695, distance: 780,  price: 8,   totalSpaces: 200, availableSpaces: 95,  type: '立体', hourly: '¥8/h', daily: '¥50/天', features: ['监控', '24小时'], rating: 4.0 },
+  { id: 5,  name: '外滩停车场',               address: '黄浦区中山东一路18号',        lat: 31.2400,  lng: 121.4900, distance: 1200, price: 18,  totalSpaces: 400, availableSpaces: 0,   type: '地面', hourly: '¥18/h', daily: '¥120/天', features: ['充电桩', '无障碍'], rating: 4.3 },
+  { id: 6,  name: '静安寺地下停车场',         address: '静安区南京西路1618号',        lat: 31.2240,  lng: 121.4462, distance: 2100, price: 14,  totalSpaces: 350, availableSpaces: 42,  type: '地下', hourly: '¥14/h', daily: '¥80/天', features: ['充电桩', '无障碍', '监控'], rating: 4.6 },
+  { id: 7,  name: '陆家嘴中心停车场',         address: '浦东新区世纪大道100号',       lat: 31.2360,  lng: 121.5050, distance: 3200, price: 16,  totalSpaces: 600, availableSpaces: 210, type: '地下', hourly: '¥16/h', daily: '¥100/天', features: ['充电桩', '无障碍', '洗车', '24小时'], rating: 4.8 },
+  { id: 8,  name: '虹桥天地停车场',           address: '闵行区申长路688号',           lat: 31.1952,  lng: 121.3218, distance: 12000, price: 10,  totalSpaces: 1000, availableSpaces: 580, type: '地面', hourly: '¥10/h', daily: '¥60/天', features: ['充电桩', '无障碍', '监控', '洗车', '24小时'], rating: 4.4 },
+  { id: 9,  name: '徐家汇港汇广场停车场',     address: '徐汇区虹桥路1号',             lat: 31.1926,  lng: 121.4368, distance: 5000, price: 12,  totalSpaces: 450, availableSpaces: 160, type: '地下', hourly: '¥12/h', daily: '¥70/天', features: ['充电桩', '监控', '24小时'], rating: 4.5 },
+  { id: 10, name: '新天地停车场',             address: '黄浦区太仓路181号',           lat: 31.2196,  lng: 121.4746, distance: 1400, price: 20,  totalSpaces: 250, availableSpaces: 15,  type: '地下', hourly: '¥20/h', daily: '¥120/天', features: ['无障碍', '监控'], rating: 4.1 },
+  { id: 11, name: '世纪公园停车场',           address: '浦东新区锦绣路1001号',        lat: 31.2110,  lng: 121.5440, distance: 6500, price: 6,   totalSpaces: 300, availableSpaces: 200, type: '地面', hourly: '¥6/h', daily: '¥30/天', features: ['监控', '充电桩'], rating: 4.3 },
+  { id: 12, name: '中山公园龙之梦停车场',     address: '长宁区长宁路1018号',          lat: 31.2186,  lng: 121.4158, distance: 4200, price: 10,  totalSpaces: 700, availableSpaces: 330, type: '立体', hourly: '¥10/h', daily: '¥60/天', features: ['充电桩', '监控', '24小时', '洗车'], rating: 4.6 },
+];
+
+// ========== 状态管理 ==========
+const state = {
+  sort: 'distance',       // distance | price | spaces
+  searchKeyword: '',
+  priceMin: 0,
+  priceMax: 20,
+  distanceRange: null,    // null=全部 | 500 | 1000 | 2000 | 5000
+  parkingType: null,      // null=全部 | '地面' | '地下' | '立体'
+  selectedLot: null,
+  sheetExpanded: false,
+  transportMode: 'driving',
+  markers: {},
 };
 
-// ==================== 初始化地图 ====================
-function initMap() {
-    // 默认中心点：北京
-    const defaultCenter = [39.9042, 116.4074];
+// ========== 初始化地图 ==========
+const map = L.map('map', {
+  center: CENTER,
+  zoom: 14,
+  zoomControl: false,
+  attributionControl: false,
+});
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-    map = L.map('map', {
-        zoomControl: true
-    }).setView(defaultCenter, 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+}).addTo(map);
 
-    // 添加 OpenStreetMap 图层
-    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-        minZoom: 3
-    }).addTo(map);
+// 当前位置标记
+const userIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:16px;height:16px;background:#1677ff;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 2px rgba(22,119,255,0.3), 0 2px 6px rgba(0,0,0,.3);"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+L.marker(CENTER, { icon: userIcon, zIndexOffset: 1000 }).addTo(map).bindTooltip('我的位置', { direction: 'top', offset: [0, -10] });
 
-    // 加载本地存储的标记
-    loadMarkersFromStorage();
-
-    // 地图点击事件
-    map.on('click', onMapClick);
-
-    // 添加定位控件
-    L.control.locate({
-        position: 'topleft',
-        flyTo: true,
-        showPopup: true,
-        strings: {
-            title: '显示我的位置'
-        }
-    }).addTo(map);
+// ========== Marker 创建 ==========
+function createMarkerIcon(lot) {
+  const spaces = lot.availableSpaces;
+  const status = spaces === 0 ? 'no-spaces' : spaces <= 20 ? 'few-spaces' : 'has-spaces';
+  return L.divIcon({
+    className: '',
+    html: `
+      <div class="parking-marker">
+        <div class="marker-pin ${status}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M15 4v16M4 9h16M4 15h16"/></svg>
+        </div>
+        <div class="marker-label">${spaces}</div>
+      </div>`,
+    iconSize: [40, 52],
+    iconAnchor: [20, 48],
+    popupAnchor: [0, -50],
+  });
 }
 
-// ==================== 创建自定义图标 ====================
-function createCustomIcon(type) {
-    const config = markerTypes[type] || markerTypes.sight;
-    return L.divIcon({
-        className: 'custom-marker-container',
-        html: `<div class="custom-marker" style="color: ${config.color}">${config.icon}</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32]
-    });
+function getBadge(spaces) {
+  if (spaces === 0) return '<span class="badge badge-full">已满</span>';
+  if (spaces <= 20) return '<span class="badge badge-busy">紧张</span>';
+  return '<span class="badge badge-open">充裕</span>';
 }
 
-// ==================== 地图点击处理 ====================
-function onMapClick(e) {
-    const addMode = document.getElementById('addMarkerBtn').dataset.mode === 'add';
-    if (addMode) {
-        pendingLatLng = e.latlng;
-        showMarkerModal();
-    }
+function getPopupHTML(lot) {
+  const disabled = lot.availableSpaces === 0;
+  return `
+    <div class="popup-card">
+      <div class="name">${lot.name} ${getBadge(lot.availableSpaces)}</div>
+      <div class="info-row"><span>距离</span><span class="value">${lot.distance}m</span></div>
+      <div class="info-row"><span>空位</span><span class="value">${lot.availableSpaces} / ${lot.totalSpaces}</span></div>
+      <div class="info-row"><span>费用</span><span class="value">¥${lot.price}/h</span></div>
+      <div class="popup-actions">
+        <button class="popup-btn popup-btn-primary" onclick="navigateTo(${lot.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+          导航
+        </button>
+        <button class="popup-btn ${disabled ? 'popup-btn-disabled' : 'popup-btn-outline'}" onclick="${disabled ? '' : `reserveLot(${lot.id})`}" ${disabled ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          预约
+        </button>
+      </div>
+    </div>`;
 }
 
-// ==================== 显示添加标记模态框 ====================
-function showMarkerModal() {
-    const modal = document.getElementById('markerModal');
-    modal.classList.add('active');
-    document.getElementById('markerName').focus();
+function renderMarkers(lots) {
+  // 清除旧 marker
+  Object.values(state.markers).forEach(m => map.removeLayer(m));
+  state.markers = {};
+
+  lots.forEach(lot => {
+    const marker = L.marker([lot.lat, lot.lng], { icon: createMarkerIcon(lot) })
+      .addTo(map)
+      .bindPopup(getPopupHTML(lot), { closeButton: false, minWidth: 240 });
+    state.markers[lot.id] = marker;
+  });
 }
 
-// ==================== 关闭模态框 ====================
-function closeMarkerModal() {
-    const modal = document.getElementById('markerModal');
-    modal.classList.remove('active');
-    document.getElementById('markerForm').reset();
-    pendingLatLng = null;
+// ========== 筛选与排序 ==========
+function getFilteredLots() {
+  let lots = [...parkingLotData];
+
+  // 搜索
+  if (state.searchKeyword) {
+    const kw = state.searchKeyword.toLowerCase();
+    lots = lots.filter(l => l.name.includes(kw) || l.address.includes(kw));
+  }
+  // 价格
+  lots = lots.filter(l => l.price >= state.priceMin && l.price <= state.priceMax);
+  // 距离
+  if (state.distanceRange) {
+    lots = lots.filter(l => l.distance <= state.distanceRange);
+  }
+  // 类型
+  if (state.parkingType) {
+    lots = lots.filter(l => l.type === state.parkingType);
+  }
+  // 排序
+  if (state.sort === 'distance') lots.sort((a, b) => a.distance - b.distance);
+  else if (state.sort === 'price') lots.sort((a, b) => a.price - b.price);
+  else if (state.sort === 'spaces') lots.sort((a, b) => b.availableSpaces - a.availableSpaces);
+
+  return lots;
 }
 
-// ==================== 添加标记 ====================
-function addMarker(latLng, data) {
-    const markerId = Date.now().toString();
-    const icon = createCustomIcon(data.type);
+// ========== 列表渲染 ==========
+function renderList(lots) {
+  const list = document.getElementById('parkingList');
 
-    const marker = L.marker(latLng, { icon: icon }).addTo(map);
+  if (lots.length === 0) {
+    list.innerHTML = '<div class="empty-list">未找到匹配的停车场</div>';
+    return;
+  }
 
-    // 创建弹窗内容
-    const popupContent = createPopupContent(data);
-    marker.bindPopup(popupContent);
-
-    // 标记点击事件
-    marker.on('click', () => {
-        highlightMarkerItem(markerId);
-    });
-
-    // 存储标记数据
-    const markerData = {
-        id: markerId,
-        latlng: latlng,
-        data: data,
-        marker: marker
-    };
-
-    markers.push(markerData);
-    updateMarkerList();
-    saveMarkersToStorage();
-
-    // 如果不是批量添加，清除添加模式
-    if (document.getElementById('addMarkerBtn').dataset.mode === 'add') {
-        toggleAddMode();
-    }
-
-    showToast(`已添加景点：${data.name}`, 'success');
-}
-
-// ==================== 创建弹窗内容 ====================
-function createPopupContent(data) {
-    const config = markerTypes[data.type];
+  list.innerHTML = lots.map((lot, i) => {
+    const spaces = lot.availableSpaces;
+    const idxClass = spaces === 0 ? 'full' : spaces <= 20 ? 'busy' : '';
+    const spaceClass = spaces === 0 ? 'full' : spaces <= 20 ? 'few' : '';
+    const disabled = spaces === 0;
     return `
-        <div class="popup-header">
-            <span class="popup-icon">${config.icon}</span>
-            <span class="popup-title">${escapeHtml(data.name)}</span>
+      <div class="parking-card" data-id="${lot.id}" onclick="focusLot(${lot.id})">
+        <div class="card-index ${idxClass}">${i + 1}</div>
+        <div class="card-body">
+          <div class="card-name">${lot.name}</div>
+          <div class="card-address">${lot.address}</div>
+          <div class="card-tags">
+            <span class="card-tag">${lot.type}停车场</span>
+            <span class="card-tag">${formatDist(lot.distance)}</span>
+            ${lot.features.slice(0, 2).map(f => `<span class="card-tag">${f}</span>`).join('')}
+          </div>
         </div>
-        ${data.desc ? `<div class="popup-desc">${escapeHtml(data.desc)}</div>` : ''}
-        <div class="popup-coords">
-            ${data.latlng.lat.toFixed(6)}, ${data.latlng.lng.toFixed(6)}
+        <div class="card-right">
+          <div>
+            <div class="card-price">¥${lot.price}<small>/h</small></div>
+            <div class="card-spaces ${spaceClass}">空位 <strong>${spaces}</strong></div>
+          </div>
+          <div class="card-actions">
+            <button class="card-btn card-btn-nav" onclick="event.stopPropagation(); navigateTo(${lot.id})">导航</button>
+            ${disabled
+              ? '<button class="card-btn" style="background:#f0f0f0;color:#aaa;cursor:not-allowed;border:none;">已满</button>'
+              : `<button class="card-btn card-btn-reserve" onclick="event.stopPropagation(); reserveLot(${lot.id})">预约</button>`}
+          </div>
         </div>
-    `;
+      </div>`;
+  }).join('');
 }
 
-// ==================== 更新景点列表 ====================
-function updateMarkerList() {
-    const markerList = document.getElementById('markerList');
+function formatDist(d) {
+  return d >= 1000 ? (d / 1000).toFixed(1) + 'km' : d + 'm';
+}
 
-    if (markers.length === 0) {
-        markerList.innerHTML = '<p class="empty-message">暂无景点，点击地图添加</p>';
-        return;
-    }
+function updateSummary(lots) {
+  document.getElementById('totalCount').textContent = lots.length;
+  document.getElementById('totalSpaces').textContent = lots.reduce((s, l) => s + l.availableSpaces, 0);
+  document.getElementById('sheetCount').textContent = lots.length + ' 个';
+}
 
-    markerList.innerHTML = markers.map((m, index) => {
-        const config = markerTypes[m.data.type];
-        return `
-            <div class="marker-item" data-id="${m.id}" style="border-left-color: ${config.color}">
-                <div class="marker-item-header">
-                    <span class="marker-item-icon">${config.icon}</span>
-                    <span class="marker-item-name">${escapeHtml(m.data.name)}</span>
-                    <button class="marker-item-delete" onclick="deleteMarker('${m.id}')">✕</button>
-                </div>
-                ${m.data.desc ? `<div class="marker-item-desc">${escapeHtml(m.data.desc)}</div>` : ''}
-                <div class="marker-item-coords">${m.latlng.lat.toFixed(4)}, ${m.latlng.lng.toFixed(4)}</div>
-            </div>
-        `;
-    }).join('');
+// ========== 综合刷新 ==========
+function refresh() {
+  const lots = getFilteredLots();
+  renderMarkers(lots);
+  renderList(lots);
+  updateSummary(lots);
+}
 
-    // 添加列表项点击事件
-    document.querySelectorAll('.marker-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            if (!e.target.classList.contains('marker-item-delete')) {
-                const markerId = item.dataset.id;
-                const markerData = markers.find(m => m.id === markerId);
-                if (markerData) {
-                    map.setView(markerData.latlng, 15);
-                    markerData.marker.openPopup();
-                }
-            }
-        });
+// ========== 聚焦停车场 ==========
+function focusLot(id) {
+  const lot = parkingLotData.find(l => l.id === id);
+  if (!lot) return;
+
+  map.setView([lot.lat, lot.lng], 16, { animate: true });
+  if (state.markers[id]) state.markers[id].openPopup();
+
+  // 高亮卡片
+  document.querySelectorAll('.parking-card').forEach(c => c.classList.remove('highlight'));
+  document.querySelector(`.parking-card[data-id="${id}"]`)?.classList.add('highlight');
+}
+
+// ========== 导航 ==========
+function navigateTo(id) {
+  const lot = parkingLotData.find(l => l.id === id);
+  if (!lot) return;
+
+  const mode = state.transportMode === 'driving' ? 'driving' : 'walking';
+  // 尝试调起系统地图导航
+  const url = `https://uri.amap.com/navigation?from=${CENTER[1]},${CENTER[0]},我的位置&to=${lot.lng},${lot.lat},${lot.name}&mode=${mode}&coordinate=gaode&callnative=1`;
+  window.open(url, '_blank');
+  showToast(`正在为您导航至「${lot.name}」`);
+
+  // 更新UI状态
+  document.querySelectorAll('.parking-card').forEach(c => c.classList.remove('navigating'));
+  document.querySelector(`.parking-card[data-id="${id}"]`)?.classList.add('navigating');
+}
+
+// ========== 预约 ==========
+function reserveLot(id) {
+  const lot = parkingLotData.find(l => l.id === id);
+  if (!lot || lot.availableSpaces === 0) return;
+  showDetailModal(lot, true);
+}
+
+// ========== 详情弹窗 ==========
+function showDetailModal(lot, showReserveForm = false) {
+  const spaces = lot.availableSpaces;
+  const spaceClass = spaces === 0 ? 'red' : spaces <= 20 ? 'yellow' : 'green';
+  const disabled = spaces === 0;
+
+  document.getElementById('modalBody').innerHTML = `
+    <div class="detail-header">
+      <h2>${lot.name} ${getBadge(spaces)}</h2>
+      <div class="address">${lot.address}</div>
+    </div>
+
+    <div class="detail-stats">
+      <div class="stat-card">
+        <div class="stat-value blue">¥${lot.price}</div>
+        <div class="stat-label">元/小时</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value ${spaceClass}">${spaces}</div>
+        <div class="stat-label">剩余车位</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value ${spaceClass}">${lot.totalSpaces}</div>
+        <div class="stat-label">总车位</div>
+      </div>
+    </div>
+
+    <div class="detail-fee">
+      <h3>收费标准</h3>
+      <table class="fee-table">
+        <tr><td>计费类型</td><td>${lot.hourly}</td></tr>
+        <tr><td>封顶价格</td><td>${lot.daily}</td></tr>
+        <tr><td>距离</td><td>${formatDist(lot.distance)}</td></tr>
+      </table>
+    </div>
+
+    <div class="detail-features">
+      ${lot.features.map(f => `<span class="feature-tag">${f}</span>`).join('')}
+    </div>
+
+    ${showReserveForm && !disabled ? `
+      <div class="reserve-form">
+        <h3>预约车位</h3>
+        <div class="form-row">
+          <label>开始时间</label>
+          <input type="datetime-local" id="reserveStart" />
+        </div>
+        <div class="form-row">
+          <label>预计停车时长</label>
+          <select id="reserveDuration">
+            <option value="1">1 小时</option>
+            <option value="2" selected>2 小时</option>
+            <option value="3">3 小时</option>
+            <option value="4">4 小时</option>
+            <option value="8">8 小时</option>
+            <option value="24">24 小时</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>车牌号</label>
+          <input type="text" id="reservePlate" placeholder="如: 沪A·12345" maxlength="10" />
+        </div>
+        <button class="reserve-submit" onclick="submitReserve(${lot.id})">确认预约 (¥${lot.price} × 2h = ¥${lot.price * 2})</button>
+      </div>
+    ` : ''}
+
+    <div class="detail-actions">
+      <button class="detail-btn detail-btn-nav" onclick="navigateTo(${lot.id})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+        导航前往
+      </button>
+      <button class="detail-btn ${disabled ? 'detail-btn-disabled' : 'detail-btn-reserve'}" onclick="${disabled ? '' : `reserveLot(${lot.id})`}" ${disabled ? 'disabled' : ''}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+        预约车位
+      </button>
+    </div>
+  `;
+
+  // 默认时间
+  if (showReserveForm && !disabled) {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30, 0, 0);
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    document.getElementById('reserveStart').value = local;
+
+    // 时长变化时更新预估费用
+    document.getElementById('reserveDuration').addEventListener('change', (e) => {
+      const h = parseInt(e.target.value);
+      const total = lot.price * h;
+      document.querySelector('.reserve-submit').textContent = `确认预约 (¥${lot.price} × ${h}h = ¥${total})`;
     });
+  }
 
-    updateRouteInfo();
+  document.getElementById('detailModal').classList.add('show');
 }
 
-// ==================== 高亮列表项 ====================
-function highlightMarkerItem(markerId) {
-    document.querySelectorAll('.marker-item').forEach(item => {
-        item.style.background = item.dataset.id === markerId ? '#e3f2fd' : '';
-    });
+function closeModal() {
+  document.getElementById('detailModal').classList.remove('show');
 }
 
-// ==================== 删除标记 ====================
-function deleteMarker(markerId) {
-    const index = markers.findIndex(m => m.id === markerId);
-    if (index !== -1) {
-        const markerData = markers[index];
-        map.removeLayer(markerData.marker);
-        markers.splice(index, 1);
-        updateMarkerList();
-        saveMarkersToStorage();
-        showToast('已删除景点', 'success');
+function submitReserve(id) {
+  const lot = parkingLotData.find(l => l.id === id);
+  const start = document.getElementById('reserveStart').value;
+  const duration = document.getElementById('reserveDuration').value;
+  const plate = document.getElementById('reservePlate').value.trim();
 
-        // 如果有路线，重新计算
-        if (polyline) {
-            calculateRoute();
-        }
-    }
+  if (!start) return showToast('请选择开始时间');
+  if (!plate) return showToast('请输入车牌号');
+  if (!/^[\u4e00-\u9fa5][A-Z]·?\d{4,5}$/.test(plate.replace(/\s/g, ''))) return showToast('请输入正确的车牌号');
+
+  // 模拟预约成功
+  lot.availableSpaces = Math.max(0, lot.availableSpaces - 1);
+  closeModal();
+  showToast(`预约成功！已为您预留「${lot.name}」车位`);
+  refresh();
 }
 
-// ==================== 计算路线 ====================
-function calculateRoute() {
-    if (markers.length < 2) {
-        showToast('至少需要两个景点才能计算路线', 'error');
-        return;
-    }
-
-    // 移除现有路线
-    if (polyline) {
-        map.removeLayer(polyline);
-    }
-
-    // 按添加顺序创建路线点
-    const latlngs = markers.map(m => m.latlng);
-
-    // 绘制折线
-    polyline = L.polyline(latlngs, {
-        color: '#2196F3',
-        weight: 4,
-        opacity: 0.7,
-        dashArray: '10, 10'
-    }).addTo(map);
-
-    // 计算总距离
-    let totalDistance = 0;
-    for (let i = 0; i < latlngs.length - 1; i++) {
-        totalDistance += latlngs[i].distanceTo(latlngs[i + 1]);
-    }
-
-    // 更新路线信息
-    updateRouteInfo(totalDistance);
-
-    // 调整地图视野以显示完整路线
-    map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-
-    showToast(`路线已生成，总距离：${formatDistance(totalDistance)}`, 'success');
+// ========== Toast ==========
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-// ==================== 更新路线信息 ====================
-function updateRouteInfo(distance = null) {
-    const routeInfo = document.getElementById('routeInfo');
-    const totalDistanceEl = document.getElementById('totalDistance');
-    const markerCountEl = document.getElementById('markerCount');
-
-    if (distance !== null) {
-        routeInfo.style.display = 'block';
-        totalDistanceEl.textContent = formatDistance(distance);
-    }
-
-    markerCountEl.textContent = markers.length;
-}
-
-// ==================== 格式化距离 ====================
-function formatDistance(meters) {
-    if (meters < 1000) {
-        return `${Math.round(meters)} m`;
-    } else {
-        return `${(meters / 1000).toFixed(2)} km`;
-    }
-}
-
-// ==================== 切换添加模式 ====================
-function toggleAddMode() {
-    const btn = document.getElementById('addMarkerBtn');
-    const isAddMode = btn.dataset.mode === 'add';
-
-    if (isAddMode) {
-        btn.dataset.mode = 'view';
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-secondary');
-        btn.innerHTML = '<span class="btn-icon">👁️</span> 浏览';
-        map.getContainer().style.cursor = '';
-    } else {
-        btn.dataset.mode = 'add';
-        btn.classList.remove('btn-secondary');
-        btn.classList.add('btn-primary');
-        btn.innerHTML = '<span class="btn-icon">📍</span> 添加景点';
-        map.getContainer().style.cursor = 'crosshair';
-        showToast('点击地图添加景点', 'success');
-    }
-}
-
-// ==================== 清除所有标记 ====================
-function clearAllMarkers() {
-    if (markers.length === 0) {
-        showToast('没有可清除的景点', 'error');
-        return;
-    }
-
-    if (!confirm('确定要清除所有景点吗？')) {
-        return;
-    }
-
-    markers.forEach(m => map.removeLayer(m.marker));
-    markers = [];
-
-    if (polyline) {
-        map.removeLayer(polyline);
-        polyline = null;
-    }
-
-    updateMarkerList();
-    saveMarkersToStorage();
-    document.getElementById('routeInfo').style.display = 'none';
-
-    showToast('已清除所有景点', 'success');
-}
-
-// ==================== 本地存储 ====================
-function saveMarkersToStorage() {
-    const data = markers.map(m => ({
-        id: m.id,
-        latlng: { lat: m.latlng.lat, lng: m.latlng.lng },
-        data: m.data
-    }));
-    localStorage.setItem('travelMapMarkers', JSON.stringify(data));
-}
-
-function loadMarkersFromStorage() {
-    const stored = localStorage.getItem('travelMapMarkers');
-    if (stored) {
-        try {
-            const data = JSON.parse(stored);
-            data.forEach(item => {
-                const latlng = L.latLng(item.latlng.lat, item.latlng.lng);
-                addMarker(latlng, item.data);
-            });
-        } catch (e) {
-            console.error('加载存储的标记失败:', e);
-        }
-    }
-}
-
-// ==================== Toast 通知 ====================
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast ${type} active`;
-
-    setTimeout(() => {
-        toast.classList.remove('active');
-    }, 3000);
-}
-
-// ==================== HTML 转义 ====================
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// ==================== 网络状态监听 ====================
-function initNetworkStatus() {
-    // 创建离线提示横幅
-    const banner = document.createElement('div');
-    banner.className = 'offline-banner';
-    banner.textContent = '⚠️ 当前处于离线模式，部分功能可能受限';
-    document.body.appendChild(banner);
-
-    function updateOnlineStatus() {
-        if (navigator.onLine) {
-            banner.classList.remove('active');
-            showToast('网络已连接', 'success');
-        } else {
-            banner.classList.add('active');
-            showToast('网络已断开，使用离线模式', 'error');
-        }
-    }
-
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-}
-
-// ==================== PWA 安装 ====================
-let deferredPrompt;
-function initPWAInstall() {
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-
-        // 显示安装提示
-        const promptDiv = document.createElement('div');
-        promptDiv.className = 'install-prompt active';
-        promptDiv.innerHTML = `
-            <p>📱 安装此应用到桌面，获得更好的体验！</p>
-            <div class="buttons">
-                <button class="btn btn-secondary btn-sm" onclick="dismissInstall()">稍后</button>
-                <button class="btn btn-primary btn-sm" onclick="installPWA()">安装</button>
-            </div>
-        `;
-        document.body.appendChild(promptDiv);
-    });
-}
-
-window.installPWA = function() {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-                showToast('应用安装中...', 'success');
-            }
-            deferredPrompt = null;
-            dismissInstall();
-        });
-    }
-};
-
-window.dismissInstall = function() {
-    const prompt = document.querySelector('.install-prompt');
-    if (prompt) prompt.remove();
-};
-
-// ==================== Service Worker 注册 ====================
-function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js')
-            .then((registration) => {
-                console.log('Service Worker 注册成功:', registration.scope);
-
-                // 监听更新
-                registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            showToast('有新版本可用，刷新页面更新', 'success');
-                        }
-                    });
-                });
-            })
-            .catch((error) => {
-                console.log('Service Worker 注册失败:', error);
-            });
-    }
-}
-
-// ==================== 初始化应用 ====================
-document.addEventListener('DOMContentLoaded', () => {
-    initMap();
-    initNetworkStatus();
-    registerServiceWorker();
-    initPWAInstall();
-
-    // 事件监听
-    document.getElementById('addMarkerBtn').addEventListener('click', toggleAddMode);
-    document.getElementById('routeBtn').addEventListener('click', calculateRoute);
-    document.getElementById('clearBtn').addEventListener('click', clearAllMarkers);
-
-    document.getElementById('closeSidebar').addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('collapsed');
-    });
-
-    document.getElementById('closeModal').addEventListener('click', closeMarkerModal);
-    document.getElementById('cancelMarker').addEventListener('click', closeMarkerModal);
-
-    document.getElementById('markerForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('markerName').value.trim();
-        const desc = document.getElementById('markerDesc').value.trim();
-        const type = document.querySelector('input[name="markerType"]:checked').value;
-
-        if (name && pendingLatLng) {
-            const data = {
-                name: name,
-                desc: desc,
-                type: type,
-                latlng: { lat: pendingLatLng.lat, lng: pendingLatLng.lng }
-            };
-            addMarker(pendingLatLng, data);
-            closeMarkerModal();
-        }
-    });
-
-    // 点击模态框外部关闭
-    document.getElementById('markerModal').addEventListener('click', (e) => {
-        if (e.target.id === 'markerModal') {
-            closeMarkerModal();
-        }
-    });
-
-    // 键盘快捷键
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeMarkerModal();
-        }
-    });
-
-    showToast('欢迎使用旅行地图！点击"添加景点"开始', 'success');
+// ========== 搜索 ==========
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  state.searchKeyword = e.target.value;
+  refresh();
 });
 
-// 使函数在全局可用
-window.deleteMarker = deleteMarker;
+// ========== 排序按钮 ==========
+document.querySelectorAll('.filter-btn[data-sort]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-sort]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.sort = btn.dataset.sort;
+    refresh();
+  });
+});
+
+// ========== 筛选面板 ==========
+document.getElementById('filterPanelToggle').addEventListener('click', () => {
+  document.getElementById('filterPanel').classList.toggle('open');
+});
+
+// 价格 slider
+['priceMin', 'priceMax'].forEach(key => {
+  document.getElementById(key).addEventListener('input', (e) => {
+    const val = parseInt(e.target.value);
+    document.getElementById(key + 'Val').textContent = key === 'priceMin' ? `¥${val}` : `¥${val}/h`;
+  });
+});
+
+// 距离 chip
+document.querySelectorAll('.chip[data-range]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.chip[data-range]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.distanceRange = chip.dataset.range === 'all' ? null : parseInt(chip.dataset.range);
+  });
+});
+
+// 类型 chip
+document.querySelectorAll('.chip[data-type]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.parkingType = chip.dataset.type === 'all' ? null : chip.dataset.type;
+  });
+});
+
+// 应用筛选
+document.getElementById('filterApply').addEventListener('click', () => {
+  state.priceMin = parseInt(document.getElementById('priceMin').value);
+  state.priceMax = parseInt(document.getElementById('priceMax').value);
+  document.getElementById('filterPanel').classList.remove('open');
+  refresh();
+});
+
+// ========== 交通方式切换 ==========
+document.querySelectorAll('.transport-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.transportMode = btn.dataset.mode;
+  });
+});
+
+// ========== 底部抽屉拖拽 ==========
+const sheet = document.getElementById('bottomSheet');
+const handle = document.getElementById('sheetHandle');
+let sheetTouch = null;
+
+handle.addEventListener('touchstart', (e) => {
+  sheetTouch = { startY: e.touches[0].clientY };
+});
+handle.addEventListener('touchmove', (e) => {
+  if (!sheetTouch) return;
+  const dy = e.touches[0].clientY - sheetTouch.startY;
+  if (dy < 0) {
+    // 上拉展开
+    sheet.style.transform = 'translateY(0)';
+    state.sheetExpanded = true;
+  } else if (dy > 60) {
+    // 下拉收起
+    sheet.style.transform = '';
+    state.sheetExpanded = false;
+  }
+});
+handle.addEventListener('touchend', () => { sheetTouch = null; });
+handle.addEventListener('click', () => {
+  state.sheetExpanded = !state.sheetExpanded;
+  if (state.sheetExpanded) {
+    sheet.style.maxHeight = '70vh';
+    sheet.style.transform = 'translateY(0)';
+  } else {
+    sheet.style.maxHeight = '';
+    sheet.style.transform = '';
+  }
+});
+
+// ========== 关闭弹窗 ==========
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('detailModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ========== 模拟实时车位变化 ==========
+setInterval(() => {
+  const lot = parkingLotData[Math.floor(Math.random() * parkingLotData.length)];
+  const delta = Math.random() > 0.5 ? 1 : -1;
+  lot.availableSpaces = Math.max(0, Math.min(lot.totalSpaces, lot.availableSpaces + delta));
+  refresh();
+}, 8000);
+
+// ========== 定位用户位置(可选) ==========
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude } = pos.coords;
+      map.setView([latitude, longitude], 14, { animate: true });
+    },
+    () => { /* 用户拒绝或定位失败，使用默认位置 */ }
+  );
+}
+
+// ========== 启动 ==========
+refresh();

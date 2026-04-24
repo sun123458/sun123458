@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>智慧停车 - 周边停车场查询</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 顶部筛选栏 -->
+  <header class="top-bar">
+    <div class="search-box">
+      <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="搜索停车场名称或地址" />
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" data-sort="distance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v8m0 0l-5 5m5-5l5 5"/><circle cx="12" cy="22" r="1"/></svg>
+        距离优先
+      </button>
+      <button class="filter-btn" data-sort="price">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="4" y="18" font-size="14" fill="currentColor" stroke="none">¥</text><path d="M4 4h16"/></svg>
+        价格优先
+      </button>
+      <button class="filter-btn" data-sort="spaces" id="filterSpaces">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        车位最多
+      </button>
+      <button class="filter-btn" id="filterPanelToggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7m0 0V4m0 10h10m11-10v7m0 0v10m0-7H14"/></svg>
+        筛选
+      </button>
+    </div>
+    <!-- 高级筛选面板 -->
+    <div class="filter-panel" id="filterPanel">
+      <div class="filter-group">
+        <label>价格范围</label>
+        <div class="range-slider">
+          <input type="range" id="priceMin" min="0" max="20" value="0" step="1">
+          <span id="priceMinVal">¥0</span>
+          <span>—</span>
+          <input type="range" id="priceMax" min="0" max="20" value="20" step="1">
+          <span id="priceMaxVal">¥20/h</span>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>距我范围内</label>
+        <div class="chip-group">
+          <button class="chip active" data-range="all">全部</button>
+          <button class="chip" data-range="500">500m</button>
+          <button class="chip" data-range="1000">1km</button>
+          <button class="chip" data-range="2000">2km</button>
+          <button class="chip" data-range="5000">5km</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>停车场类型</label>
+        <div class="chip-group">
+          <button class="chip active" data-type="all">全部</button>
+          <button class="chip" data-type="地面">地面</button>
+          <button class="chip" data-type="地下">地下</button>
+          <button class="chip" data-type="立体">立体</button>
+        </div>
+      </div>
+      <button class="filter-apply" id="filterApply">应用筛选</button>
+    </div>
+  </header>
+
+  <!-- 主体地图 -->
+  <div id="map"></div>
+
+  <!-- 空位提示浮层 -->
+  <div class="map-summary" id="mapSummary">
+    <span id="totalCount">0</span> 个停车场 · <span id="totalSpaces">0</span> 个空位
+  </div>
+
+  <!-- 交通工具切换 -->
+  <div class="transport-toggle" id="transportToggle">
+    <button class="transport-btn active" data-mode="driving">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h14M5 17a2 2 0 01-2-2V9a2 2 0 012-2h1l2-3h8l2 3h1a2 2 0 012 2v6a2 2 0 01-2 2M5 17a2 2 0 100 4 2 2 0 000-4zm14 0a2 2 0 100 4 2 2 0 000-4"/></svg>
+      驾车
+    </button>
+    <button class="transport-btn" data-mode="walking">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><path d="M10 22l2-7m0 0l2 7m-2-7v-3l4-3-1-4"/></svg>
+      步行
+    </button>
+  </div>
+
+  <!-- 底部停车场列表 -->
+  <div class="bottom-sheet" id="bottomSheet">
+    <div class="sheet-handle" id="sheetHandle">
+      <div class="handle-bar"></div>
+      <span>停车场列表</span>
+      <span class="sheet-count" id="sheetCount">0 个</span>
+    </div>
+    <div class="parking-list" id="parkingList">
+      <!-- 动态渲染 -->
+    </div>
+  </div>
+
+  <!-- 停车场详情弹窗 -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- 预约成功提示 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
