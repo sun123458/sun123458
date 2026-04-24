@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品详情</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: #f5f5f5; color: #333; }
+
+/* ===== 顶部导航 ===== */
+.top-bar { display: flex; align-items: center; justify-content: center; height: 48px; background: #fff; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.top-bar .back { position: absolute; left: 12px; font-size: 22px; cursor: pointer; user-select: none; color: #333; }
+.top-bar .title { font-size: 16px; font-weight: 600; }
+.top-bar .cart-icon { position: absolute; right: 16px; font-size: 20px; cursor: pointer; position: relative; }
+.top-bar .cart-badge { position: absolute; top: -6px; right: -10px; background: #ff4d4f; color: #fff; font-size: 11px; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+
+/* ===== 图片轮播 ===== */
+.carousel { position: relative; width: 100%; max-width: 480px; margin: 0 auto; aspect-ratio: 1; overflow: hidden; background: #fff; }
+.carousel-inner { display: flex; transition: transform .4s ease; height: 100%; }
+.carousel-inner img { min-width: 100%; height: 100%; object-fit: cover; }
+.carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,.25); color: #fff; border: none; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .3s; }
+.carousel:hover .carousel-btn { opacity: 1; }
+.carousel-btn.prev { left: 8px; }
+.carousel-btn.next { right: 8px; }
+.carousel-dots { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+.carousel-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.5); transition: .3s; cursor: pointer; }
+.carousel-dots span.active { background: #fff; width: 20px; border-radius: 4px; }
+
+/* ===== 商品信息区 ===== */
+main { max-width: 480px; margin: 0 auto; padding: 0 0 70px; }
+.info-card { background: #fff; padding: 14px 16px; margin-bottom: 8px; }
+.price-row { display: flex; align-items: baseline; gap: 8px; }
+.price-now { font-size: 26px; font-weight: 700; color: #ff4d4f; }
+.price-now::before { content: "¥"; font-size: 14px; }
+.price-old { font-size: 13px; color: #999; text-decoration: line-through; }
+.price-unit { font-size: 12px; color: #999; }
+.product-title { font-size: 15px; font-weight: 500; line-height: 1.5; margin-top: 8px; }
+.product-desc { font-size: 12px; color: #999; margin-top: 4px; }
+
+/* ===== 规格选择 ===== */
+.spec-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: #555; }
+.spec-group { margin-bottom: 14px; }
+.spec-group:last-child { margin-bottom: 0; }
+.spec-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+.spec-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.spec-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid #ddd; background: #f7f7f7; font-size: 13px; cursor: pointer; transition: .2s; color: #333; }
+.spec-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
+.spec-btn.active { border-color: #ff4d4f; color: #ff4d4f; background: #fff0f0; }
+.spec-btn.disabled { color: #ccc; border-color: #eee; cursor: not-allowed; background: #fff; }
+
+/* ===== 数量选择 ===== */
+.quantity-row { display: flex; align-items: center; justify-content: space-between; }
+.quantity-controls { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+.qty-btn { width: 34px; height: 34px; border: none; background: #f7f7f7; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: .2s; color: #555; }
+.qty-btn:hover { background: #eee; }
+.qty-btn:disabled { color: #ccc; cursor: not-allowed; }
+.qty-input { width: 44px; text-align: center; border: none; border-left: 1px solid #ddd; border-right: 1px solid #ddd; font-size: 15px; font-weight: 600; outline: none; height: 34px; }
+.qty-stock { font-size: 12px; color: #999; }
+
+/* ===== 服务保障 ===== */
+.service-list { display: flex; gap: 16px; font-size: 12px; color: #888; }
+.service-list span::before { content: "✓ "; color: #52c41a; font-weight: bold; }
+
+/* ===== 评价区 ===== */
+.review-header { font-size: 14px; font-weight: 600; margin-bottom: 10px; display: flex; justify-content: space-between; }
+.review-header .count { font-size: 12px; color: #999; font-weight: 400; }
+.review-item { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f0f0; }
+.review-avatar { width: 32px; height: 32px; border-radius: 50%; background: #ffecd2; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #ff9800; flex-shrink: 0; }
+.review-content { flex: 1; }
+.review-user { font-size: 13px; font-weight: 500; }
+.review-text { font-size: 13px; color: #666; margin-top: 4px; line-height: 1.5; }
+.review-meta { font-size: 11px; color: #bbb; margin-top: 4px; }
+
+/* ===== 底部操作栏 ===== */
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: #fff; display: flex; align-items: center; border-top: 1px solid #eee; z-index: 100; }
+.bottom-inner { max-width: 480px; width: 100%; margin: 0 auto; display: flex; align-items: center; padding: 0 16px; }
+.bottom-icons { display: flex; gap: 20px; margin-right: auto; }
+.bottom-icon-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: #666; cursor: pointer; }
+.bottom-icon-item .icon { font-size: 20px; margin-bottom: 2px; position: relative; }
+.btn-add-cart { height: 38px; padding: 0 20px; border-radius: 20px; border: 1px solid #ff6b6b; background: #fff; color: #ff4d4f; font-size: 14px; font-weight: 600; cursor: pointer; margin-right: 8px; transition: .2s; }
+.btn-add-cart:hover { background: #fff5f5; }
+.btn-buy { height: 38px; padding: 0 20px; border-radius: 20px; border: none; background: linear-gradient(135deg, #ff6b6b, #ff4d4f); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: .2s; box-shadow: 0 2px 8px rgba(255,77,79,.3); }
+.btn-buy:hover { box-shadow: 0 4px 12px rgba(255,77,79,.4); }
+
+/* ===== Toast ===== */
+.toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(.8); background: rgba(0,0,0,.72); color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; z-index: 999; opacity: 0; transition: .3s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<div class="top-bar">
+  <span class="back" onclick="history.back()">‹</span>
+  <span class="title">商品详情</span>
+  <span class="cart-icon" onclick="scrollToCart()">
+    🛒
+    <span class="cart-badge" id="cartBadge" style="display:none">0</span>
+  </span>
+</div>
+
+<!-- 图片轮播 -->
+<div class="carousel" id="carousel">
+  <div class="carousel-inner" id="carouselInner">
+    <img src="https://picsum.photos/seed/phone1/480/480" alt="商品图1">
+    <img src="https://picsum.photos/seed/phone2/480/480" alt="商品图2">
+    <img src="https://picsum.photos/seed/phone3/480/480" alt="商品图3">
+    <img src="https://picsum.photos/seed/phone4/480/480" alt="商品图4">
+  </div>
+  <button class="carousel-btn prev" onclick="slideCarousel(-1)">‹</button>
+  <button class="carousel-btn next" onclick="slideCarousel(1)">›</button>
+  <div class="carousel-dots" id="carouselDots"></div>
+</div>
+
+<main>
+  <!-- 价格 & 标题 -->
+  <div class="info-card">
+    <div class="price-row">
+      <span class="price-now" id="priceNow">5999</span>
+      <span class="price-old">¥6999</span>
+      <span class="price-unit">已降1000元</span>
+    </div>
+    <h1 class="product-title">新智能手机 Pro Max 2026 旗舰影像 超长续航 AI芯片 高刷屏</h1>
+    <p class="product-desc">10万人好评 · 月销3.2万件 · 7天无理由退换</p>
+  </div>
+
+  <!-- 规格选择 -->
+  <div class="info-card">
+    <div class="spec-title">选择规格</div>
+    <div id="specContainer"></div>
+  </div>
+
+  <!-- 数量选择 -->
+  <div class="info-card">
+    <div class="quantity-row">
+      <div>
+        <span class="spec-label" style="margin-bottom:0">购买数量</span>
+        <span class="qty-stock" id="qtyStock">库存充足</span>
+      </div>
+      <div class="quantity-controls">
+        <button class="qty-btn" id="qtyMinus" onclick="changeQty(-1)">−</button>
+        <input class="qty-input" id="qtyInput" value="1" readonly>
+        <button class="qty-btn" id="qtyPlus" onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 小计 -->
+  <div class="info-card" style="background: linear-gradient(135deg, #fff8f8, #fff); border-left: 3px solid #ff4d4f;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:14px; color:#888;">小计</span>
+      <span style="font-size:24px; color:#ff4d4f; font-weight:700;" id="subtotal">¥5,999</span>
+    </div>
+  </div>
+
+  <!-- 服务保障 -->
+  <div class="info-card">
+    <div class="service-list">
+      <span>正品保障</span>
+      <span>极速退款</span>
+      <span>七天退换</span>
+      <span>全国包邮</span>
+    </div>
+  </div>
+
+  <!-- 用户评价 -->
+  <div class="info-card">
+    <div class="review-header">
+      <span>用户评价</span>
+      <span class="count">好评率 99.2%（2.6万条）</span>
+    </div>
+    <div class="review-item">
+      <div class="review-avatar">王</div>
+      <div class="review-content">
+        <div class="review-user">王***明</div>
+        <div class="review-text">拍照效果很棒，夜景模式清晰，电池用了一整天还有40%，非常满意的一次购物体验！</div>
+        <div class="review-meta">2026-04-20 · 星光色 · 256GB</div>
+      </div>
+    </div>
+    <div class="review-item">
+      <div class="review-avatar">李</div>
+      <div class="review-content">
+        <div class="review-user">李***华</div>
+        <div class="review-text">运行速度很快，打游戏一点也不卡，屏幕显示效果细腻。快递也很快，第二天就到了。</div>
+        <div class="review-meta">2026-04-18 · 曜石黑 · 512GB</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 底部操作栏 -->
+<div class="bottom-bar">
+  <div class="bottom-inner">
+    <div class="bottom-icons">
+      <div class="bottom-icon-item" onclick="showToast('已收藏')"><span class="icon">♡</span>收藏</div>
+      <div class="bottom-icon-item" onclick="showToast('进入店铺')"><span class="icon">🏪</span>店铺</div>
+    </div>
+    <button class="btn-add-cart" onclick="addToCart()">加入购物车</button>
+    <button class="btn-buy" onclick="buyNow()">立即购买</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== 商品数据 ======
+const product = {
+  basePrice: 5999,
+  images: [
+    'https://picsum.photos/seed/phone1/480/480',
+    'https://picsum.photos/seed/phone2/480/480',
+    'https://picsum.photos/seed/phone3/480/480',
+    'https://picsum.photos/seed/phone4/480/480',
+  ],
+  specs: [
+    {
+      name: '颜色',
+      options: ['星光色', '曜石黑', '远峰蓝', '薰衣紫'],
+      priceMap: { '远峰蓝': 200, '薰衣紫': 300 }
+    },
+    {
+      name: '存储',
+      options: ['128GB', '256GB', '512GB', '1TB'],
+      priceMap: { '256GB': 500, '512GB': 1500, '1TB': 3000 }
+    }
+  ],
+  stock: 2300
+};
+
+// ====== 状态 ======
+let selectedSpecs = { '颜色': '星光色', '存储': '128GB' };
+let quantity = 1;
+let cartCount = 0;
+let currentSlide = 0;
+
+// ====== 轮播 ======
+function initCarousel() {
+  const dots = document.getElementById('carouselDots');
+  dots.innerHTML = product.images.map((_, i) =>
+    `<span class="${i === 0 ? 'active' : ''}" onclick="goToSlide(${i})"></span>`
+  ).join('');
+
+  // 触摸滑动
+  const el = document.getElementById('carousel');
+  let startX = 0;
+  el.addEventListener('touchstart', e => startX = e.changedTouches[0].clientX);
+  el.addEventListener('touchend', e => {
+    const diff = startX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) slideCarousel(diff > 0 ? 1 : -1);
+  });
+}
+
+function slideCarousel(dir) {
+  const total = product.images.length;
+  currentSlide = (currentSlide + dir + total) % total;
+  updateCarousel();
+}
+
+function goToSlide(i) {
+  currentSlide = i;
+  updateCarousel();
+}
+
+function updateCarousel() {
+  document.getElementById('carouselInner').style.transform = `translateX(-${currentSlide * 100}%)`;
+  document.querySelectorAll('.carousel-dots span').forEach((dot, i) => {
+    dot.className = i === currentSlide ? 'active' : '';
+  });
+}
+
+// ====== 规格渲染 ======
+function renderSpecs() {
+  const container = document.getElementById('specContainer');
+  container.innerHTML = product.specs.map(group => `
+    <div class="spec-group">
+      <div class="spec-label">${group.name}：${selectedSpecs[group.name]}</div>
+      <div class="spec-options">
+        ${group.options.map(opt => {
+          const diff = group.priceMap[opt] || 0;
+          const suffix = diff > 0 ? ` +¥${diff}` : '';
+          const active = selectedSpecs[group.name] === opt ? 'active' : '';
+          return `<button class="spec-btn ${active}" onclick="selectSpec('${group.name}','${opt}')">${opt}${suffix}</button>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectSpec(groupName, option) {
+  selectedSpecs[groupName] = option;
+  renderSpecs();
+  updatePrice();
+}
+
+// ====== 价格计算 ======
+function calcPrice() {
+  let extra = 0;
+  for (const group of product.specs) {
+    extra += group.priceMap[selectedSpecs[group.name]] || 0;
+  }
+  return product.basePrice + extra;
+}
+
+function updatePrice() {
+  const price = calcPrice();
+  document.getElementById('priceNow').textContent = price.toLocaleString();
+  updateSubtotal();
+}
+
+function updateSubtotal() {
+  const total = calcPrice() * quantity;
+  document.getElementById('subtotal').textContent = `¥${total.toLocaleString()}`;
+}
+
+// ====== 数量操作 ======
+function changeQty(delta) {
+  const newVal = quantity + delta;
+  if (newVal < 1 || newVal > product.stock) return;
+  quantity = newVal;
+  document.getElementById('qtyInput').value = quantity;
+  document.getElementById('qtyMinus').disabled = quantity <= 1;
+  document.getElementById('qtyPlus').disabled = quantity >= product.stock;
+  document.getElementById('qtyStock').textContent = quantity >= product.stock ? '已达库存上限' : `库存充足（剩${(product.stock - quantity).toLocaleString()}件）`;
+  updateSubtotal();
+}
+
+// ====== 购物车 ======
+function addToCart() {
+  cartCount += quantity;
+  const badge = document.getElementById('cartBadge');
+  badge.textContent = cartCount > 99 ? '99+' : cartCount;
+  badge.style.display = 'flex';
+  showToast(`已加入购物车 × ${quantity}`);
+}
+
+function buyNow() {
+  const specStr = Object.entries(selectedSpecs).map(([k, v]) => v).join(' / ');
+  const total = calcPrice() * quantity;
+  showToast(`下单成功：${specStr} × ${quantity}，共 ¥${total.toLocaleString()}`);
+}
+
+function scrollToCart() {
+  showToast(`购物车共 ${cartCount} 件商品`);
+}
+
+// ====== Toast ======
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+// ====== 初始化 ======
+initCarousel();
+renderSpecs();
+updatePrice();
+</script>
+</body>
+</html>
