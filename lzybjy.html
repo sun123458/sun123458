@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>粒子雨背景动效</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  #particle-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  section {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  section h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 20px rgba(255,255,255,0.3);
+  }
+
+  section p {
+    max-width: 600px;
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: rgba(255,255,255,0.75);
+  }
+
+  .hint {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.9rem;
+    animation: bounce 2s infinite;
+    pointer-events: none;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+
+  /* ---- Controls Panel ---- */
+  .controls {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 1.2rem 1.4rem;
+    color: #fff;
+    font-size: 0.85rem;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    pointer-events: auto;
+  }
+
+  .controls label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    white-space: nowrap;
+  }
+
+  .controls input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.25);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.4);
+    box-shadow: 0 0 10px rgba(255,255,255,0.3);
+  }
+
+  .controls .speed-value {
+    display: inline-block;
+    width: 36px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: "SF Mono", "Fira Code", monospace;
+  }
+
+  .color-indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    transition: background 0.4s;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="particle-canvas"></canvas>
+
+<!-- Controls -->
+<div class="controls">
+  <label>
+    🌧 下落速度
+    <span style="display:flex;align-items:center;gap:6px;">
+      <input type="range" id="speed-slider" min="0.5" max="3" step="0.1" value="1">
+      <span class="speed-value" id="speed-label">1×</span>
+    </span>
+  </label>
+  <label>
+    当前色调
+    <span class="color-indicator" id="hue-indicator"></span>
+  </label>
+  <label style="font-size:0.75rem;color:rgba(255,255,255,0.5);justify-content:flex-start;">
+    向下滚动增加粒子密度
+  </label>
+</div>
+
+<!-- Demo content -->
+<div class="content">
+  <section>
+    <h2>粒子雨背景</h2>
+    <p>彩色粒子如雨滴般从屏幕顶部飘落，颜色随时间随机切换，下落速度可自由调节。向下滚动页面，粒子密度会逐渐增加。</p>
+  </section>
+
+  <section>
+    <h2>平滑动画</h2>
+    <p>基于 Canvas 和 requestAnimationFrame 实现，采用对象池复用机制，确保在大量粒子同时渲染时依然保持 60fps 流畅体验。</p>
+  </section>
+
+  <section>
+    <h2>滚动联动</h2>
+    <p>继续向下滚动，你会发现粒子越来越密集。密度根据页面滚动距离平滑过渡，不会有突兀的跳变。</p>
+  </section>
+
+  <section>
+    <h2>色彩变幻</h2>
+    <p>粒子颜色取自 HSL 色环，色调随时间缓慢旋转，同时每个粒子出生时带有随机色相偏移，呈现出丰富的色彩层次。</p>
+  </section>
+
+  <section>
+    <h2>性能优化</h2>
+    <p>粒子数量设有上限，死粒子即时回收复用，避免 GC 压力。滚动事件通过标志位在动画帧内批量处理，不会触发多余的重绘。</p>
+  </section>
+</div>
+
+<div class="hint">↓ 向下滚动 ↓</div>
+
+<script>
+(function () {
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // ---- State ----
+  const particles = [];
+  const MAX_PARTICLES = 300;
+  const BASE_COUNT = 80;
+  const BONUS_COUNT = 160; // extra at max scroll
+
+  let width, height;
+  let speedMultiplier = 1;
+  let targetDensity = BASE_COUNT;
+  let currentDensity = BASE_COUNT;
+  let globalHue = 200; // starting hue
+  let needsDensityUpdate = false;
+
+  // ---- Controls ----
+  const speedSlider = document.getElementById('speed-slider');
+  const speedLabel = document.getElementById('speed-label');
+  const hueIndicator = document.getElementById('hue-indicator');
+
+  speedSlider.addEventListener('input', function () {
+    speedMultiplier = parseFloat(this.value);
+    speedLabel.textContent = speedMultiplier.toFixed(1) + '×';
+  });
+
+  // ---- Resize ----
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  window.addEventListener('resize', function () {
+    resize();
+    updateDensity();
+  }, { passive: true });
+  resize();
+
+  hueIndicator.style.background = 'hsl(200, 80%, 60%)';
+
+  // ---- Scroll density ----
+  function updateDensity() {
+    const scrollY = window.scrollY || window.pageYOffset;
+    const docH = document.documentElement.scrollHeight - height;
+    const maxScroll = Math.max(docH, 1);
+    const t = Math.min(scrollY / maxScroll, 1);
+    targetDensity = Math.round(BASE_COUNT + t * BONUS_COUNT);
+  }
+
+  window.addEventListener('scroll', function () {
+    needsDensityUpdate = true;
+  }, { passive: true });
+
+  // ---- Particle pool ----
+  function createParticle(y) {
+    return {
+      x: Math.random() * width,
+      y: typeof y === 'number' ? y : Math.random() * -height,
+      baseSpeed: 60 + Math.random() * 180,
+      size: 1.2 + Math.random() * 2.8,
+      hueOffset: Math.random() * 60 - 30,
+      opacity: 0.3 + Math.random() * 0.5,
+      alive: true
+    };
+  }
+
+  function resetParticle(p) {
+    p.x = Math.random() * width;
+    p.y = Math.random() * -80;
+    p.baseSpeed = 60 + Math.random() * 180;
+    p.size = 1.2 + Math.random() * 2.8;
+    p.hueOffset = Math.random() * 60 - 30;
+    p.opacity = 0.3 + Math.random() * 0.5;
+    p.alive = true;
+  }
+
+  // Seed initial particles
+  for (let i = 0; i < BASE_COUNT; i++) {
+    particles.push(createParticle(Math.random() * height));
+  }
+
+  // ---- Animation loop ----
+  let lastTime = performance.now();
+
+  function tick(now) {
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    // Handle scroll-driven density
+    if (needsDensityUpdate) {
+      updateDensity();
+      needsDensityUpdate = false;
+    }
+
+    // Lerp current density toward target
+    currentDensity += (targetDensity - currentDensity) * 4 * dt;
+    const desiredCount = Math.round(currentDensity);
+
+    // Rotate global hue slowly
+    globalHue = (globalHue + 18 * dt) % 360;
+    hueIndicator.style.background = 'hsl(' + Math.round(globalHue) + ', 80%, 60%)';
+
+    // Spawn / trim particles to match desiredCount
+    while (particles.length < desiredCount && particles.length < MAX_PARTICLES) {
+      particles.push(createParticle(-Math.random() * height));
+    }
+    // Mark excess as dead (will be recycled, not spliced)
+    for (let i = desiredCount; i < particles.length; i++) {
+      particles[i].alive = false;
+    }
+
+    // Clear
+    ctx.clearRect(0, 0, width, height);
+
+    // Update & draw
+    const effectiveSpeed = speedMultiplier;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+
+      if (!p.alive) {
+        // Recycle dead particle: reset if under max, else skip drawing
+        if (i < desiredCount) {
+          resetParticle(p);
+        }
+        continue;
+      }
+
+      // Move
+      p.y += p.baseSpeed * effectiveSpeed * dt;
+
+      // Off-screen check
+      if (p.y > height + 10) {
+        if (i < desiredCount) {
+          resetParticle(p);
+          p.y = -10 - Math.random() * 40;
+        } else {
+          p.alive = false;
+        }
+        continue;
+      }
+
+      // Compute color from globalHue + per-particle offset
+      const hue = (globalHue + p.hueOffset + 360) % 360;
+      const color = 'hsla(' + Math.round(hue) + ', 75%, 60%, ' + p.opacity.toFixed(2) + ')';
+
+      // Draw
+      ctx.fillStyle = color;
+      ctx.fillRect(p.x, p.y, p.size, p.size * 3.5);
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
