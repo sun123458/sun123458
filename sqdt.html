@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时区地图工具</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Header */
+.header {
+  height: 56px; background: #1a1a2e; color: #fff; display: flex;
+  align-items: center; padding: 0 20px; gap: 16px; flex-shrink: 0; z-index: 1000;
+}
+.header h1 { font-size: 18px; white-space: nowrap; }
+.search-box {
+  flex: 1; max-width: 360px; position: relative; margin-left: auto;
+}
+.search-box input {
+  width: 100%; padding: 8px 12px 8px 36px; border: 1px solid #444;
+  border-radius: 20px; background: #16213e; color: #eee; font-size: 14px; outline: none;
+}
+.search-box input::placeholder { color: #888; }
+.search-box input:focus { border-color: #e94560; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #888; font-size: 14px; }
+.search-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; background: #16213e;
+  border: 1px solid #444; border-radius: 8px; margin-top: 4px;
+  max-height: 300px; overflow-y: auto; display: none; z-index: 1001;
+}
+.search-dropdown.show { display: block; }
+.search-item {
+  padding: 10px 14px; cursor: pointer; color: #ccc; font-size: 14px;
+  border-bottom: 1px solid #333;
+}
+.search-item:last-child { border-bottom: none; }
+.search-item:hover, .search-item.active { background: #0f3460; color: #fff; }
+.search-item .tz-hint { font-size: 12px; color: #888; margin-left: 8px; }
+
+/* Main area */
+.main { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+/* Sidebar */
+.sidebar {
+  width: 260px; background: #16213e; color: #fff; display: flex; flex-direction: column;
+  flex-shrink: 0; z-index: 800; transition: width 0.3s;
+}
+.sidebar.collapsed { width: 0; overflow: hidden; }
+.sidebar-header {
+  padding: 12px 16px; background: #1a1a2e; display: flex; align-items: center; justify-content: space-between;
+  font-size: 14px; font-weight: 600;
+}
+.sidebar-header button {
+  background: none; border: none; color: #888; cursor: pointer; font-size: 18px;
+}
+.sidebar-cities {
+  flex: 1; overflow-y: auto; padding: 8px;
+}
+.city-card {
+  background: #0f3460; border-radius: 10px; padding: 12px; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between; position: relative;
+}
+.city-card:hover { background: #1a3a6a; }
+.city-card .city-info { flex: 1; }
+.city-card .city-name { font-size: 14px; font-weight: 600; }
+.city-card .city-time { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.city-card .city-date { font-size: 11px; color: #aaa; margin-top: 2px; }
+.city-card .city-tz { font-size: 12px; color: #e94560; margin-top: 2px; }
+.city-card .city-offset { font-size: 11px; color: #888; }
+.city-card .remove-btn {
+  background: none; border: none; color: #666; cursor: pointer;
+  font-size: 18px; padding: 4px 8px; border-radius: 4px;
+}
+.city-card .remove-btn:hover { color: #e94560; background: rgba(233,69,96,0.15); }
+.sidebar-empty {
+  text-align: center; padding: 40px 20px; color: #666; font-size: 13px;
+}
+.sidebar-empty .hint { font-size: 28px; margin-bottom: 12px; }
+
+/* Toggle sidebar btn */
+.toggle-sidebar {
+  position: absolute; left: 260px; top: 50%; transform: translateY(-50%);
+  z-index: 801; background: #1a1a2e; border: 1px solid #333;
+  color: #aaa; cursor: pointer; padding: 8px 4px; border-radius: 0 6px 6px 0;
+  font-size: 12px; transition: left 0.3s;
+}
+.toggle-sidebar.shifted { left: 0; }
+
+/* Map */
+#map { flex: 1; z-index: 1; }
+
+/* Custom Leaflet popup */
+.leaflet-popup-content-wrapper { background: #1a1a2e; color: #fff; border-radius: 10px; }
+.leaflet-popup-tip { background: #1a1a2e; }
+.leaflet-popup-content { margin: 12px 16px; min-width: 180px; }
+.popup-city { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.popup-time { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; color: #e94560; }
+.popup-date { font-size: 12px; color: #aaa; margin: 2px 0; }
+.popup-tz { font-size: 13px; color: #53c4f7; }
+.popup-offset { font-size: 12px; color: #888; margin-top: 4px; }
+.popup-add-btn {
+  margin-top: 10px; background: #e94560; color: #fff; border: none;
+  padding: 6px 16px; border-radius: 16px; cursor: pointer; font-size: 13px; width: 100%;
+}
+.popup-add-btn:hover { background: #d43d56; }
+.popup-remove-btn {
+  margin-top: 6px; background: transparent; color: #888; border: 1px solid #555;
+  padding: 5px 16px; border-radius: 16px; cursor: pointer; font-size: 12px; width: 100%;
+}
+.popup-remove-btn:hover { border-color: #e94560; color: #e94560; }
+
+/* City markers */
+.city-marker {
+  background: var(--marker-color, #e94560);
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid #fff; box-shadow: 0 0 6px rgba(0,0,0,0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.city-marker:hover { transform: scale(1.6); box-shadow: 0 0 12px rgba(233,69,96,0.8); }
+.city-marker.selected { box-shadow: 0 0 0 3px #e94560, 0 0 12px rgba(233,69,96,0.6); }
+.city-marker-label {
+  position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+  background: rgba(26,26,46,0.9); color: #fff; padding: 2px 8px;
+  border-radius: 4px; font-size: 11px; white-space: nowrap;
+  pointer-events: none; opacity: 0; transition: opacity 0.2s;
+}
+.city-marker:hover .city-marker-label { opacity: 1; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 900; width: 260px; }
+  .sidebar.collapsed { width: 0; }
+  .toggle-sidebar { left: 260px; }
+  .toggle-sidebar.shifted { left: 0; }
+  .search-box { max-width: 200px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>&#128336; 时区地图工具</h1>
+  <div class="search-box">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="搜索城市..." autocomplete="off" />
+    <div class="search-dropdown" id="searchDropdown"></div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span>&#127760; 已选城市</span>
+      <span id="sidebarCount"></span>
+    </div>
+    <div class="sidebar-cities" id="sidebarCities">
+      <div class="sidebar-empty" id="sidebarEmpty">
+        <div class="hint">&#128204;</div>
+        <div>点击地图上的城市标记<br/>添加到对比面板</div>
+      </div>
+    </div>
+  </div>
+  <button class="toggle-sidebar" id="toggleSidebar" title="切换侧边栏">&#9664;</button>
+  <div id="map"></div>
+</div>
+
+<script>
+// ==================== City Data ====================
+const CITIES = [
+  // Asia
+  { name: "北京", nameEn: "Beijing", lat: 39.9042, lng: 116.4074, tz: "Asia/Shanghai", country: "中国" },
+  { name: "上海", nameEn: "Shanghai", lat: 31.2304, lng: 121.4737, tz: "Asia/Shanghai", country: "中国" },
+  { name: "香港", nameEn: "Hong Kong", lat: 22.3193, lng: 114.1694, tz: "Asia/Hong_Kong", country: "中国" },
+  { name: "台北", nameEn: "Taipei", lat: 25.033, lng: 121.5654, tz: "Asia/Taipei", country: "中国" },
+  { name: "东京", nameEn: "Tokyo", lat: 35.6762, lng: 139.6503, tz: "Asia/Tokyo", country: "日本" },
+  { name: "大阪", nameEn: "Osaka", lat: 34.6937, lng: 135.5023, tz: "Asia/Tokyo", country: "日本" },
+  { name: "首尔", nameEn: "Seoul", lat: 37.5665, lng: 126.978, tz: "Asia/Seoul", country: "韩国" },
+  { name: "新加坡", nameEn: "Singapore", lat: 1.3521, lng: 103.8198, tz: "Asia/Singapore", country: "新加坡" },
+  { name: "曼谷", nameEn: "Bangkok", lat: 13.7563, lng: 100.5018, tz: "Asia/Bangkok", country: "泰国" },
+  { name: "吉隆坡", nameEn: "Kuala Lumpur", lat: 3.139, lng: 101.6869, tz: "Asia/Kuala_Lumpur", country: "马来西亚" },
+  { name: "雅加达", nameEn: "Jakarta", lat: -6.2088, lng: 106.8456, tz: "Asia/Jakarta", country: "印尼" },
+  { name: "马尼拉", nameEn: "Manila", lat: 14.5995, lng: 120.9842, tz: "Asia/Manila", country: "菲律宾" },
+  { name: "河内", nameEn: "Hanoi", lat: 21.0278, lng: 105.8342, tz: "Asia/Ho_Chi_Minh", country: "越南" },
+  { name: "新德里", nameEn: "New Delhi", lat: 28.6139, lng: 77.209, tz: "Asia/Kolkata", country: "印度" },
+  { name: "孟买", nameEn: "Mumbai", lat: 19.076, lng: 72.8777, tz: "Asia/Kolkata", country: "印度" },
+  { name: "卡拉奇", nameEn: "Karachi", lat: 24.8607, lng: 67.0011, tz: "Asia/Karachi", country: "巴基斯坦" },
+  { name: "达卡", nameEn: "Dhaka", lat: 23.8103, lng: 90.4125, tz: "Asia/Dhaka", country: "孟加拉" },
+  { name: "迪拜", nameEn: "Dubai", lat: 25.2048, lng: 55.2708, tz: "Asia/Dubai", country: "阿联酋" },
+  { name: "利雅得", nameEn: "Riyadh", lat: 24.7136, lng: 46.6753, tz: "Asia/Riyadh", country: "沙特" },
+  { name: "德黑兰", nameEn: "Tehran", lat: 35.6892, lng: 51.389, tz: "Asia/Tehran", country: "伊朗" },
+  { name: "伊斯坦布尔", nameEn: "Istanbul", lat: 41.0082, lng: 28.9784, tz: "Europe/Istanbul", country: "土耳其" },
+  { name: "耶路撒冷", nameEn: "Jerusalem", lat: 31.7683, lng: 35.2137, tz: "Asia/Jerusalem", country: "以色列" },
+  // Europe
+  { name: "伦敦", nameEn: "London", lat: 51.5074, lng: -0.1278, tz: "Europe/London", country: "英国" },
+  { name: "巴黎", nameEn: "Paris", lat: 48.8566, lng: 2.3522, tz: "Europe/Paris", country: "法国" },
+  { name: "柏林", nameEn: "Berlin", lat: 52.52, lng: 13.405, tz: "Europe/Berlin", country: "德国" },
+  { name: "马德里", nameEn: "Madrid", lat: 40.4168, lng: -3.7038, tz: "Europe/Madrid", country: "西班牙" },
+  { name: "罗马", nameEn: "Rome", lat: 41.9028, lng: 12.4964, tz: "Europe/Rome", country: "意大利" },
+  { name: "阿姆斯特丹", nameEn: "Amsterdam", lat: 52.3676, lng: 4.9041, tz: "Europe/Amsterdam", country: "荷兰" },
+  { name: "布鲁塞尔", nameEn: "Brussels", lat: 50.8503, lng: 4.3517, tz: "Europe/Brussels", country: "比利时" },
+  { name: "维也纳", nameEn: "Vienna", lat: 48.2082, lng: 16.3738, tz: "Europe/Vienna", country: "奥地利" },
+  { name: "苏黎世", nameEn: "Zurich", lat: 47.3769, lng: 8.5417, tz: "Europe/Zurich", country: "瑞士" },
+  { name: "斯德哥尔摩", nameEn: "Stockholm", lat: 59.3293, lng: 18.0686, tz: "Europe/Stockholm", country: "瑞典" },
+  { name: "奥斯陆", nameEn: "Oslo", lat: 59.9139, lng: 10.7522, tz: "Europe/Oslo", country: "挪威" },
+  { name: "赫尔辛基", nameEn: "Helsinki", lat: 60.1699, lng: 24.9384, tz: "Europe/Helsinki", country: "芬兰" },
+  { name: "华沙", nameEn: "Warsaw", lat: 52.2297, lng: 21.0122, tz: "Europe/Warsaw", country: "波兰" },
+  { name: "布拉格", nameEn: "Prague", lat: 50.0755, lng: 14.4378, tz: "Europe/Prague", country: "捷克" },
+  { name: "布达佩斯", nameEn: "Budapest", lat: 47.4979, lng: 19.0402, tz: "Europe/Budapest", country: "匈牙利" },
+  { name: "雅典", nameEn: "Athens", lat: 37.9838, lng: 23.7275, tz: "Europe/Athens", country: "希腊" },
+  { name: "里斯本", nameEn: "Lisbon", lat: 38.7223, lng: -9.1393, tz: "Europe/Lisbon", country: "葡萄牙" },
+  { name: "都柏林", nameEn: "Dublin", lat: 53.3498, lng: -6.2603, tz: "Europe/Dublin", country: "爱尔兰" },
+  { name: "莫斯科", nameEn: "Moscow", lat: 55.7558, lng: 37.6173, tz: "Europe/Moscow", country: "俄罗斯" },
+  // Americas
+  { name: "纽约", nameEn: "New York", lat: 40.7128, lng: -74.006, tz: "America/New_York", country: "美国" },
+  { name: "洛杉矶", nameEn: "Los Angeles", lat: 34.0522, lng: -118.2437, tz: "America/Los_Angeles", country: "美国" },
+  { name: "芝加哥", nameEn: "Chicago", lat: 41.8781, lng: -87.6298, tz: "America/Chicago", country: "美国" },
+  { name: "旧金山", nameEn: "San Francisco", lat: 37.7749, lng: -122.4194, tz: "America/Los_Angeles", country: "美国" },
+  { name: "华盛顿", nameEn: "Washington D.C.", lat: 38.9072, lng: -77.0369, tz: "America/New_York", country: "美国" },
+  { name: "多伦多", nameEn: "Toronto", lat: 43.6532, lng: -79.3832, tz: "America/Toronto", country: "加拿大" },
+  { name: "温哥华", nameEn: "Vancouver", lat: 49.2827, lng: -123.1207, tz: "America/Vancouver", country: "加拿大" },
+  { name: "墨西哥城", nameEn: "Mexico City", lat: 19.4326, lng: -99.1332, tz: "America/Mexico_City", country: "墨西哥" },
+  { name: "圣保罗", nameEn: "São Paulo", lat: -23.5505, lng: -46.6333, tz: "America/Sao_Paulo", country: "巴西" },
+  { name: "里约", nameEn: "Rio de Janeiro", lat: -22.9068, lng: -43.1729, tz: "America/Sao_Paulo", country: "巴西" },
+  { name: "布宜诺斯艾利斯", nameEn: "Buenos Aires", lat: -34.6037, lng: -58.3816, tz: "America/Argentina/Buenos_Aires", country: "阿根廷" },
+  { name: "利马", nameEn: "Lima", lat: -12.0464, lng: -77.0428, tz: "America/Lima", country: "秘鲁" },
+  { name: "波哥大", nameEn: "Bogotá", lat: 4.711, lng: -74.0721, tz: "America/Bogota", country: "哥伦比亚" },
+  { name: "圣地亚哥", nameEn: "Santiago", lat: -33.4489, lng: -70.6693, tz: "America/Santiago", country: "智利" },
+  { name: "哈瓦那", nameEn: "Havana", lat: 23.1136, lng: -82.3666, tz: "America/Havana", country: "古巴" },
+  // Africa
+  { name: "开罗", nameEn: "Cairo", lat: 30.0444, lng: 31.2357, tz: "Africa/Cairo", country: "埃及" },
+  { name: "约翰内斯堡", nameEn: "Johannesburg", lat: -26.2041, lng: 28.0473, tz: "Africa/Johannesburg", country: "南非" },
+  { name: "开普敦", nameEn: "Cape Town", lat: -33.9249, lng: 18.4241, tz: "Africa/Johannesburg", country: "南非" },
+  { name: "拉各斯", nameEn: "Lagos", lat: 6.5244, lng: 3.3792, tz: "Africa/Lagos", country: "尼日利亚" },
+  { name: "内罗毕", nameEn: "Nairobi", lat: -1.2921, lng: 36.8219, tz: "Africa/Nairobi", country: "肯尼亚" },
+  { name: "卡萨布兰卡", nameEn: "Casablanca", lat: 33.5731, lng: -7.5898, tz: "Africa/Casablanca", country: "摩洛哥" },
+  // Oceania
+  { name: "悉尼", nameEn: "Sydney", lat: -33.8688, lng: 151.2093, tz: "Australia/Sydney", country: "澳大利亚" },
+  { name: "墨尔本", nameEn: "Melbourne", lat: -37.8136, lng: 144.9631, tz: "Australia/Melbourne", country: "澳大利亚" },
+  { name: "奥克兰", nameEn: "Auckland", lat: -36.8485, lng: 174.7633, tz: "Pacific/Auckland", country: "新西兰" },
+  { name: "珀斯", nameEn: "Perth", lat: -31.9505, lng: 115.8605, tz: "Australia/Perth", country: "澳大利亚" },
+  // Central Asia & Siberia
+  { name: "阿拉木图", nameEn: "Almaty", lat: 43.222, lng: 76.8512, tz: "Asia/Almaty", country: "哈萨克斯坦" },
+  { name: "塔什干", nameEn: "Tashkent", lat: 41.2995, lng: 69.2401, tz: "Asia/Tashkent", country: "乌兹别克斯坦" },
+  { name: "新西伯利亚", nameEn: "Novosibirsk", lat: 55.0084, lng: 82.9357, tz: "Asia/Novosibirsk", country: "俄罗斯" },
+  // Pacific Islands
+  { name: "檀香山", nameEn: "Honolulu", lat: 21.3069, lng: -157.8583, tz: "Pacific/Honolulu", country: "美国(夏威夷)" },
+  { name: "安克雷奇", nameEn: "Anchorage", lat: 61.2181, lng: -149.9003, tz: "America/Anchorage", country: "美国(阿拉斯加)" },
+];
+
+// ==================== Time Utilities ====================
+function getTimeInCity(tz) {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+  return formatter.format(now);
+}
+
+function getDateInCity(tz) {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: tz, year: 'numeric', month: 'long', day: 'numeric', weekday: 'short'
+  });
+  return formatter.format(now);
+}
+
+function getUTCOffset(tz) {
+  const now = new Date();
+  const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+  const diffMinutes = (tzDate - utcDate) / 60000;
+  const sign = diffMinutes >= 0 ? '+' : '-';
+  const absMinutes = Math.abs(diffMinutes);
+  const hours = Math.floor(absMinutes / 60);
+  const minutes = absMinutes % 60;
+  return `UTC${sign}${hours}${minutes ? ':' + String(minutes).padStart(2, '0') : ''}`;
+}
+
+function getLocalOffset() {
+  return getUTCOffset(Intl.DateTimeFormat().resolvedOptions().timeZone);
+}
+
+function getTimeDiff(tz) {
+  const now = new Date();
+  const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const localDate = new Date(now.toLocaleString('en-US', { timeZone: localTz }));
+  const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+  const diffHours = Math.round(((tzDate - localDate) / 3600000) * 10) / 10;
+  if (diffHours === 0) return '与本地相同';
+  const sign = diffHours > 0 ? '+' : '';
+  return `与本地 ${sign}${diffHours} 小时`;
+}
+
+function isWorkingHours(tz) {
+  const now = new Date();
+  const hour = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(now));
+  return hour >= 9 && hour < 18;
+}
+
+function getDayNightColor(tz) {
+  const now = new Date();
+  const hour = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(now));
+  if (hour >= 6 && hour < 8) return '#f39c12';  // sunrise
+  if (hour >= 8 && hour < 18) return '#e94560';  // day
+  if (hour >= 18 && hour < 20) return '#e67e22'; // sunset
+  return '#3498db';  // night
+}
+
+// ==================== Map Setup ====================
+const map = L.map('map', {
+  center: [25, 0],
+  zoom: 2,
+  minZoom: 2,
+  maxZoom: 10,
+  worldCopyJump: true,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 18,
+}).addTo(map);
+
+// ==================== Selected Cities ====================
+let selectedCities = [];
+const cityMarkers = {};
+
+// ==================== Create City Markers ====================
+CITIES.forEach(city => {
+  const color = getDayNightColor(city.tz);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="city-marker" style="--marker-color:${color}" data-city="${city.nameEn}"><div class="city-marker-label">${city.name}</div></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  });
+
+  const marker = L.marker([city.lat, city.lng], { icon }).addTo(map);
+
+  marker.on('click', () => {
+    showCityPopup(city);
+  });
+
+  marker.bindTooltip(city.name, {
+    direction: 'top', offset: [0, -10],
+    className: 'city-tooltip'
+  });
+
+  cityMarkers[city.nameEn] = marker;
+});
+
+function showCityPopup(city) {
+  const time = getTimeInCity(city.tz);
+  const date = getDateInCity(city.tz);
+  const offset = getUTCOffset(city.tz);
+  const diff = getTimeDiff(city.tz);
+  const isSelected = selectedCities.some(c => c.nameEn === city.nameEn);
+
+  const popup = L.popup({ closeButton: true, className: 'city-popup' })
+    .setLatLng([city.lat, city.lng])
+    .setContent(`
+      <div class="popup-city">${city.name} <span style="font-size:12px;color:#888;font-weight:400">${city.country}</span></div>
+      <div class="popup-time">${time}</div>
+      <div class="popup-date">${date}</div>
+      <div class="popup-tz">${city.tz}</div>
+      <div class="popup-offset">${offset} &middot; ${diff}</div>
+      ${isSelected
+        ? '<button class="popup-remove-btn" onclick="removeCity(\'' + city.nameEn + '\')">&#10005; 从对比面板移除</button>'
+        : '<button class="popup-add-btn" onclick="addSelectedCity(\'' + city.nameEn + '\')">&#43; 添加到对比面板</button>'
+      }
+    `)
+    .openOn(map);
+}
+
+// Popup auto-refresh
+let currentPopupCity = null;
+map.on('popupopen', (e) => {
+  const city = CITIES.find(c =>
+    Math.abs(c.lat - e.popup.getLatLng().lat) < 0.1 &&
+    Math.abs(c.lng - e.popup.getLatLng().lng) < 0.1
+  );
+  if (city) {
+    currentPopupCity = city;
+    updatePopupContent(city);
+  }
+});
+map.on('popupclose', () => { currentPopupCity = null; });
+
+function updatePopupContent(city) {
+  if (!currentPopupCity || currentPopupCity.nameEn !== city.nameEn) return;
+  const popup = map._popup;
+  if (!popup || !popup.isOpen()) return;
+
+  const time = getTimeInCity(city.tz);
+  const date = getDateInCity(city.tz);
+  const offset = getUTCOffset(city.tz);
+  const diff = getTimeDiff(city.tz);
+  const isSelected = selectedCities.some(c => c.nameEn === city.nameEn);
+
+  popup.setContent(`
+    <div class="popup-city">${city.name} <span style="font-size:12px;color:#888;font-weight:400">${city.country}</span></div>
+    <div class="popup-time">${time}</div>
+    <div class="popup-date">${date}</div>
+    <div class="popup-tz">${city.tz}</div>
+    <div class="popup-offset">${offset} &middot; ${diff}</div>
+    ${isSelected
+      ? '<button class="popup-remove-btn" onclick="removeCity(\'' + city.nameEn + '\')">&#10005; 从对比面板移除</button>'
+      : '<button class="popup-add-btn" onclick="addSelectedCity(\'' + city.nameEn + '\')">&#43; 添加到对比面板</button>'
+    }
+  `);
+}
+
+// ==================== Sidebar ====================
+function addSelectedCity(cityName) {
+  const city = CITIES.find(c => c.nameEn === cityName);
+  if (!city || selectedCities.some(c => c.nameEn === cityName)) return;
+  selectedCities.push(city);
+  updateSidebar();
+  updateMarkerStyles();
+  if (currentPopupCity) updatePopupContent(currentPopupCity);
+}
+
+function removeCity(cityName) {
+  selectedCities = selectedCities.filter(c => c.nameEn !== cityName);
+  updateSidebar();
+  updateMarkerStyles();
+  if (currentPopupCity) updatePopupContent(currentPopupCity);
+}
+
+function updateSidebar() {
+  const container = document.getElementById('sidebarCities');
+  const empty = document.getElementById('sidebarEmpty');
+  const count = document.getElementById('sidebarCount');
+
+  if (selectedCities.length === 0) {
+    container.innerHTML = '';
+    container.appendChild(empty);
+    empty.style.display = 'block';
+    count.textContent = '';
+  } else {
+    empty.style.display = 'none';
+    count.textContent = `(${selectedCities.length})`;
+    // Sort by UTC offset
+    const sorted = [...selectedCities].sort((a, b) => {
+      const now = new Date();
+      const aDate = new Date(now.toLocaleString('en-US', { timeZone: a.tz }));
+      const bDate = new Date(now.toLocaleString('en-US', { timeZone: b.tz }));
+      return aDate - bDate;
+    });
+    container.innerHTML = sorted.map(city => `
+      <div class="city-card" data-city="${city.nameEn}" onclick="flyToCity('${city.nameEn}')">
+        <div class="city-info">
+          <div class="city-name">${city.name} <span style="font-size:11px;color:#888;font-weight:400">${city.country}</span></div>
+          <div class="city-time" data-tz="${city.tz}">${getTimeInCity(city.tz)}</div>
+          <div class="city-date" data-tz-date="${city.tz}">${getDateInCity(city.tz)}</div>
+          <div class="city-tz">${city.tz}</div>
+          <div class="city-offset">${getUTCOffset(city.tz)} &middot; ${getTimeDiff(city.tz)}</div>
+        </div>
+        <button class="remove-btn" onclick="event.stopPropagation();removeCity('${city.nameEn}')" title="移除">&#10005;</button>
+      </div>
+    `).join('');
+  }
+}
+
+function flyToCity(cityName) {
+  const city = CITIES.find(c => c.nameEn === cityName);
+  if (city) {
+    map.flyTo([city.lat, city.lng], 6, { duration: 1 });
+    showCityPopup(city);
+  }
+}
+
+function updateMarkerStyles() {
+  CITIES.forEach(city => {
+    const marker = cityMarkers[city.nameEn];
+    if (!marker) return;
+    const el = marker.getElement();
+    if (!el) return;
+    const dot = el.querySelector('.city-marker');
+    if (dot) {
+      const isSelected = selectedCities.some(c => c.nameEn === city.nameEn);
+      dot.classList.toggle('selected', isSelected);
+    }
+  });
+}
+
+// ==================== Toggle Sidebar ====================
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('toggleSidebar');
+let sidebarCollapsed = false;
+
+toggleBtn.addEventListener('click', () => {
+  sidebarCollapsed = !sidebarCollapsed;
+  sidebar.classList.toggle('collapsed', sidebarCollapsed);
+  toggleBtn.classList.toggle('shifted', sidebarCollapsed);
+  toggleBtn.innerHTML = sidebarCollapsed ? '&#9654;' : '&#9664;';
+  setTimeout(() => map.invalidateSize(), 350);
+});
+
+// ==================== Search ====================
+const searchInput = document.getElementById('searchInput');
+const searchDropdown = document.getElementById('searchDropdown');
+let searchIndex = -1;
+
+searchInput.addEventListener('input', () => {
+  const query = searchInput.value.trim().toLowerCase();
+  searchIndex = -1;
+  if (!query) {
+    searchDropdown.classList.remove('show');
+    return;
+  }
+  const results = CITIES.filter(c =>
+    c.name.toLowerCase().includes(query) ||
+    c.nameEn.toLowerCase().includes(query) ||
+    c.country.toLowerCase().includes(query) ||
+    c.tz.toLowerCase().includes(query)
+  ).slice(0, 10);
+
+  if (results.length === 0) {
+    searchDropdown.innerHTML = '<div class="search-item" style="color:#666">未找到匹配城市</div>';
+  } else {
+    searchDropdown.innerHTML = results.map((c, i) => `
+      <div class="search-item" data-index="${i}" data-city="${c.nameEn}"
+           onclick="selectSearchCity('${c.nameEn}')">
+        ${c.name} <span style="color:#666">${c.country}</span>
+        <span class="tz-hint">${getUTCOffset(c.tz)}</span>
+      </div>
+    `).join('');
+  }
+  searchDropdown.classList.add('show');
+});
+
+searchInput.addEventListener('keydown', (e) => {
+  const items = searchDropdown.querySelectorAll('.search-item[data-city]');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    searchIndex = Math.min(searchIndex + 1, items.length - 1);
+    updateSearchHighlight(items);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    searchIndex = Math.max(searchIndex - 1, 0);
+    updateSearchHighlight(items);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (searchIndex >= 0 && items[searchIndex]) {
+      const city = items[searchIndex].dataset.city;
+      selectSearchCity(city);
+    }
+  } else if (e.key === 'Escape') {
+    searchDropdown.classList.remove('show');
+    searchInput.blur();
+  }
+});
+
+function updateSearchHighlight(items) {
+  items.forEach((item, i) => item.classList.toggle('active', i === searchIndex));
+}
+
+function selectSearchCity(cityName) {
+  const city = CITIES.find(c => c.nameEn === cityName);
+  if (!city) return;
+  map.flyTo([city.lat, city.lng], 6, { duration: 1 });
+  searchDropdown.classList.remove('show');
+  searchInput.value = '';
+  setTimeout(() => showCityPopup(city), 1100);
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-box')) {
+    searchDropdown.classList.remove('show');
+  }
+});
+
+// ==================== Real-time Update ====================
+function updateClocks() {
+  // Update sidebar cards
+  document.querySelectorAll('.city-time[data-tz]').forEach(el => {
+    el.textContent = getTimeInCity(el.dataset.tz);
+  });
+  document.querySelectorAll('[data-tz-date]').forEach(el => {
+    el.textContent = getDateInCity(el.dataset.tz);
+  });
+  // Update popup if open
+  if (currentPopupCity) {
+    updatePopupContent(currentPopupCity);
+  }
+  // Update marker colors (day/night)
+  CITIES.forEach(city => {
+    const marker = cityMarkers[city.nameEn];
+    if (!marker) return;
+    const el = marker.getElement();
+    if (!el) return;
+    const dot = el.querySelector('.city-marker');
+    if (dot) {
+      dot.style.setProperty('--marker-color', getDayNightColor(city.tz));
+    }
+  });
+}
+
+setInterval(updateClocks, 1000);
+
+// ==================== Initialize ====================
+updateSidebar();
+</script>
+</body>
+</html>
