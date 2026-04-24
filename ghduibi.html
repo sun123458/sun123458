@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多路线规划对比</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="multi-route-planner.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="app-title">🚀 多路线规划对比</h1>
+      <p class="app-subtitle">输入起终点，自动对比步行/骑行/驾车路线</p>
+    </div>
+
+    <!-- 搜索区域 -->
+    <div class="search-section">
+      <div class="input-group">
+        <label class="input-label">
+          <span class="input-icon origin-icon"></span>
+          起点
+        </label>
+        <input type="text" id="originInput" class="search-input" placeholder="输入起点地址..." autocomplete="off">
+        <div class="autocomplete-dropdown" id="originDropdown"></div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">
+          <span class="input-icon dest-icon"></span>
+          终点
+        </label>
+        <input type="text" id="destInput" class="search-input" placeholder="输入终点地址..." autocomplete="off">
+        <div class="autocomplete-dropdown" id="destDropdown"></div>
+      </div>
+      <button id="searchBtn" class="search-btn">
+        <span class="btn-icon">🔍</span>
+        搜索路线
+      </button>
+    </div>
+
+    <!-- 路线信息卡片 -->
+    <div class="routes-section" id="routesSection">
+      <div class="section-label">路线方案</div>
+      <div class="route-cards" id="routeCards">
+        <!-- 动态生成 -->
+      </div>
+    </div>
+
+    <!-- 步骤指引面板 -->
+    <div class="steps-panel" id="stepsPanel" style="display:none;">
+      <div class="steps-header">
+        <h3 id="stepsTitle">详细指引</h3>
+        <button class="steps-close" id="stepsClose">✕</button>
+      </div>
+      <div class="steps-list" id="stepsList">
+        <!-- 动态生成 -->
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <span class="status-text" id="statusText">就绪 — 输入起终点开始搜索</span>
+    </div>
+  </aside>
+
+  <!-- 地图区域 -->
+  <main class="map-container" id="mapContainer">
+    <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+      <div class="spinner"></div>
+      <p>正在规划路线...</p>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="multi-route-planner.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  new MultiRoutePlanner(document.getElementById('app'), {
+    defaultOrigin: '北京市天安门',
+    defaultDestination: '故宫博物院'
+  });
+});
+</script>
+
+</body>
+</html>
