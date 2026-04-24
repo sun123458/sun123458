@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>斜面小车物理实验模拟器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0f1923;
+    color: #e0e6ed;
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ========== 左侧控制面板 ========== */
+  .panel {
+    width: 320px;
+    min-width: 320px;
+    background: linear-gradient(180deg, #162029 0%, #1a2a36 100%);
+    border-right: 1px solid #2a3a4a;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+  .panel-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #2a3a4a;
+    background: linear-gradient(90deg, #4fc3f7, #29b6f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+  }
+
+  .control-group { display: flex; flex-direction: column; gap: 8px; }
+  .control-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #8fa4b8;
+  }
+  .control-label span:last-child {
+    font-weight: 600;
+    color: #4fc3f7;
+    font-size: 16px;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #2a3a4a;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4fc3f7, #0288d1);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(79,195,247,0.5);
+    transition: box-shadow .2s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 16px rgba(79,195,247,0.8);
+  }
+
+  /* 按钮 */
+  .btn-group { display: flex; gap: 12px; margin-top: 8px; }
+  .btn {
+    flex: 1;
+    padding: 12px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all .25s;
+  }
+  .btn-start {
+    background: linear-gradient(135deg, #00c853, #009624);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0,200,83,.35);
+  }
+  .btn-start:hover { box-shadow: 0 4px 20px rgba(0,200,83,.6); transform: translateY(-1px); }
+  .btn-start:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-reset {
+    background: linear-gradient(135deg, #ff6d00, #e65100);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(255,109,0,.3);
+  }
+  .btn-reset:hover { box-shadow: 0 4px 20px rgba(255,109,0,.55); transform: translateY(-1px); }
+
+  /* 实时数据 */
+  .data-section {
+    background: rgba(42,58,74,.45);
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid #2a3a4a;
+  }
+  .data-title { font-size: 13px; color: #6d8399; margin-bottom: 10px; letter-spacing: 1px; }
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(42,58,74,.6);
+  }
+  .data-row:last-child { border-bottom: none; }
+  .data-key { font-size: 13px; color: #8fa4b8; }
+  .data-val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .data-val.v { color: #69f0ae; }
+  .data-val.a { color: #ffd740; }
+  .data-val.s { color: #40c4ff; }
+  .data-val.t { color: #ff8a65; }
+  .data-val.n { color: #ce93d8; }
+
+  /* 公式区域 */
+  .formula-section {
+    background: rgba(42,58,74,.3);
+    border-radius: 10px;
+    padding: 14px;
+    border: 1px solid #2a3a4a;
+    font-size: 12px;
+    color: #6d8399;
+    line-height: 1.8;
+  }
+  .formula-section b { color: #4fc3f7; }
+
+  /* ========== 右侧画布 ========== */
+  .canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: radial-gradient(ellipse at center, #162029 0%, #0b1218 100%);
+  }
+  canvas { display: block; }
+
+  /* 画布上覆盖的实时信息 */
+  .overlay-info {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    display: flex;
+    gap: 14px;
+  }
+  .info-card {
+    background: rgba(22,32,41,.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid #2a3a4a;
+    border-radius: 10px;
+    padding: 10px 18px;
+    text-align: center;
+    min-width: 100px;
+  }
+  .info-card .label { font-size: 11px; color: #6d8399; margin-bottom: 2px; }
+  .info-card .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* 运动轨迹开关 */
+  .trail-toggle {
+    position: absolute;
+    bottom: 20px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #6d8399;
+    cursor: pointer;
+    user-select: none;
+  }
+  .trail-toggle input { accent-color: #4fc3f7; }
+
+  /* 提示 */
+  .hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: #4a6070;
+  }
+</style>
+</head>
+<body>
+
+<!-- 左侧控制面板 -->
+<aside class="panel">
+  <div class="panel-title">斜面小车实验</div>
+
+  <!-- 斜面倾角 -->
+  <div class="control-group">
+    <div class="control-label"><span>斜面倾角</span><span id="angleVal">30°</span></div>
+    <input type="range" id="angleSlider" min="5" max="75" value="30" step="1">
+  </div>
+
+  <!-- 小车质量 -->
+  <div class="control-group">
+    <div class="control-label"><span>小车质量</span><span id="massVal">2.0 kg</span></div>
+    <input type="range" id="massSlider" min="0.5" max="10" value="2" step="0.1">
+  </div>
+
+  <!-- 摩擦系数 -->
+  <div class="control-group">
+    <div class="control-label"><span>摩擦系数 μ</span><span id="frictionVal">0.20</span></div>
+    <input type="range" id="frictionSlider" min="0" max="1" value="0.2" step="0.01">
+  </div>
+
+  <!-- 初始速度 -->
+  <div class="control-group">
+    <div class="control-label"><span>初始速度 v₀</span><span id="v0Val">6.0 m/s</span></div>
+    <input type="range" id="v0Slider" min="1" max="15" value="6" step="0.5">
+  </div>
+
+  <!-- 弹性系数 -->
+  <div class="control-group">
+    <div class="control-label"><span>碰撞恢复系数 e</span><span id="restVal">0.60</span></div>
+    <input type="range" id="restSlider" min="0" max="1" value="0.6" step="0.05">
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-start" id="btnStart">开始实验</button>
+    <button class="btn btn-reset" id="btnReset">重 置</button>
+  </div>
+
+  <!-- 实时数据 -->
+  <div class="data-section">
+    <div class="data-title">实时数据</div>
+    <div class="data-row"><span class="data-key">速度 v</span><span class="data-val v" id="dataV">0.00 m/s</span></div>
+    <div class="data-row"><span class="data-key">加速度 a</span><span class="data-val a" id="dataA">0.00 m/s²</span></div>
+    <div class="data-row"><span class="data-key">位移 s</span><span class="data-val s" id="dataS">0.00 m</span></div>
+    <div class="data-row"><span class="data-key">时间 t</span><span class="data-val t" id="dataT">0.00 s</span></div>
+    <div class="data-row"><span class="data-key">弹跳次数</span><span class="data-val n" id="dataN">0</span></div>
+  </div>
+
+  <!-- 运动分析 -->
+  <div class="data-section">
+    <div class="data-title">受力分析</div>
+    <div class="data-row"><span class="data-key">重力分量 mgsinθ</span><span class="data-val" id="fGrav" style="color:#ff8a65">0.00 N</span></div>
+    <div class="data-row"><span class="data-key">摩擦力 f</span><span class="data-val" id="fFric" style="color:#ce93d8">0.00 N</span></div>
+    <div class="data-row"><span class="data-key">合力 F</span><span class="data-val" id="fNet" style="color:#69f0ae">0.00 N</span></div>
+  </div>
+
+  <!-- 公式 -->
+  <div class="formula-section">
+    <b>上滑阶段：</b>a = −g(sinθ + μcosθ)<br>
+    <b>下滑阶段：</b>a = g(sinθ − μcosθ)<br>
+    <b>碰撞反弹：</b>v' = −e · v（e 为恢复系数）
+  </div>
+</aside>
+
+<!-- 右侧画布 -->
+<main class="canvas-wrap">
+  <canvas id="canvas"></canvas>
+  <div class="overlay-info">
+    <div class="info-card">
+      <div class="label">速度</div>
+      <div class="value" id="ovV" style="color:#69f0ae">0.00</div>
+    </div>
+    <div class="info-card">
+      <div class="label">加速度</div>
+      <div class="value" id="ovA" style="color:#ffd740">0.00</div>
+    </div>
+    <div class="info-card">
+      <div class="label">时间</div>
+      <div class="value" id="ovT" style="color:#ff8a65">0.00</div>
+    </div>
+  </div>
+  <label class="trail-toggle">
+    <input type="checkbox" id="trailCheck" checked> 显示轨迹
+  </label>
+  <div class="hint">Space 开始 · R 重置</div>
+</main>
+
+<script>
+// ========== DOM ==========
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const angleSlider = document.getElementById('angleSlider');
+const massSlider  = document.getElementById('massSlider');
+const fricSlider  = document.getElementById('frictionSlider');
+const v0Slider    = document.getElementById('v0Slider');
+const restSlider  = document.getElementById('restSlider');
+
+const btnStart = document.getElementById('btnStart');
+const btnReset = document.getElementById('btnReset');
+
+const angleVal  = document.getElementById('angleVal');
+const massVal   = document.getElementById('massVal');
+const frictionVal = document.getElementById('frictionVal');
+const v0Val     = document.getElementById('v0Val');
+const restVal   = document.getElementById('restVal');
+
+const dataV = document.getElementById('dataV');
+const dataA = document.getElementById('dataA');
+const dataS = document.getElementById('dataS');
+const dataT = document.getElementById('dataT');
+const dataN = document.getElementById('dataN');
+const fGrav = document.getElementById('fGrav');
+const fFric = document.getElementById('fFric');
+const fNet  = document.getElementById('fNet');
+
+const ovV = document.getElementById('ovV');
+const ovA = document.getElementById('ovA');
+const ovT = document.getElementById('ovT');
+
+const trailCheck = document.getElementById('trailCheck');
+
+// ========== 物理常量 ==========
+const G = 9.8;          // 重力加速度
+const RAMP_LEN = 5.0;   // 斜面长度 (m)
+
+// ========== 模拟状态 ==========
+let sim = {
+  running: false,
+  time: 0,
+  pos: 0,          // 沿斜面距离 (m)，0=底端
+  vel: 0,          // 沿斜面速度 (m/s)，正=上滑
+  acc: 0,
+  bounceCount: 0,
+  trail: [],       // 轨迹点
+  finished: false,
+  flashAlpha: 0,   // 碰撞闪光
+};
+
+// ========== 工具 ==========
+function deg2rad(d) { return d * Math.PI / 180; }
+
+function getParams() {
+  return {
+    angle:     parseFloat(angleSlider.value),
+    mass:      parseFloat(massSlider.value),
+    friction:  parseFloat(fricSlider.value),
+    v0:        parseFloat(v0Slider.value),
+    restitution: parseFloat(restSlider.value),
+  };
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// ========== 画布自适应 ==========
+function resize() {
+  const wrap = canvas.parentElement;
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  if (!sim.running) draw();
+}
+window.addEventListener('resize', resize);
+
+// ========== 滑块绑定 ==========
+angleSlider.oninput = () => { angleVal.textContent = angleSlider.value + '°'; if (!sim.running) draw(); };
+massSlider.oninput  = () => { massVal.textContent = parseFloat(massSlider.value).toFixed(1) + ' kg'; };
+fricSlider.oninput  = () => { frictionVal.textContent = parseFloat(fricSlider.value).toFixed(2); };
+v0Slider.oninput    = () => { v0Val.textContent = parseFloat(v0Slider.value).toFixed(1) + ' m/s'; };
+restSlider.oninput  = () => { restVal.textContent = parseFloat(restSlider.value).toFixed(2); };
+
+// ========== 坐标变换：将斜面上的物理位置映射到画布像素 ==========
+function rampGeometry() {
+  const W = canvas.width, H = canvas.height;
+  const p = getParams();
+  const theta = deg2rad(p.angle);
+
+  // 斜面尺寸（像素）
+  const rampPx = Math.min(W * 0.55, H * 0.75);
+  const groundY = H * 0.85;          // 地面 Y
+  const baseX = W * 0.18;            // 底端 X
+
+  // 底端坐标（画布）
+  const bx = baseX;
+  const by = groundY;
+  // 顶端坐标
+  const tx = baseX + rampPx * Math.cos(theta);
+  const ty = groundY - rampPx * Math.sin(theta);
+
+  return { bx, by, tx, ty, rampPx, groundY, baseX, theta };
+}
+
+function posToCanvas(s) {
+  // s: 沿斜面位移 (m)，0=底端，RAMP_LEN=顶端
+  const g = rampGeometry();
+  const ratio = s / RAMP_LEN;
+  return {
+    x: lerp(g.bx, g.tx, ratio),
+    y: lerp(g.by, g.ty, ratio),
+  };
+}
+
+// ========== 绘制 ==========
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  const p = getParams();
+  const g = rampGeometry();
+
+  ctx.clearRect(0, 0, W, H);
+
+  // --- 网格背景 ---
+  ctx.strokeStyle = 'rgba(42,58,74,0.3)';
+  ctx.lineWidth = 1;
+  const gridSize = 40;
+  for (let x = 0; x < W; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // --- 地面 ---
+  const groundGrad = ctx.createLinearGradient(0, g.groundY, 0, H);
+  groundGrad.addColorStop(0, '#2a3a4a');
+  groundGrad.addColorStop(1, '#1a2a36');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, g.groundY, W, H - g.groundY);
+  ctx.strokeStyle = '#4a6a7a';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, g.groundY); ctx.lineTo(W, g.groundY); ctx.stroke();
+
+  // 地面斜线纹理
+  ctx.strokeStyle = 'rgba(74,106,122,0.3)';
+  ctx.lineWidth = 1;
+  for (let x = -H; x < W + H; x += 16) {
+    ctx.beginPath();
+    ctx.moveTo(x, g.groundY);
+    ctx.lineTo(x + 40, H);
+    ctx.stroke();
+  }
+
+  // --- 斜面（三角形楔体） ---
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(g.bx, g.by);
+  ctx.lineTo(g.tx, g.ty);
+  ctx.lineTo(g.tx, g.groundY);
+  ctx.closePath();
+
+  const rampGrad = ctx.createLinearGradient(g.bx, g.groundY, g.tx, g.ty);
+  rampGrad.addColorStop(0, '#37474f');
+  rampGrad.addColorStop(1, '#455a64');
+  ctx.fillStyle = rampGrad;
+  ctx.fill();
+
+  ctx.strokeStyle = '#78909c';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  // --- 斜面表面高亮线 ---
+  ctx.strokeStyle = '#90a4ae';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(g.bx, g.by); ctx.lineTo(g.tx, g.ty); ctx.stroke();
+
+  // --- 角度弧线和标注 ---
+  const arcR = 50;
+  ctx.beginPath();
+  ctx.arc(g.tx, g.groundY, arcR, Math.PI, Math.PI + g.theta, false);
+  ctx.strokeStyle = '#ffd740';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  const labelAngle = Math.PI + g.theta / 2;
+  ctx.fillStyle = '#ffd740';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText(p.angle + '°', g.tx + (arcR + 10) * Math.cos(labelAngle), g.groundY + (arcR + 14) * Math.sin(labelAngle));
+
+  // --- 刻度标记 ---
+  for (let i = 0; i <= 5; i++) {
+    const s = (i / 5) * RAMP_LEN;
+    const pt = posToCanvas(s);
+    const nx = -Math.sin(g.theta);
+    const ny = Math.cos(g.theta);
+    ctx.strokeStyle = 'rgba(144,164,174,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pt.x + nx * 8, pt.y + ny * 8);
+    ctx.lineTo(pt.x + nx * 18, pt.y + ny * 18);
+    ctx.stroke();
+    if (i > 0 && i < 5) {
+      ctx.fillStyle = 'rgba(144,164,174,0.6)';
+      ctx.font = '11px monospace';
+      ctx.fillText(s.toFixed(1) + 'm', pt.x + nx * 22, pt.y + ny * 22 + 4);
+    }
+  }
+
+  // --- 轨迹 ---
+  if (trailCheck.checked && sim.trail.length > 1) {
+    ctx.save();
+    for (let i = 1; i < sim.trail.length; i++) {
+      const alpha = (i / sim.trail.length) * 0.7;
+      ctx.strokeStyle = `rgba(79,195,247,${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sim.trail[i-1].x, sim.trail[i-1].y);
+      ctx.lineTo(sim.trail[i].x, sim.trail[i].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // --- 小车 ---
+  const cartPos = posToCanvas(sim.pos);
+  drawCart(cartPos.x, cartPos.y, g.theta);
+
+  // --- 碰撞闪光 ---
+  if (sim.flashAlpha > 0) {
+    const fx = g.bx, fy = g.by;
+    const flashGrad = ctx.createRadialGradient(fx, fy, 0, fx, fy, 60);
+    flashGrad.addColorStop(0, `rgba(255,235,59,${sim.flashAlpha})`);
+    flashGrad.addColorStop(1, `rgba(255,235,59,0)`);
+    ctx.fillStyle = flashGrad;
+    ctx.fillRect(fx - 60, fy - 60, 120, 120);
+  }
+
+  // --- 速度箭头 ---
+  if (sim.running || sim.finished) {
+    drawVelocityArrow(cartPos.x, cartPos.y, g.theta);
+  }
+
+  // --- 运动状态标签 ---
+  if (sim.running || sim.finished) {
+    drawStateLabel(cartPos.x, cartPos.y, g.theta);
+  }
+}
+
+function drawCart(x, y, theta) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-theta);
+
+  const cw = 40, ch = 20;
+
+  // 阴影
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 4;
+
+  // 车身
+  const bodyGrad = ctx.createLinearGradient(0, -ch, 0, 0);
+  bodyGrad.addColorStop(0, '#42a5f5');
+  bodyGrad.addColorStop(1, '#1565c0');
+  ctx.fillStyle = bodyGrad;
+
+  // 圆角矩形
+  const r = 5;
+  ctx.beginPath();
+  ctx.moveTo(-cw/2 + r, -ch);
+  ctx.lineTo(cw/2 - r, -ch);
+  ctx.quadraticCurveTo(cw/2, -ch, cw/2, -ch + r);
+  ctx.lineTo(cw/2, -r);
+  ctx.quadraticCurveTo(cw/2, 0, cw/2 - r, 0);
+  ctx.lineTo(-cw/2 + r, 0);
+  ctx.quadraticCurveTo(-cw/2, 0, -cw/2, -r);
+  ctx.lineTo(-cw/2, -ch + r);
+  ctx.quadraticCurveTo(-cw/2, -ch, -cw/2 + r, -ch);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.shadowColor = 'transparent';
+
+  // 车窗
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillRect(-cw/2 + 5, -ch + 3, cw - 10, ch * 0.4);
+
+  // 车轮
+  const wheelR = 6;
+  const wheelY = 0;
+  ctx.fillStyle = '#263238';
+  ctx.beginPath(); ctx.arc(-cw/3, wheelY, wheelR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cw/3, wheelY, wheelR, 0, Math.PI * 2); ctx.fill();
+
+  // 轮毂
+  ctx.fillStyle = '#78909c';
+  const wheelAngle = (sim.time * sim.vel * 3) % (Math.PI * 2);
+  for (let wx of [-cw/3, cw/3]) {
+    ctx.beginPath();
+    ctx.arc(wx, wheelY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    // 辐条
+    ctx.strokeStyle = '#90a4ae';
+    ctx.lineWidth = 1.5;
+    for (let a = 0; a < 3; a++) {
+      const sa = wheelAngle + (a * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.moveTo(wx + Math.cos(sa) * 1, wheelY + Math.sin(sa) * 1);
+      ctx.lineTo(wx + Math.cos(sa) * (wheelR - 1.5), wheelY + Math.sin(sa) * (wheelR - 1.5));
+      ctx.stroke();
+    }
+  }
+
+  // 质量标签
+  const mass = parseFloat(massSlider.value).toFixed(1);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(mass + 'kg', 0, -ch/2 - 1);
+
+  ctx.restore();
+}
+
+function drawVelocityArrow(x, y, theta) {
+  const speed = Math.abs(sim.vel);
+  if (speed < 0.05) return;
+
+  const dir = sim.vel >= 0 ? -1 : 1;  // 上滑 vs 下滑方向（画布中）
+  const len = Math.min(speed * 12, 120);
+  const dx = dir * len * Math.cos(theta);
+  const dy = -dir * len * Math.sin(theta);
+
+  const nx = -Math.sin(theta);
+  const ny = Math.cos(theta);
+  const startX = x + nx * 30;
+  const startY = y + ny * 30;
+
+  ctx.save();
+  ctx.strokeStyle = sim.vel >= 0 ? '#69f0ae' : '#ff5252';
+  ctx.fillStyle = sim.vel >= 0 ? '#69f0ae' : '#ff5252';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(startX + dx, startY + dy);
+  ctx.stroke();
+
+  // 箭头头部
+  const headLen = 10;
+  const angle = Math.atan2(dy, dx);
+  ctx.beginPath();
+  ctx.moveTo(startX + dx, startY + dy);
+  ctx.lineTo(startX + dx - headLen * Math.cos(angle - 0.4), startY + dy - headLen * Math.sin(angle - 0.4));
+  ctx.lineTo(startX + dx - headLen * Math.cos(angle + 0.4), startY + dy - headLen * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+
+  // 速度数值
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.abs(sim.vel).toFixed(1) + ' m/s', startX + dx / 2 + ny * 16, startY + dy / 2 - nx * 16);
+
+  ctx.restore();
+}
+
+function drawStateLabel(x, y, theta) {
+  const nx = -Math.sin(theta);
+  const ny = Math.cos(theta);
+  const labelX = x + nx * 55;
+  const labelY = y + ny * 55;
+
+  let text = '';
+  let color = '#8fa4b8';
+  if (sim.finished) {
+    text = '实验结束';
+    color = '#ff8a65';
+  } else if (sim.vel > 0.01) {
+    text = '上滑中 ↑';
+    color = '#69f0ae';
+  } else if (sim.vel < -0.01) {
+    text = '下滑中 ↓';
+    color = '#ff5252';
+  } else {
+    text = '瞬间静止';
+    color = '#ffd740';
+  }
+
+  ctx.save();
+  ctx.font = 'bold 13px -apple-system, PingFang SC, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = color;
+  ctx.fillText(text, labelX, labelY);
+  ctx.restore();
+}
+
+// ========== 物理模拟 ==========
+let lastTime = null;
+let animId = null;
+
+function physicsStep(dt) {
+  if (!sim.running) return;
+
+  const p = getParams();
+  const theta = deg2rad(p.angle);
+  const mu = p.friction;
+  const e = p.restitution;
+  const m = p.mass;
+
+  // 计算加速度（沿斜面方向，正=上）
+  let acc;
+  let fGravity = m * G * Math.sin(theta);   // 重力沿斜面分量
+  let fFriction = mu * m * G * Math.cos(theta); // 摩擦力
+
+  if (sim.vel > 0.001) {
+    // 上滑：重力和摩擦力都向下
+    acc = -(G * Math.sin(theta) + mu * G * Math.cos(theta));
+    fNet_val = -(fGravity + fFriction);
+  } else if (sim.vel < -0.001) {
+    // 下滑：重力向下，摩擦力向上
+    acc = -G * Math.sin(theta) + mu * G * Math.cos(theta);
+    fNet_val = -fGravity + fFriction;
+  } else {
+    // 静止判断
+    if (G * Math.sin(theta) > mu * G * Math.cos(theta)) {
+      acc = -G * Math.sin(theta) + mu * G * Math.cos(theta);
+      fNet_val = -fGravity + fFriction;
+    } else {
+      acc = 0;
+      fNet_val = 0;
+    }
+  }
+
+  sim.acc = acc;
+
+  // 更新速度和位置（Verlet 半步）
+  sim.vel += acc * dt;
+  sim.pos += sim.vel * dt;
+  sim.time += dt;
+
+  // 碰撞底端（pos <= 0）
+  if (sim.pos <= 0) {
+    sim.pos = 0;
+    if (Math.abs(sim.vel) > 0.1) {
+      sim.vel = -sim.vel * e;  // 反弹
+      sim.bounceCount++;
+      sim.flashAlpha = 1;
+
+      // 如果反弹速度太小，停止
+      if (Math.abs(sim.vel) < 0.1) {
+        sim.vel = 0;
+        sim.running = false;
+        sim.finished = true;
+        btnStart.disabled = false;
+        btnStart.textContent = '重新实验';
+      }
+    } else {
+      sim.vel = 0;
+      sim.running = false;
+      sim.finished = true;
+      btnStart.disabled = false;
+      btnStart.textContent = '重新实验';
+    }
+  }
+
+  // 碰撞顶端（pos >= RAMP_LEN）
+  if (sim.pos >= RAMP_LEN) {
+    sim.pos = RAMP_LEN;
+    if (sim.vel > 0) {
+      sim.vel = -sim.vel * 0.3;  // 顶端轻微碰回
+    }
+  }
+
+  // 轨迹
+  const cp = posToCanvas(sim.pos);
+  sim.trail.push({ x: cp.x, y: cp.y });
+  if (sim.trail.length > 600) sim.trail.shift();
+
+  // 衰减闪光
+  sim.flashAlpha *= 0.92;
+
+  // 更新 UI 数据
+  updateData(fGravity, fFriction, fNet_val);
+}
+
+let fNet_val = 0;
+
+function updateData(fGravity, fFriction, net) {
+  dataV.textContent = Math.abs(sim.vel).toFixed(2) + ' m/s';
+  dataA.textContent = Math.abs(sim.acc).toFixed(2) + ' m/s²';
+  dataS.textContent = sim.pos.toFixed(2) + ' m';
+  dataT.textContent = sim.time.toFixed(2) + ' s';
+  dataN.textContent = sim.bounceCount;
+
+  ovV.textContent = Math.abs(sim.vel).toFixed(2);
+  ovA.textContent = Math.abs(sim.acc).toFixed(2);
+  ovT.textContent = sim.time.toFixed(2);
+
+  fGrav.textContent = fGravity.toFixed(2) + ' N';
+  fFric.textContent = fFriction.toFixed(2) + ' N';
+  fNet.textContent = Math.abs(net).toFixed(2) + ' N';
+}
+
+// ========== 动画循环 ==========
+function animate(timestamp) {
+  if (!sim.running && !sim.finished) {
+    animId = null;
+    return;
+  }
+
+  if (!sim.running) {
+    // 继续渲染衰减效果
+    sim.flashAlpha *= 0.92;
+    draw();
+    if (sim.flashAlpha > 0.01) {
+      animId = requestAnimationFrame(animate);
+    } else {
+      draw();
+      animId = null;
+    }
+    return;
+  }
+
+  if (lastTime === null) lastTime = timestamp;
+  let dt = (timestamp - lastTime) / 1000;
+  lastTime = timestamp;
+
+  // 限制最大 dt 防止跳帧
+  dt = Math.min(dt, 0.05);
+
+  // 子步进物理模拟，提高精度
+  const subSteps = 4;
+  const subDt = dt / subSteps;
+  for (let i = 0; i < subSteps; i++) {
+    physicsStep(subDt);
+    if (!sim.running) break;
+  }
+
+  draw();
+  animId = requestAnimationFrame(animate);
+}
+
+// ========== 开始 / 重置 ==========
+function startSim() {
+  const p = getParams();
+
+  sim.running = true;
+  sim.finished = false;
+  sim.time = 0;
+  sim.pos = 0;
+  sim.vel = p.v0;   // 初始速度向上
+  sim.acc = 0;
+  sim.bounceCount = 0;
+  sim.trail = [];
+  sim.flashAlpha = 0;
+  fNet_val = 0;
+
+  btnStart.disabled = true;
+  btnStart.textContent = '实验中...';
+  disableSliders(true);
+
+  lastTime = null;
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(animate);
+}
+
+function resetSim() {
+  sim.running = false;
+  sim.finished = false;
+  sim.time = 0;
+  sim.pos = 0;
+  sim.vel = 0;
+  sim.acc = 0;
+  sim.bounceCount = 0;
+  sim.trail = [];
+  sim.flashAlpha = 0;
+  fNet_val = 0;
+
+  btnStart.disabled = false;
+  btnStart.textContent = '开始实验';
+  disableSliders(false);
+
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+
+  dataV.textContent = '0.00 m/s';
+  dataA.textContent = '0.00 m/s²';
+  dataS.textContent = '0.00 m';
+  dataT.textContent = '0.00 s';
+  dataN.textContent = '0';
+  ovV.textContent = '0.00';
+  ovA.textContent = '0.00';
+  ovT.textContent = '0.00';
+  fGrav.textContent = '0.00 N';
+  fFric.textContent = '0.00 N';
+  fNet.textContent = '0.00 N';
+
+  draw();
+}
+
+function disableSliders(disabled) {
+  angleSlider.disabled = disabled;
+  massSlider.disabled = disabled;
+  fricSlider.disabled = disabled;
+  v0Slider.disabled = disabled;
+  restSlider.disabled = disabled;
+  if (disabled) {
+    [angleSlider, massSlider, fricSlider, v0Slider, restSlider].forEach(s => s.style.opacity = '0.4');
+  } else {
+    [angleSlider, massSlider, fricSlider, v0Slider, restSlider].forEach(s => s.style.opacity = '1');
+  }
+}
+
+btnStart.addEventListener('click', startSim);
+btnReset.addEventListener('click', resetSim);
+
+// 键盘快捷键
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!sim.running) startSim();
+  }
+  if (e.code === 'KeyR') {
+    e.preventDefault();
+    resetSim();
+  }
+});
+
+// ========== 初始化 ==========
+resize();
+draw();
+</script>
+</body>
+</html>
